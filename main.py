@@ -67,7 +67,7 @@ class PrototypeMD(BaseMolecularDynamic):
         return v**2 + 0.5 - q**2  + 0.5 * q**4
 
 
-md = PrototypeMD(N = 1, L = 2, q0 = np.array([7]))
+md = PrototypeMD(N = 2, L = 2, q0 = np.array([2,5]))
 N_steps = 300; dt = 0.05
 md.simulate(dt = dt, steps = N_steps)
 
