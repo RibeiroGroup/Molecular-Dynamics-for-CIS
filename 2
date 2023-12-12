@@ -1,11 +1,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-def polarization_vectors(k):
-    pass
-
 class vector_potential:
-    def __init__(self, C, k, epsilon, V = 1):
+    def __init__(self, C, k, V = 1):
         """
         class for scallar potential A
         A = sum_k C_k(t) exp(-i k.x) + c.c.
@@ -13,35 +10,19 @@ class vector_potential:
         inputs:
         + C (numpy.ndarray): array of complex values for C_k
         + k (numpy.ndarray): array of real vector k in R^3
-        + epsilon (numpy.ndarray): set of polarization vector
         Note that len(C) == len(k)
         """
         assert len(C) == len(k)
-        assert len(epsilon) == len(k)
-
-        for v in epsilon:
-            assert len(v) == 2
-
         self.C = C
         self.k = k
 
     def __call__(self,x):
         kx = np.dot(self.k, x)
-        result = np.dot(np.real(self.C), np.cos(kx)) \
-                - np.dot(np.imag(self.C), np.sin(kx))
-        return result / V**(0.5)
-
-    def curl(self,x):
-        raise Exception("To be implemented")
-
-    def div(self,x):
-        raise Exception("To be implemented")
-
-    def dot(self,x):
-        """
-        Derivative with respect with time
-        """
-        raise Exception("To be implemented")
+        print(kx)
+        result = np.dot(np.real(self.C), kx) \
+                - np.dot(np.imag(self.C), kx)
+        print(result)
+        return np.sum(result)
 
 class EMfield:
     def __init__(self, k_vectors):
@@ -58,17 +39,8 @@ k = np.array([
     [1,0,0],
     [0,1,0]
     ])
-epsilon = np.array([
-    [[0,1,0] ,[0,0,1]],
-    [[1,0,0] ,[0,0,1]]
-    ])
 
 x = np.array([0.1,0.2,0.3])
 A = vector_potential(C=C, k=k)
 
-
-
-
-
-
-
+print(A(x))
