@@ -1,6 +1,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
+from EM_field import vector_potential
+
 def A_test_case(single = False, seed = None):
     if seed: np.random.seed(seed)
     C = np.array([
@@ -32,3 +34,14 @@ def A_test_case(single = False, seed = None):
 
     return C, k, epsilon
 
+
+"""
+C, k , epsilon = A_test_case()
+
+A = vector_potential(C,k,epsilon)
+
+x = np.array([0.1, 0.2, 0.3])
+
+print(A.transverse_project(x))
+print(A.projection_mat)
+"""

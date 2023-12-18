@@ -16,14 +16,19 @@ class vector_potential:
         + epsilon (numpy.ndarray): set of polarization vector
         Note that len(C) == len(k)
         """
-        assert C.shape[0] == k.shape[0]
+        self.n_mode = 1 if len(k.shape) == 1 else len(k)
 
-        self.C = C
-        self.k = k
-        self.epsilon = epsilon
+        self.C = C.reshape(1,2) if self.n_mode == 1 else C # n_modes x 2
+        self.k = k.reshape(1,3) if self.n_mode == 1 else k # n_modes x 3
+        self.epsilon = epsilon.reshape(1,2,3) if self.n_mode == 1 \
+            else epsilon # n_modes x 2 x 3
+
         self.V = V
 
-        self.n_mode = 1 if len(k.shape) == 1 else len(k)
+       # assert C.shape[0] == k.shape[0]
+
+    def update(self, C):
+        self.C = C.reshape(1,2) if self.n_mode == 1 else C # n_modes x 2
 
     def __call__(self,x):
         kx = self.k @ x # matmul
@@ -39,8 +44,8 @@ class vector_potential:
         Ckx = self.epsilon * Ckx 
 
         result = np.sum(Ckx, axis = 0)
-        if self.n_mode > 1:
-            result = np.sum(result, axis = 0)
+        #if self.n_mode > 1:
+        result = np.sum(result, axis = 0)
 
         return result / self.V**(0.5)
 
@@ -73,16 +78,35 @@ class vector_potential:
         Ckx = Ckx.reshape(*self.epsilon.shape[:-1], -1)
         Ckx = self.epsilon * Ckx 
 
+        """
         if self.n_mode == 1:
             Ckx = np.sum(Ckx, axis = 0)
             dAdr = np.outer(Ckx, self.k )
         else:
-            Ckx = np.sum(Ckx, axis = 1)
-            dAdr = []
-            for i in range(len(Ckx)):
-                dAdr.append(np.outer(Ckx[i,:], self.k[i,:]))
-            dAdr = np.array(dAdr)
-            dAdr = np.sum(dAdr, axis = 0)
+        """
+        Ckx = np.sum(Ckx, axis = 1)
+        dAdr = []
+        for i in range(len(Ckx)):
+            dAdr.append(np.outer(Ckx[i,:], self.k[i,:]))
+        dAdr = np.array(dAdr)
+        dAdr = np.sum(dAdr, axis = 0)
 
         return dAdr
+
+    def transverse_project(self, vector):
+        try:
+            result = np.array([mat @ vector for mat in self.projection_mat])
+            return result
+        except:
+            projection_mat = []        
+
+            for k in self.k:
+                k_norm = k @ k
+                projection_mat.append(np.eye(3) -  np.outer(k,k)/k_norm)
+
+            self.projection_mat = np.array(projection_mat)
+
+            return self.transverse_project(vector)
+
+
 
