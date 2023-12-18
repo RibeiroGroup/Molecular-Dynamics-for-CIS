@@ -1,6 +1,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
+from utils import outer_along_0axis
+
 def polarization_vectors(k):
     pass
 
@@ -25,8 +27,6 @@ class vector_potential:
 
         self.V = V
 
-       # assert C.shape[0] == k.shape[0]
-
     def update(self, C):
         self.C = C.reshape(1,2) if self.n_mode == 1 else C # n_modes x 2
 
@@ -43,19 +43,21 @@ class vector_potential:
         Ckx = Ckx.reshape(*self.epsilon.shape[:-1], -1)
         Ckx = self.epsilon * Ckx 
 
-        result = np.sum(Ckx, axis = 0)
-        #if self.n_mode > 1:
-        result = np.sum(result, axis = 0)
+        result = np.sum(Ckx, axis = 1) # sum C_l [e^{ikx} e_l + c.c.] for each mode
+        result = np.sum(result, axis = 0) # sum over all mode
 
         return result / self.V**(0.5)
 
     def curl(self,x):
         raise Exception("To be implemented")
 
-    def div(self,x):
-        raise Exception("To be implemented")
+    def partial_partial_t(self,x, j_ktrans):
+        """
+        Differentiate w.r.t. to time t
+        """
+        pass
 
-    def diff_ra(self,x):
+    def partial_partial_x(self,x):
         """
         Derivative with respect to position
         The Jacobian matrix will have the form:
@@ -64,34 +66,26 @@ class vector_potential:
         dAy/drx & dAy/dry & dAy/drz  
         dAz/drx & dAz/dry & dAz/drz
 
-        Tips: dH/dr = dH/dA . dA/dr
-        where dA/dr = k*sth is this matrix
+        other formula
+        dA/dx = sum(i C_l e^(ikx) e_l + c.c.) . k^T 
         """
 
-        kx = self.k @ x
+        kx = self.k @ x # matmul
+        #copy along one axis so that kx shape match C's
         kx = np.tile(kx.reshape(-1,1),(1,2))
 
-        Ckx =  self.C * np.exp(kx * np.array(1.j))
-        Ckx -=  np.conjugate(self.C) * np.exp(kx * np.array(-1.j))
-        Ckx *= np.array(1.j)
+        #following the formula
+        Ckx = 1j * self.C * np.exp(kx * np.array(1.j))
+        Ckx -= 1j * np.conjugate(self.C) * np.exp(kx * np.array(-1.j))
 
+        #reshape to match with epsilon shape => element-wise multiplication
         Ckx = Ckx.reshape(*self.epsilon.shape[:-1], -1)
         Ckx = self.epsilon * Ckx 
 
-        """
-        if self.n_mode == 1:
-            Ckx = np.sum(Ckx, axis = 0)
-            dAdr = np.outer(Ckx, self.k )
-        else:
-        """
-        Ckx = np.sum(Ckx, axis = 1)
-        dAdr = []
-        for i in range(len(Ckx)):
-            dAdr.append(np.outer(Ckx[i,:], self.k[i,:]))
-        dAdr = np.array(dAdr)
-        dAdr = np.sum(dAdr, axis = 0)
+        Ckx = np.sum(Ckx, axis = 1) # sum C_l [e^{ikx} e_l + c.c.] for each mode
+        print(Ckx.shape)
 
-        return dAdr
+        return outer_along_0axis(Ckx, self.k)
 
     def transverse_project(self, vector):
         try:

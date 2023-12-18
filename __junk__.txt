@@ -1,0 +1,38 @@
+########### from EM_field.py >> class vector_potential ##########################
+    def gradient(self,x):
+        """
+        Derivative with respect to position
+        The Jacobian matrix will have the form:
+
+        dAx/drx & dAx/dry & dAx/drz
+        dAy/drx & dAy/dry & dAy/drz  
+        dAz/drx & dAz/dry & dAz/drz
+
+        Tips: dH/dr = dH/dA . dA/dr
+        where dA/dr = k*sth is this matrix
+        """
+
+        kx = self.k @ x
+        kx = np.tile(kx.reshape(-1,1),(1,2))
+
+        Ckx =  self.C * np.exp(kx * np.array(1.j))
+        Ckx -=  np.conjugate(self.C) * np.exp(kx * np.array(-1.j))
+        Ckx *= np.array(1.j)
+
+        Ckx = Ckx.reshape(*self.epsilon.shape[:-1], -1)
+        Ckx = self.epsilon * Ckx 
+
+        """
+        if self.n_mode == 1:
+            Ckx = np.sum(Ckx, axis = 0)
+            dAdr = np.outer(Ckx, self.k )
+        else:
+        """
+        Ckx = np.sum(Ckx, axis = 1)
+        dAdr = []
+        for i in range(len(Ckx)):
+            dAdr.append(np.outer(Ckx[i,:], self.k[i,:]))
+        dAdr = np.array(dAdr)
+        dAdr = np.sum(dAdr, axis = 0)
+
+        return dAdr
