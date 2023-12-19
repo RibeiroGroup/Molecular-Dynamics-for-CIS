@@ -34,8 +34,8 @@ def A_test_case(single = False, seed = None):
 
     return C, k, epsilon
 
-
-C, k_vec , epsilon = A_test_case(True,2020)
+"""
+C, k_vec , epsilon = A_test_case()#True,2020)
 
 A = vector_potential(C,k_vec,epsilon)
 k_vec = A.k
@@ -47,24 +47,8 @@ ra = np.random.rand(n_charge,3)
 va = np.random.rand(n_charge,3)
 qa = np.array([1,-1,1,-1,-1]).reshape(-1,1)
 
-# compute J_k for each qa and sum over 
 
-exp_ikx = np.tile(
-    np.exp(-1j * k_vec @ ra.T)[:,:,np.newaxis],
-    (1,1,3))
 
-ra_ = np.tile(ra,(n_mode,1,1))
 
-qa_ = np.tile(
-    qa[np.newaxis,:,:],
-    (n_mode, 1,3)
-    )
 
-jk = (1/(2*np.pi**1.5)) * exp_ikx * ra_ * qa_
-
-class electric_field:
-    def __init__(self, ra, va, qa):
-        pass
-
-print(ra[0])
-print(A(ra[0]))
+"""
