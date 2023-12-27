@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-from EM_field import vector_potential
+from EM_field_simple import SingleModeField
 
 def A_test_case(single = False, seed = None):
     if seed: np.random.seed(seed)
@@ -34,21 +34,27 @@ def A_test_case(single = False, seed = None):
 
     return C, k, epsilon
 
-"""
-C, k_vec , epsilon = A_test_case()#True,2020)
+np.random.seed(123)
 
-A = vector_potential(C,k_vec,epsilon)
+C = np.random.rand(2)
+k_vec = np.array([1,1,1])
+epsilon = np.array([
+    [1, -0.5, -0.5], [-0.5,-0.5,1]
+    ])
+
+A = SingleModeField(C,k_vec,epsilon)
 k_vec = A.k
-n_mode = A.n_mode
 
-np.random.seed(1010)
-n_charge = 5
-ra = np.random.rand(n_charge,3)
-va = np.random.rand(n_charge,3)
-qa = np.array([1,-1,1,-1,-1]).reshape(-1,1)
+ra = np.random.rand(3)
+va = np.random.rand(3)
+qa = 1
 
+print(A.d_dx(ra))
 
+Ax = A(ra)
 
+dA_dx = np.tile(A.k[np.newaxis,:], (3,1)) \
+    * np.tile(Ax.reshape(-1,1), (1,3))
 
+print(dA_dx)
 
-"""

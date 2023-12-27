@@ -1,0 +1,3 @@
+#CONSTANTS
+c = 1.37e2
+

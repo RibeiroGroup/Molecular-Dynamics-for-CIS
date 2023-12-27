@@ -3,10 +3,14 @@ import matplotlib.pyplot as plt
 
 from utils import outer_along_0axis
 
+"""
+! TODO: add update C function to vector_potential
+"""
+
 def polarization_vectors(k):
     pass
 
-class vector_potential:
+class MultiModeField:
     def __init__(self, C, k, epsilon, V = 1):
         """
         class for scallar potential A
@@ -18,16 +22,19 @@ class vector_potential:
         + epsilon (numpy.ndarray): set of polarization vector
         Note that len(C) == len(k)
         """
-        self.n_mode = 1 if len(k.shape) == 1 else len(k)
-
-        self.C = C.reshape(1,2) if self.n_mode == 1 else C # n_modes x 2
+        assert k.shape[-1] == 3
+        self.n_mode = 1 if len(k.shape) == 1 else k.shape[0]
         self.k = k.reshape(1,3) if self.n_mode == 1 else k # n_modes x 3
+
+        self.update(C)
+
         self.epsilon = epsilon.reshape(1,2,3) if self.n_mode == 1 \
             else epsilon # n_modes x 2 x 3
 
         self.V = V
 
     def update(self, C):
+        assert C.shape[-1] == 2
         self.C = C.reshape(1,2) if self.n_mode == 1 else C # n_modes x 2
 
     def calc_kx(self,x):
@@ -40,28 +47,31 @@ class vector_potential:
         return n_points,  kx
 
     def __call__(self,x):
+        n_points = 1 if len(x.shape) == 1 else x.shape[0]
+        # assume shape k = n_mode x 3, shape ra = n_points x 3
 
-        n_points, kx = self.calc_kx(x)
+        kx = (self.k @ x.T).reshape(self.n_mode, n_points)
+        #print("kx",kx.shape)# shape = n_mode x n_points
 
         kx = np.tile(kx[:,np.newaxis,:],(1,2,1)) #using np.tile to repeat along one axis
-        #print("kx 2",kx.shape) #shape = n_mode x 2 x n_charge
+        #print("kx 2",kx.shape) #shape = n_mode x 2 x n_points
 
         # C shape is only n_mode x 2
         C_ = np.tile(self.C[:,:,np.newaxis], (1,1,n_points))
-        #print("C_",C_.shape) # shape = n_mode x 2 x n_charge
+        #print("C_",C_.shape) # shape = n_mode x 2 x n_points
 
         ckx = C_ * np.exp(1j * kx) + np.conjugate(C_) * np.exp(-1j * kx)
-        #print("ckx",ckx.shape) # shape = n_mode x 2 x n_charge
+        #print("ckx",ckx.shape) # shape = n_mode x 2 x n_points
 
         epsilon_ = np.tile(self.epsilon[:,:,np.newaxis,:], (1,1,n_points,1))
-        #print("epsilon_",epsilon_.shape) #shape = n_mode x 2 x n_charge x 3
+        #print("epsilon_",epsilon_.shape) #shape = n_mode x 2 x n_points x 3
 
         ckx_ = np.tile(ckx[:,:,:,np.newaxis], (1,1,1,3))
-        #print("ckx_", ckx_.shape) #shape = n_mode x 2 x n_charge x 3
+        #print("ckx_", ckx_.shape) #shape = n_mode x 2 x n_points x 3
 
-        Ax = np.sum(epsilon_ * ckx_, axis = 1) # shape = n_mode x n_charge x 3
+        Ax = np.sum(epsilon_ * ckx_, axis = 1) # shape = n_mode x n_points x 3
         Ax = np.sum(Ax, axis = 0) 
-        #print(Ax.shape) # shape = n_charge x 3
+        #print(Ax.shape) # shape = n_points x 3
 
         return Ax / self.V**(-1.5)
 
@@ -155,30 +165,30 @@ class vector_potential:
 
             return self.transverse_project(vector)
 
-def electric_current(ra, va, qa, A):
-    k_vec = A.k
-    n_mode = A.n_mode
-    n_charge = 1 if len(ra.shape) == 1 else ra.shape[0]
+    def get_jk(self.ra, va, qa):
+        k_vec = self.k
+        n_mode = self..n_mode
+        n_charge = 1 if len(ra.shape) == 1 else ra.shape[0]
 
-    ra = ra.reshape(n_charge, 3)
-    va = va.reshape(n_charge, 3)
-    qa = qa.reshape(n_charge, 1)
+        ra = ra.reshape(n_charge, 3)
+        va = va.reshape(n_charge, 3)
+        qa = qa.reshape(n_charge, 1)
 
-    # compute J_k for each qa and sum over 
-    kx = (k_vec @ ra.T).reshape(n_mode, n_charge)
-    exp_ikx = np.tile(np.exp(-1j * kx)[:,:,np.newaxis],(1,1,3))
-    #print("exp_ikx",exp_ikx.shape) #shape: n_mode x n_charge x 3
+        # compute J_k for each qa and sum over 
+        kx = (k_vec @ ra.T).reshape(n_mode, n_charge)
+        exp_ikx = np.tile(np.exp(-1j * kx)[:,:,np.newaxis],(1,1,3))
+        #print("exp_ikx",exp_ikx.shape) #shape: n_mode x n_charge x 3
 
-    #va should have shape: n_charge x 3
-    va_ = np.tile(va[np.newaxis,:,:],(n_mode,1,1))
-    #print("va_",va_.shape) #shape: n_mode x n_charge x 3
+        #va should have shape: n_charge x 3
+        va_ = np.tile(va[np.newaxis,:,:],(n_mode,1,1))
+        #print("va_",va_.shape) #shape: n_mode x n_charge x 3
 
-    qa_ = np.tile(
-        qa[np.newaxis,:,:],
-        (n_mode, 1,3)
-        )
-    #print("qa_",qa_.shape)
+        qa_ = np.tile(
+            qa[np.newaxis,:,:],
+            (n_mode, 1,3)
+            )
+        #print("qa_",qa_.shape)
 
-    jk = (1/(2*np.pi**1.5)) * exp_ikx * va_ * qa_
+        jk = (1/(2*np.pi**1.5)) * exp_ikx * va_ * qa_
 
-    return jk
+        return jk
