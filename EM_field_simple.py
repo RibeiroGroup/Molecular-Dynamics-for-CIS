@@ -50,14 +50,16 @@ class SingleModeField:
     def d_dx(self,x):
         return np.einsum("i,j->ij", self.__call__(x), self.k)
 
-    def partial_partial_t(self, x):
-        C = -1j * omega * self.C
-        jk = 2 * np.pi * 1j * constants.c * self.get_jk(x) / self.omega 
+    def partial_partial_t(self, x, charge):
+        C = -1j * self.omega * self.C
+        jk = 2 * np.pi * 1j * constants.c * charge.get_jk(self) / self.omega 
 
         for i,epsilon in enumerate(self.epsilon):
             C[i] += epsilon * jk[i]
 
         return C
+
+    def project_transverse(self
 
 class ChargePoint:
     def __init__(self, m, q, r, v):
@@ -76,9 +78,9 @@ class ChargePoint:
             self.v = v
 
     def get_jk(self, A, transverse = True):
-        e_ikx = np.conjugate(A.get_exp_ikx(ra))
+        e_ikx = np.conjugate(A.get_exp_ikx(self.r))
 
-        jk = (2 * np.pi)**(-1.5) * e_ikx * qa * va
+        jk = (2 * np.pi)**(-1.5) * e_ikx * self.q * self.v
 
         if transverse: jk = A.project_transverse(jk)
 
@@ -123,9 +125,8 @@ class EMHamiltonian:
         if isinstance(A, tuple):
             self.A = SingleModeField(*A)
 
-        assert isinstance(charge_points,list) 
-        for point in charge_points: 
-            assert isinstance(point,ChargePoint)
+        assert isinstance(charge_points,ChargeCluster) \
+            or isinstance(charge_points, ChargePoint)
 
         self.charge_points = charge_points
     

@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from utils import outer_along_0axis
-
+import constants
 """
 ! TODO: add update C function to vector_potential
 """
@@ -32,6 +32,8 @@ class MultiModeField:
             else epsilon # n_modes x 2 x 3
 
         self.V = V
+
+        self.omega = constants.c * (self.k @ self.k.T)
 
     def update(self, C):
         assert C.shape[-1] == 2
@@ -165,6 +167,7 @@ class MultiModeField:
 
             return self.transverse_project(vector)
 
+"""
     def get_jk(self.ra, va, qa):
         k_vec = self.k
         n_mode = self..n_mode
@@ -192,3 +195,4 @@ class MultiModeField:
         jk = (1/(2*np.pi**1.5)) * exp_ikx * va_ * qa_
 
         return jk
+"""
