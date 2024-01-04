@@ -33,7 +33,7 @@ class MultiModeField:
 
         self.V = V
 
-        self.omega = constants.c * (self.k @ self.k.T)
+        self.omega = constants.c * np.sqrt(self.k @ self.k.T)
 
     def update(self, C):
         assert C.shape[-1] == 2
