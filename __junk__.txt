@@ -67,3 +67,42 @@ def f(ra, va, C):
     return - 1j * omega * C + \
         np.einsum('ijk,kj->ik', np.tile(jk[:,:,np.newaxis],(1,1,2)), epsilon)
 
+##############################################################################################
+class EquationOfMotion:
+    def __init__(self, q,  k_vec, epsilon):
+        self.q = q
+        self.n_points = len(q)
+
+        self.k_vec = k_vec
+
+        self.epsilon = epsilon
+
+    def compose_state_vector(self, C, r, v):
+        assert len(r) == self.n_points and len(v) == self.n_points
+        r = np.hstack(r)
+        v = np.hstack(v)
+        return np.hstack([C, v, r])
+
+    def decompose_state_vector(self,state_vector):
+        C = state_vector[0:2]
+        v = state_vector[2:2+self.n_points * 3].reshape(-1,3)
+        r = state_vector[2+self.n_points * 3:].reshape(-1,3)
+        return C,v,r
+
+    def __call__(self, state_vector):
+        C,v,r = self.decompose_state_vector(state_vector)
+        C_dot = dot_C(
+            q = self.q, 
+            k_vec = self.k_vec, 
+            epsilon = self.epsilon,
+            C = C, r = r, v = v
+        )
+        ma = compute_force(
+            q = self.q, 
+            k_vec = self.k_vec, 
+            epsilon = self.epsilon,
+            C = C, r = r, v = v
+        )
+        v.reshape(
+        return np.hstack([C_dot, ma, v])
+        
