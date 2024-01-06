@@ -10,7 +10,7 @@ import constants
 
 np.random.seed(2024)
 # FIELD SPECS
-k_ = 2 * np.pi / (500e-9 / constants.a0)
+k_ = 2 * np.pi / (700e-9 / constants.a0)
 A = MultiModeField(
     C= (np.random.rand(2) + 1j * np.random.rand(2)),
     k=np.array([k_,0,0]),
@@ -25,7 +25,7 @@ alpha = ChargePoint(
         )
 
 beta = ChargePoint(
-        m = 1, q = -1, 
+        m = 1, q = 1, 
         r = np.random.rand(3), # np.zeros(3), # 
         v = np.random.rand(3), # np.zeros(3), # 
         )
@@ -120,7 +120,7 @@ k_vec = deepcopy(A.k[0])
 print("k = ",k_vec)
 epsilon = np.array(A.epsilon[0])
 print("epsilon = ",epsilon)
-h = 1e-4
+h = 1e-3
 print("h = ", h)
 
 print("### Initial charge point parameters value ###")
@@ -187,7 +187,7 @@ for i in range(int(5e4+1)):
         print("H_em = ",H_em)
         print("total H = ",H_mat + H_em)
         print("delta H_em / delta H_mat = ", 
-            (H_em - em_H_list[-2]) / (H_mat - mat_H_list[-2]) )
+            (em_H_list[-2] - H_em)/ (H_mat - mat_H_list[-2]) )
 
 
 fig, ax = plt.subplots(3)
