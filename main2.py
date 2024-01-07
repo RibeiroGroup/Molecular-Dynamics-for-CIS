@@ -1,3 +1,4 @@
+import pickle
 from copy import deepcopy
 
 import numpy as np
@@ -48,7 +49,7 @@ def dot_C(q, r, v, k_vec, C, epsilon):
     return -1j * omega * C + \
         (2 * np.pi * 1j / k) * proj_jk_transv
 
-def compute_force(q, r, v, k_vec, C, epsilon):
+def compute_transv_force(q, r, v, k_vec, C, epsilon):
     assert len(q) == len(v) and len(v) == len(r)
     C_dot = dot_C(q,r,v,k_vec,C,epsilon)
 
@@ -85,29 +86,48 @@ def compute_force(q, r, v, k_vec, C, epsilon):
 
         _ma_ *= q[j] / constants.c
 
-       # """
-        for l, rl in enumerate(r):
-            if l == j: continue
-            d = np.sqrt(np.sum( (r[l] - r[j])**2 ))
-            _ma_ += 0.5 * q[j] * q[l] * (r[j] - r[l] ) / d**3
-        #"""
-
         ma_list.append(np.real(_ma_))
 
     return np.array(ma_list)
 
-def compute_Hmat(q,r,v):
+def compute_long_force(q, r, v, k_vec, C, epsilon):
+    ma_list = []
+    for j, rj in enumerate(r):
+        _ma_ = np.zeros(3) + 1.j * np.zeros(3)
+        for l, rl in enumerate(r):
+            if l == j: continue
+            d = np.sqrt(np.sum( (r[l] - r[j])**2 ))
+            _ma_ += 0.5 * q[j] * q[l] * (r[j] - r[l] ) / d**3
+
+        ma_list.append(_ma_)
+
+    return np.array(ma_list)
+
+def compute_force(q, r, v, k_vec, C, epsilon):
+    F_transv = compute_transv_force(q, r, v, k_vec, C, epsilon)
+    F_long = compute_long_force(q, r, v, k_vec, C, epsilon)
+    return F_transv + F_long
+
+def compute_Hmat_transv(q,r,v):
     K = 0
     for i, vi in enumerate(v):
         K += 0.5 * vi @ vi.T
-        #"""
+    return K
+
+def compute_Hmat_long(q,r,v):
+    K = 0
+    for i, vi in enumerate(v):
         if i == len(v) - 1: continue
         for j in range(len(v)):
             if i == j: continue
             d = np.sqrt( np.sum( (r[i] - r[j])**2 ) )
             K += 0.5 * q[i] * q[j] / d
-        #"""
     return K
+
+def compute_Hmat(q,r,v):
+    Hmat_transv = compute_Hmat_transv(q,r,v)
+    Hmat_long = compute_Hmat_long(q,r,v)
+    return Hmat_long + Hmat_transv
 
 def compute_Hem(k_vec,C):
     return (2 * np.pi)**-1 * (k_vec @ k_vec.T) \
@@ -140,7 +160,10 @@ mat_H_list = [compute_Hmat(r=r,v=v,q=q)]
 H_list = [compute_Hem(k_vec, C) + compute_Hmat(r=r,v=v,q=q)]
 steps_list = [0]
 
-for i in range(int(5e4+1)):
+trajectory = {"r":[r], "v":[v]}
+hamiltonian = {"em":[compute_Hem(k_vec, C)], "mat":[compute_Hmat(r=r,v=v,q=q)]}
+
+for i in range(int(1e4+1)):
     k1c = dot_C(
         q=q, r=r, v=v, C=C, k_vec=k_vec, epsilon=epsilon)
     k1v = compute_force(
@@ -177,6 +200,11 @@ for i in range(int(5e4+1)):
 
     H_list.append(H_mat + H_em)
 
+    trajectory["r"].append(r)
+    trajectory["v"].append(v)
+    hamiltonian["em"].append(H_em)
+    hamiltonian["mat"].append(H_mat)
+
     steps_list.append(i)
     if i % 1e3 == 0:
         print("Step {}".format(i+1))
@@ -201,4 +229,8 @@ ax[2].set_ylim(np.array([-0.5,0.5]) + np.mean(H_list))
 
 fig.savefig("result_plot\\particle_field_energy.jpeg",dpi=600)
 
+with open("result_plot\\trajectory.pkl","wb") as handle:
+    pickle.dump(trajectory,handle)
 
+with open("result_plot\\hamiltonian.pkl","wb") as handle:
+    pickle.dump(hamiltonian,handle)
