@@ -140,7 +140,7 @@ k_vec = deepcopy(A.k[0])
 print("k = ",k_vec)
 epsilon = np.array(A.epsilon[0])
 print("epsilon = ",epsilon)
-h = 1e-3
+h = 1e-2
 print("h = ", h)
 
 print("### Initial charge point parameters value ###")
@@ -163,7 +163,7 @@ steps_list = [0]
 trajectory = {"r":[r], "v":[v]}
 hamiltonian = {"em":[compute_Hem(k_vec, C)], "mat":[compute_Hmat(r=r,v=v,q=q)]}
 
-for i in range(int(1e4+1)):
+for i in range(int(1e3+1)):
     k1c = dot_C(
         q=q, r=r, v=v, C=C, k_vec=k_vec, epsilon=epsilon)
     k1v = compute_force(
@@ -206,7 +206,7 @@ for i in range(int(1e4+1)):
     hamiltonian["mat"].append(H_mat)
 
     steps_list.append(i)
-    if i % 1e3 == 0:
+    if i % 1e2 == 0:
         print("Step {}".format(i+1))
         print("r = ",r)
         print("v = ",v)
