@@ -20,7 +20,7 @@ A = MultiModeField(
 
 #PARTICLE SPECS 
 alpha = ChargePoint(
-        m = 1, q = 1, 
+        m = 1, q = -1, 
         r = np.random.rand(3), # np.zeros(3), #
         v = np.random.rand(3), # np.zeros(3), # 
         )
@@ -40,7 +40,7 @@ def dot_C(q, r, v, k_vec, C, epsilon):
 
     jk = 0
     for i,qi in enumerate(q):
-        jk += np.exp(-1j * k_vec @ r[i]) * qi * v[i] # * (1 * np.pi)**(-1.5)
+        jk += np.exp(-1j * k_vec @ r[i]) * qi * v[i] # * (2 * np.pi)**(-1.5)
 
     jk_transv = (np.eye(3) - np.outer(k_vec, k_vec) / (k**2)) @ jk
     proj_jk_transv = np.array([
@@ -103,6 +103,9 @@ def compute_long_force(q, r, v, k_vec, C, epsilon):
 
     return np.array(ma_list)
 
+def compute_morse_force():
+    pass
+
 def compute_oscillator_force(r, k_const):
     ma = []
     for ri in r:
@@ -161,23 +164,26 @@ k_vec = deepcopy(A.k[0])
 print("k = ",k_vec)
 epsilon = np.array(A.epsilon[0])
 print("epsilon = ",epsilon)
-h = 5e-2
+h = 1e-2
 print("h = ", h)
 
 print("### Initial charge point parameters value ###")
-q = [beta.q,]# alpha.q]
+q = [beta.q, alpha.q]
 print("q = ",q)
-r = np.vstack([beta.r])#, alpha.r])
+r = np.vstack([beta.r, alpha.r])
 r = r.reshape(-1,3)
 print("r = ",r)
-v = np.vstack([beta.v])#, alpha.v])
+v = np.vstack([beta.v, alpha.v])
 v = v.reshape(-1,3)
 print("v = ",v)
 
 print("############# others #############")
 
-k_const = 1
-print("k_const",k_const)
+box_dimension = np.array([4]*3)
+print("box dimension:", box_dimension)
+
+k_const = None
+print("oscillator constant k_const",k_const)
 
 print("#############################################")
 
@@ -195,7 +201,7 @@ trajectory = {"initial":{"q":q,"r":r,"v":v,"k_const":k_const},
         "r":[r], "v":[v]}
 hamiltonian = {"em":[Hem], "mat":[Hmat]}
 
-for i in range(int(3e2+1)):
+for i in range(int(7e2+1)):
     k1c = dot_C(
         q=q, r=r, v=v, C=C, k_vec=k_vec, epsilon=epsilon)
     k1v = compute_force(
@@ -223,6 +229,12 @@ for i in range(int(3e2+1)):
     r = r + (h/6) * (k1r + 2*k2r + 2*k3r + k4r)
     v = v + (h/6) * (k1v + 2*k2v + 2*k3v + k4v)
     C = C + (h/6) * (k1c + 2*k2c + 2*k3c + k4c)
+
+    """
+    # Boundary condition: particle cross the left boundary will appear on the other side
+    r = np.where(r > box_dimension/2, r - box_dimension, r)
+    r = np.where(r < -box_dimension/2, box_dimension - r, r)
+    """
 
     H_em, H_mat = compute_H(
         q=q,r=r,v=v,k_vec=k_vec,C=C,epsilon=epsilon,k_const=k_const)
@@ -259,7 +271,7 @@ ax[1].plot(steps_list, mat_H_list)
 ax[1].set_ylabel(r"$H_{matter}$")
 
 ax[2].plot(steps_list, H_list)
-ax[2].set_ylim(np.array([-0.5,0.5]) + np.mean(H_list))
+#ax[2].set_ylim(np.array([-0.5,0.5]) + np.mean(H_list))
 ax[2].set_xlabel("Time steps")
 ax[2].set_ylabel(r"$H_{total}$")
 
