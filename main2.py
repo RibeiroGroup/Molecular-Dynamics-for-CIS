@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 
 from EM_field import MultiModeField
 from Charge import ChargePoint, ChargeCluster
+from simpleForceField import MorsePotential, compute_Morse_force, compute_Hmorse
 
 import constants
 
@@ -113,22 +114,6 @@ def compute_oscillator_force(r, k_const):
         ma.append( - k_const * ri)
     return np.array(ma)
 
-def compute_morse_force(r):
-    De = (1495 / 4.35975e-18) / 6.023e23
-    Re = (3.5e-10) / 5.29177e-11
-    a = 1/ ( (1/3 * 1e-10) / 5.29177e-11)
-    ma_list = []
-    for i,ri in enumerate(r):
-        ma = np.zeros(3)
-        for j,rj in enumerate(r):
-            if i == j: continue 
-            Rij = np.sqrt(np.sum((r[i] - r[j])**2))
-            ma += - De * a * (np.exp(-a*(Rij-Re)) - np.exp(-2*a*(Rij-Re))) \
-                *(r[i] - r[j]) / (Rij)
-        ma_list.append(ma)
-
-    return np.array(ma_list)
-
 #####################################################
 ### COMPUTE HAMILTONIAN #############################
 #####################################################
@@ -159,40 +144,29 @@ def compute_H_oscillator(r,k_const):
         K += 0.5 * k_const * (ri @ ri.T).item()
     return K
 
-def compute_H_morse(r):
-    De = 1.495 / 4.35975e-18 / 6.023e23
-    Re = (3.5e-10) / 5.29177e-11
-    a = 1/ ( (1/3 * 1e-10) / 5.29177e-11)
-    K = 0
-    for i in range(len(r)):
-        for j in range(len(r)):
-            if i == j: continue 
-            Rij = np.sqrt(np.sum((r[i] - r[j])**2))
-            K += De * (1 - np.exp(-a * (Rij - Re)))**2
-    return K / 2
-
 #####################################################
 ### WRAPPER #########################################
 #####################################################
 
-def compute_force(q, r, v, k_vec, C, epsilon, k_const=None):
+def compute_force(q, r, v, k_vec, C, epsilon, k_const=None, potential=None):
     F_transv = compute_transv_force(q, r, v, k_vec, C, epsilon)
     #F_long = compute_long_force(q, r, v, k_vec, C, epsilon)
-    F_long = compute_morse_force(r)
-    print(F_long)
+    if potential:
+        F_long = compute_Morse_force(r,potential)
     F_oscillator = compute_oscillator_force(r,k_const) \
         if k_const!=None else 0
     return F_transv + F_long + F_oscillator
 
-def compute_Hmat(q,r,v):
+def compute_Hmat(q,r,v,potential=None):
     Hmat_transv = compute_Hmat_transv(q,r,v)
     #Hmat_long = compute_Hmat_long(q,r,v)
-    Hmat_long = compute_H_morse(r)
+    if potential:
+        Hmat_long = compute_Hmorse(r,potential)
     return Hmat_long + Hmat_transv
 
-def compute_H(q, r, v, k_vec, C, epsilon, k_const=None):
+def compute_H(q, r, v, k_vec, C, epsilon, k_const=None,potential=None):
     Hem = compute_Hem(k_vec, C)
-    Hmat = compute_Hmat(q, r, v)
+    Hmat = compute_Hmat(q, r, v, potential)
     if k_const != None:
         Hmat += compute_H_oscillator(r,k_const)
     return Hem, Hmat
@@ -204,7 +178,7 @@ k_vec = deepcopy(A.k[0])
 print("k = ",k_vec)
 epsilon = np.array(A.epsilon[0])
 print("epsilon = ",epsilon)
-h = 1e-2
+h = 1e-4
 print("h = ", h)
 
 print("### Initial charge point parameters value ###")
@@ -225,10 +199,17 @@ print("box dimension:", box_dimension)
 k_const = None
 print("oscillator constant k_const",k_const)
 
+De = 1495 / 4.35975e-18 / 6.023e23
+Re = (3.5e-10) / 5.29177e-11
+a = 1/ ( (1/3 * 1e-10) / 5.29177e-11)
+potential = MorsePotential(
+        De=De, Re=Re, a=a
+        )
+
 print("#############################################")
 
 Hem, Hmat = compute_H(
-        q=q,r=r,v=v,k_vec=k_vec,C=C,epsilon=epsilon,k_const=k_const)
+        q=q,r=r,v=v,k_vec=k_vec,C=C,epsilon=epsilon,k_const=k_const,potential=potential)
 
 print("Hamiltonian: {}(field) + {}(matter)".format(Hem,Hmat))
 
@@ -241,29 +222,33 @@ trajectory = {"initial":{"q":q,"r":r,"v":v,"k_const":k_const},
         "r":[r], "v":[v]}
 hamiltonian = {"em":[Hem], "mat":[Hmat]}
 
-for i in range(int(1e3+1)):
+for i in range(int(1e5+1)):
     k1c = dot_C(
         q=q, r=r, v=v, C=C, k_vec=k_vec, epsilon=epsilon)
     k1v = compute_force(
-        q=q, r=r, v=v, C=C, k_vec=k_vec, epsilon=epsilon,k_const=k_const)
+        q=q, r=r, v=v, C=C, k_vec=k_vec, epsilon=epsilon,
+        k_const=k_const,potential=potential)
     k1r = v
 
     k2c = dot_C(
         q=q, r=r+k1r*h/2, v=v+k1v*h/2, C=C+k1c*h/2, k_vec=k_vec, epsilon=epsilon)
     k2v = compute_force(
-        q=q, r=r+k1r*h/2, v=v+k1v*h/2, C=C+k1c*h/2, k_vec=k_vec, epsilon=epsilon,k_const=k_const)
+        q=q, r=r+k1r*h/2, v=v+k1v*h/2, C=C+k1c*h/2, k_vec=k_vec, epsilon=epsilon,
+        k_const=k_const,potential=potential)
     k2r = v + k1v*h/2
 
     k3c = dot_C(
         q=q, r=r+k2r*h/2, v=v+k2v*h/2, C=C+k2c*h/2, k_vec=k_vec, epsilon=epsilon)
     k3v = compute_force(
-        q=q, r=r+k2r*h/2, v=v+k2v*h/2, C=C+k2c*h/2, k_vec=k_vec, epsilon=epsilon,k_const=k_const)
+        q=q, r=r+k2r*h/2, v=v+k2v*h/2, C=C+k2c*h/2, k_vec=k_vec, epsilon=epsilon,
+        k_const=k_const,potential=potential)
     k3r = v + k2v*h/2
 
     k4c = dot_C(
         q=q, r=r+k3r*h, v=v+k3v*h, C=C+k3c*h, k_vec=k_vec, epsilon=epsilon)
     k4v = compute_force(
-        q=q, r=r+k3r*h, v=v+k3v*h, C=C+k3c*h, k_vec=k_vec, epsilon=epsilon,k_const=k_const)
+        q=q, r=r+k3r*h, v=v+k3v*h, C=C+k3c*h, k_vec=k_vec, epsilon=epsilon,
+        k_const=k_const,potential=potential)
     k4r = v + k3v*h
 
     r = r + (h/6) * (k1r + 2*k2r + 2*k3r + k4r)
@@ -277,7 +262,7 @@ for i in range(int(1e3+1)):
     """
 
     H_em, H_mat = compute_H(
-        q=q,r=r,v=v,k_vec=k_vec,C=C,epsilon=epsilon,k_const=k_const)
+        q=q,r=r,v=v,k_vec=k_vec,C=C,epsilon=epsilon,k_const=k_const,potential=potential)
 
     mat_H_list.append(H_mat)
     em_H_list.append(H_em)
