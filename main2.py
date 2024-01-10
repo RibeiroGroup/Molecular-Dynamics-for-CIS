@@ -21,7 +21,7 @@ A = MultiModeField(
 #PARTICLE SPECS 
 alpha = ChargePoint(
         m = 1, q = -1, 
-        r = np.random.rand(3), # np.zeros(3), #
+        r = np.array([7,0,0]), # np.random.rand(3)*3e0, # np.zeros(3), #
         v = np.random.rand(3), # np.zeros(3), # 
         )
 
@@ -48,6 +48,10 @@ def dot_C(q, r, v, k_vec, C, epsilon):
 
     return -1j * omega * C + \
         (2 * np.pi * 1j / k) * proj_jk_transv
+
+#####################################################
+### COMPUTE FORCE ###################################
+#####################################################
 
 def compute_transv_force(q, r, v, k_vec, C, epsilon):
     assert len(q) == len(v) and len(v) == len(r)
@@ -103,14 +107,31 @@ def compute_long_force(q, r, v, k_vec, C, epsilon):
 
     return np.array(ma_list)
 
-def compute_morse_force():
-    pass
-
 def compute_oscillator_force(r, k_const):
     ma = []
     for ri in r:
         ma.append( - k_const * ri)
     return np.array(ma)
+
+def compute_morse_force(r):
+    De = (1495 / 4.35975e-18) / 6.023e23
+    Re = (3.5e-10) / 5.29177e-11
+    a = 1/ ( (1/3 * 1e-10) / 5.29177e-11)
+    ma_list = []
+    for i,ri in enumerate(r):
+        ma = np.zeros(3)
+        for j,rj in enumerate(r):
+            if i == j: continue 
+            Rij = np.sqrt(np.sum((r[i] - r[j])**2))
+            ma += - De * a * (np.exp(-a*(Rij-Re)) - np.exp(-2*a*(Rij-Re))) \
+                *(r[i] - r[j]) / (Rij)
+        ma_list.append(ma)
+
+    return np.array(ma_list)
+
+#####################################################
+### COMPUTE HAMILTONIAN #############################
+#####################################################
 
 def compute_Hmat_transv(q,r,v):
     K = 0
@@ -128,11 +149,6 @@ def compute_Hmat_long(q,r,v):
             K += 0.5 * q[i] * q[j] / d
     return K
 
-def compute_Hmat(q,r,v):
-    Hmat_transv = compute_Hmat_transv(q,r,v)
-    Hmat_long = compute_Hmat_long(q,r,v)
-    return Hmat_long + Hmat_transv
-
 def compute_Hem(k_vec,C):
     return (2 * np.pi)**-1 * (k_vec @ k_vec.T) \
         * (C @ np.conjugate(C).T) 
@@ -143,12 +159,36 @@ def compute_H_oscillator(r,k_const):
         K += 0.5 * k_const * (ri @ ri.T).item()
     return K
 
+def compute_H_morse(r):
+    De = 1.495 / 4.35975e-18 / 6.023e23
+    Re = (3.5e-10) / 5.29177e-11
+    a = 1/ ( (1/3 * 1e-10) / 5.29177e-11)
+    K = 0
+    for i in range(len(r)):
+        for j in range(len(r)):
+            if i == j: continue 
+            Rij = np.sqrt(np.sum((r[i] - r[j])**2))
+            K += De * (1 - np.exp(-a * (Rij - Re)))**2
+    return K / 2
+
+#####################################################
+### WRAPPER #########################################
+#####################################################
+
 def compute_force(q, r, v, k_vec, C, epsilon, k_const=None):
     F_transv = compute_transv_force(q, r, v, k_vec, C, epsilon)
-    F_long = compute_long_force(q, r, v, k_vec, C, epsilon)
+    #F_long = compute_long_force(q, r, v, k_vec, C, epsilon)
+    F_long = compute_morse_force(r)
+    print(F_long)
     F_oscillator = compute_oscillator_force(r,k_const) \
         if k_const!=None else 0
     return F_transv + F_long + F_oscillator
+
+def compute_Hmat(q,r,v):
+    Hmat_transv = compute_Hmat_transv(q,r,v)
+    #Hmat_long = compute_Hmat_long(q,r,v)
+    Hmat_long = compute_H_morse(r)
+    return Hmat_long + Hmat_transv
 
 def compute_H(q, r, v, k_vec, C, epsilon, k_const=None):
     Hem = compute_Hem(k_vec, C)
@@ -201,7 +241,7 @@ trajectory = {"initial":{"q":q,"r":r,"v":v,"k_const":k_const},
         "r":[r], "v":[v]}
 hamiltonian = {"em":[Hem], "mat":[Hmat]}
 
-for i in range(int(7e2+1)):
+for i in range(int(1e3+1)):
     k1c = dot_C(
         q=q, r=r, v=v, C=C, k_vec=k_vec, epsilon=epsilon)
     k1v = compute_force(
@@ -250,7 +290,7 @@ for i in range(int(7e2+1)):
     hamiltonian["mat"].append(H_mat)
 
     steps_list.append(i)
-    if i % 1e1 == 0:
+    if i % 1e0 == 0:
         print("Step {}".format(i+1))
         print("r = ",r)
         print("v = ",v)
