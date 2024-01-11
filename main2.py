@@ -21,15 +21,15 @@ A = MultiModeField(
 
 #PARTICLE SPECS 
 alpha = ChargePoint(
-        m = 1, q = -1, 
-        r = np.array([7,0,0]), # np.random.rand(3)*3e0, # np.zeros(3), #
-        v = np.random.rand(3), # np.zeros(3), # 
+        m = 1, q = 1, 
+        r = np.ones(3) * 7,
+        v = - np.ones(3) # np.random.rand(3), # np.zeros(3), # 
         )
 
 beta = ChargePoint(
         m = 1, q = 1, 
         r = np.zeros(3), # np.random.rand(3), #
-        v = np.random.rand(3), # np.zeros(3) #
+        v = np.ones(3)
         )
 
 # EXPLICIT CALCULATION
@@ -178,7 +178,7 @@ k_vec = deepcopy(A.k[0])
 print("k = ",k_vec)
 epsilon = np.array(A.epsilon[0])
 print("epsilon = ",epsilon)
-h = 1e-4
+h = 5e-3
 print("h = ", h)
 
 print("### Initial charge point parameters value ###")
@@ -222,7 +222,7 @@ trajectory = {"initial":{"q":q,"r":r,"v":v,"k_const":k_const},
         "r":[r], "v":[v]}
 hamiltonian = {"em":[Hem], "mat":[Hmat]}
 
-for i in range(int(1e5+1)):
+for i in range(int(20e3+1)):
     k1c = dot_C(
         q=q, r=r, v=v, C=C, k_vec=k_vec, epsilon=epsilon)
     k1v = compute_force(
@@ -275,7 +275,7 @@ for i in range(int(1e5+1)):
     hamiltonian["mat"].append(H_mat)
 
     steps_list.append(i)
-    if i % 1e0 == 0:
+    if i % 1e2 == 0:
         print("Step {}".format(i+1))
         print("r = ",r)
         print("v = ",v)
@@ -296,7 +296,7 @@ ax[1].plot(steps_list, mat_H_list)
 ax[1].set_ylabel(r"$H_{matter}$")
 
 ax[2].plot(steps_list, H_list)
-#ax[2].set_ylim(np.array([-0.5,0.5]) + np.mean(H_list))
+ax[2].set_ylim(np.array([-1e-2,1e-2]) + np.mean(H_list))
 ax[2].set_xlabel("Time steps")
 ax[2].set_ylabel(r"$H_{total}$")
 
