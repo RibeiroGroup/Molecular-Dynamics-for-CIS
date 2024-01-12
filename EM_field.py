@@ -77,9 +77,6 @@ class MultiModeField:
 
         return Ax / self.V**(-1.5)
 
-    def curl(self,x):
-        raise Exception("To be implemented")
-
     def partial_partial_t(self, x, C_dot):
         """
         Partial differentiate of field A w.r.t. to time t
