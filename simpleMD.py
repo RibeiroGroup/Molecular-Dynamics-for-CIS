@@ -18,7 +18,7 @@ def dot_C(q, r, v, k_vec, C, epsilon):
 
     jk = 0
     for i,qi in enumerate(q):
-        jk += np.exp(-1j * k_vec @ r[i]) * qi * v[i] # * (2 * np.pi)**(-1.5)
+        jk += np.exp(-1j * k_vec @ r[i]) * qi * v[i]# * (2 * np.pi)**(-1.5)
 
     jk_transv = (np.eye(3) - np.outer(k_vec, k_vec) / (k**2)) @ jk
     proj_jk_transv = np.array([

@@ -30,7 +30,7 @@ alpha = ChargePoint(
 beta = ChargePoint(
         m = 1, q = -1, 
         r = np.zeros(3), # np.random.rand(3), #
-        v = np.zeros(3)
+        v = np.random.rand(3)
         )
 
 print("####### Initial field parameters value #######")
@@ -44,12 +44,12 @@ h = 1e-2
 print("h = ", h)
 
 print("### Initial charge point parameters value ###")
-q = [beta.q, alpha.q]
+q = [beta.q]#, alpha.q]
 print("q = ",q)
-r = np.vstack([beta.r, alpha.r])
+r = np.vstack([beta.r])#, alpha.r])
 r = r.reshape(-1,3)
 print("r = ",r)
-v = np.vstack([beta.v, alpha.v])
+v = np.vstack([beta.v])#, alpha.v])
 v = v.reshape(-1,3)
 print("v = ",v)
 
@@ -82,7 +82,7 @@ trajectory = {"initial":{"q":q,"r":r,"v":v,"k_const":k_const},
         "r":[r], "v":[v]}
 hamiltonian = {"em":[Hem], "mat":[Hmat]}
 
-for i in range(int(5e3+1)):
+for i in range(int(2e3+1)):
     k1c = dot_C(
         q=q, r=r, v=v, C=C, k_vec=k_vec, epsilon=epsilon)
     k1v = compute_force(

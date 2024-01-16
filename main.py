@@ -42,24 +42,3 @@ time_step = 500
 # 
 
 
-n_points = 10000
-dist_mat_calc = DistantMatrix(n_points)
-
-np_time = 0
-py_time = 0
-
-ra = np.random.rand(n_points,3)
-
-start = time.time()
-dist_mat = dist_mat_calc(ra)
-np_time += time.time() - start
-
-start = time.time()
-dist_mat_ = verify_distant_matrix(ra)
-py_time += time.time() - start
-
-if np.any(dist_mat - dist_mat_ > 1e-5):
-    raise Exception
-
-print(np_time, py_time)
-
