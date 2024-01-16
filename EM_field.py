@@ -1,7 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-from utils import outer_along_0axis
 import constants
 """
 ! TODO: add update C function to vector_potential

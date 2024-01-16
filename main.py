@@ -1,3 +1,4 @@
+import time
 from copy import deepcopy
 
 import numpy as np
@@ -5,6 +6,8 @@ import matplotlib.pyplot as plt
 
 from EM_field import MultiModeField
 import constants
+
+from utils import compute_dist_mat1, verify_distant_matrix
 
 np.random.seed(2023)
 
@@ -25,9 +28,10 @@ omega = constants.c * k
 A = MultiModeField(C=C0, k=k_vec, epsilon=epsilon)
 
 # particle with random position and velocity
-ra0 = np.random.rand(3) # np.random.rand() * np.array([1,0,0]) #
-va0 = np.random.rand(3) # np.random.rand() * np.array([1,1,1]) #
-qa = np.array([1])
+n_points = 5
+ra = np.random.rand(n_points,3)
+va = np.random.rand(n_points,3)
+qa = np.array([1] * n_points)
 
 # choosing time step
 
@@ -35,16 +39,27 @@ h = 0.001
 
 time_step = 500
 
-###################
-n_points = 1
+# 
 
-ra_list = [ra0]
-va_list = [va0]
-C_list = [A.C]
-energy_list = []
 
-C = C_list[-1]
-ra = ra_list[-1]
-va = va_list[-1]
+n_points = 10000
+dist_mat_calc = DistantMatrix(n_points)
 
-print(A.C)
+np_time = 0
+py_time = 0
+
+ra = np.random.rand(n_points,3)
+
+start = time.time()
+dist_mat = dist_mat_calc(ra)
+np_time += time.time() - start
+
+start = time.time()
+dist_mat_ = verify_distant_matrix(ra)
+py_time += time.time() - start
+
+if np.any(dist_mat - dist_mat_ > 1e-5):
+    raise Exception
+
+print(np_time, py_time)
+

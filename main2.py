@@ -23,14 +23,14 @@ A = MultiModeField(
 #PARTICLE SPECS 
 alpha = ChargePoint(
         m = 1, q = 1, 
-        r = np.ones(3) * 7,
-        v = - np.ones(3) # np.random.rand(3), # np.zeros(3), # 
+        r = np.random.rand(3),
+        v = np.random.rand(3), # np.zeros(3), # 
         )
 
 beta = ChargePoint(
-        m = 1, q = 1, 
+        m = 1, q = -1, 
         r = np.zeros(3), # np.random.rand(3), #
-        v = np.ones(3)
+        v = np.zeros(3)
         )
 
 print("####### Initial field parameters value #######")
@@ -40,7 +40,7 @@ k_vec = deepcopy(A.k[0])
 print("k = ",k_vec)
 epsilon = np.array(A.epsilon[0])
 print("epsilon = ",epsilon)
-h = 5e-3
+h = 1e-2
 print("h = ", h)
 
 print("### Initial charge point parameters value ###")
@@ -64,9 +64,7 @@ print("oscillator constant k_const",k_const)
 De = 1495 / 4.35975e-18 / 6.023e23
 Re = (3.5e-10) / 5.29177e-11
 a = 1/ ( (1/3 * 1e-10) / 5.29177e-11)
-potential = MorsePotential(
-        De=De, Re=Re, a=a
-        )
+potential = None # MorsePotential(De=De, Re=Re, a=a)
 
 print("#############################################")
 

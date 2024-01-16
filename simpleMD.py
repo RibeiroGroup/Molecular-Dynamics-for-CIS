@@ -79,7 +79,7 @@ def compute_long_force(q, r, v, k_vec, C, epsilon):
         for l, rl in enumerate(r):
             if l == j: continue
             d = np.sqrt(np.sum( (r[l] - r[j])**2 ))
-            _ma_ += 0.5 * q[j] * q[l] * (r[j] - r[l] ) / d**3
+            _ma_ +=  q[j] * q[l] * (r[j] - r[l] ) / d**3
 
         ma_list.append(_ma_)
 
@@ -108,7 +108,7 @@ def compute_Hmat_long(q,r,v):
         for j in range(len(v)):
             if i == j: continue
             d = np.sqrt( np.sum( (r[i] - r[j])**2 ) )
-            K += 0.5 * q[i] * q[j] / d
+            K += q[i] * q[j] / d
     return K
 
 def compute_Hem(k_vec,C):
@@ -127,7 +127,7 @@ def compute_H_oscillator(r,k_const):
 
 def compute_force(q, r, v, k_vec, C, epsilon, k_const=None, potential=None):
     F_transv = compute_transv_force(q, r, v, k_vec, C, epsilon)
-    #F_long = compute_long_force(q, r, v, k_vec, C, epsilon)
+    F_long = compute_long_force(q, r, v, k_vec, C, epsilon)
     if potential:
         F_long = compute_Morse_force(r,potential)
     F_oscillator = compute_oscillator_force(r,k_const) \
@@ -136,7 +136,7 @@ def compute_force(q, r, v, k_vec, C, epsilon, k_const=None, potential=None):
 
 def compute_Hmat(q,r,v,potential=None):
     Hmat_transv = compute_Hmat_transv(q,r,v)
-    #Hmat_long = compute_Hmat_long(q,r,v)
+    Hmat_long = compute_Hmat_long(q,r,v)
     if potential:
         Hmat_long = compute_Hmorse(r,potential)
     return Hmat_long + Hmat_transv
