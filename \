@@ -142,11 +142,9 @@ class SimpleDynamicModel:
             k_vec=self.k_vec, C=C, epsilon=self.epsilon)
 
     def compute_force(self, r, v, C):
-        if self.exclude_EM == False:
-            F = compute_transv_force(
-                q=self.q, r=r, v=v, k_vec=self.k_vec, C=C, 
-                epsilon=self.epsilon)
-        else: F = 0
+        F = compute_transv_force(
+            q=self.q, r=r, v=v, k_vec=self.k_vec, C=C, 
+            epsilon=self.epsilon)
 
         if isinstance(self.potential, MorsePotential):
             F += compute_Morse_force(r,self.potential)
@@ -160,15 +158,13 @@ class SimpleDynamicModel:
 
     def compute_H(self, r, v, C):
         H_mat = compute_Hmat_transv(q=self.q, r=r, v=v)
-        if self.exclude_EM == False:
-            H_em = compute_Hem(self.k_vec, C)
-        else: 
-            H_em = 0
 
         if isinstance(self.potential, MorsePotential):
             H_mat += compute_Hmorse(r,self.potential)
         elif self.potential == "coulomb":
             H_mat += compute_Hmat_long(q=self.q, r=r, v=v)
+
+        H_em = compute_Hem(self.k_vec, C)
 
         if self.k_const != None:
             H_osci = compute_H_oscillator(r,self.k_const)
@@ -178,21 +174,7 @@ class SimpleDynamicModel:
 
     def pde_step(self, r, v, C):
         mv = self.compute_force(r,v,C)
-        if self.exclude_EM == False:
-            C = self.dot_C(r,v,C)
-        else: C = 0
+        C = self.dot_C(r,v,C)
         r = v
         return r, mv, C
-
-    def rk4_step(self, r, v, C, h):
-        k1r, k1v, k1c = self.pde_step(r=r ,v=v, C=C)
-        k2r, k2v, k2c = self.pde_step(r=r+k1r*h/2, v=v+k1v*h/2, C=C+k1c*h/2)
-        k3r, k3v, k3c = self.pde_step(r=r+k2r*h/2, v=v+k2v*h/2, C=C+k2c*h/2)
-        k4r, k4v, k4c = self.pde_step(r=r+k3r*h, v=v+k3v*h, C=C+k3c*h)
-
-        r = r + (h/6) * (k1r + 2*k2r + 2*k3r + k4r)
-        v = v + (h/6) * (k1v + 2*k2v + 2*k3v + k4v)
-        C = C + (h/6) * (k1c + 2*k2c + 2*k3c + k4c)
-
-        return r, v, C
 
