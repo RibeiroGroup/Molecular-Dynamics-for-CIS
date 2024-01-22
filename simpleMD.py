@@ -18,7 +18,7 @@ def dot_C(q, r, v, k_vec, C, epsilon):
 
     jk = 0
     for i,qi in enumerate(q):
-        jk += np.exp(-1j * k_vec @ r[i]) * qi * v[i]# * (2 * np.pi)**(-1.5)
+        jk += np.exp(-1j * k_vec @ r[i]) * qi * v[i] # * (2 * np.pi)**(-1.5)
 
     jk_transv = (np.eye(3) - np.outer(k_vec, k_vec) / (k**2)) @ jk
     proj_jk_transv = np.array([
@@ -72,14 +72,14 @@ def compute_transv_force(q, r, v, k_vec, C, epsilon):
 
     return np.array(ma_list)
 
-def compute_long_force(q, r, v, k_vec, C, epsilon):
+def compute_long_force(q, r, v):
     ma_list = []
     for j, rj in enumerate(r):
         _ma_ = np.zeros(3) + 1.j * np.zeros(3)
         for l, rl in enumerate(r):
             if l == j: continue
             d = np.sqrt(np.sum( (r[l] - r[j])**2 ))
-            _ma_ +=  q[j] * q[l] * (r[j] - r[l] ) / d**3
+            _ma_ += 0.5 * q[j] * q[l] * (r[j] - r[l] ) / d**3
 
         ma_list.append(_ma_)
 
@@ -108,7 +108,7 @@ def compute_Hmat_long(q,r,v):
         for j in range(len(v)):
             if i == j: continue
             d = np.sqrt( np.sum( (r[i] - r[j])**2 ) )
-            K += q[i] * q[j] / d
+            K += 0.5 * q[i] * q[j] / d
     return K
 
 def compute_Hem(k_vec,C):
@@ -125,26 +125,46 @@ def compute_H_oscillator(r,k_const):
 ### WRAPPER #########################################
 #####################################################
 
-def compute_force(q, r, v, k_vec, C, epsilon, k_const=None, potential=None):
-    F_transv = compute_transv_force(q, r, v, k_vec, C, epsilon)
-    F_long = compute_long_force(q, r, v, k_vec, C, epsilon)
-    if potential:
-        F_long = compute_Morse_force(r,potential)
-    F_oscillator = compute_oscillator_force(r,k_const) \
-        if k_const!=None else 0
-    return F_transv + F_long + F_oscillator
+class SimpleDynamicModel:
+    def __init__(self, q, k_vec, epsilon, k_const=None, potential="coulomb"):
+        self.q = q
+        self.k_vec = k_vec
+        self.epsilon = epsilon
+        self.k_const = k_const
+        self.potential = potential
 
-def compute_Hmat(q,r,v,potential=None):
-    Hmat_transv = compute_Hmat_transv(q,r,v)
-    Hmat_long = compute_Hmat_long(q,r,v)
-    if potential:
-        Hmat_long = compute_Hmorse(r,potential)
-    return Hmat_long + Hmat_transv
+    def dot_C(self, r, v, C):
+        return dot_C(q=self.q, r=r, v=v, 
+            k_vec=self.k_vec, C=C, epsilon=self.epsilon)
 
-def compute_H(q, r, v, k_vec, C, epsilon, k_const=None,potential=None):
-    Hem = compute_Hem(k_vec, C)
-    Hmat = compute_Hmat(q, r, v, potential)
-    if k_const != None:
-        Hmat += compute_H_oscillator(r,k_const)
-    return Hem, Hmat
+    def compute_force(self, r, v, C):
+        F = compute_transv_force(
+            q=self.q, r=r, v=v, k_vec=self.k_vec, C=C, 
+            epsilon=self.epsilon)
+
+        if isinstance(self.potential, MorsePotential):
+            F += compute_Morse_force(r,self.potential)
+        elif self.potential == "coulomb":
+            F += compute_long_force(q, r, v)
+
+        if self.k_const:
+            F += compute_oscillator_force(r,k_const)
+
+        return F
+
+    def compute_H(self, r, v, C):
+        H_mat = compute_Hmat_transv(q=self.q, r=r, v=v)
+
+        if isinstance(self.potential, MorsePotential):
+            H_mat += compute_Hmorse(r,self.potential)
+        elif self.potential == "coulomb":
+            H_mat += compute_Hmat_long(q=self.q, r=r, v=v)
+
+        H_em = compute_Hem(self.k_vec, C)
+
+        if self.k_const != None:
+            H_osci = compute_H_oscillator(r,self.k_const)
+        else: H_osci = 0
+
+        return H_em, H_mat, H_osci
 

@@ -1,3 +1,4 @@
+import pickle
 from copy import deepcopy
 
 import numpy as np
@@ -5,12 +6,14 @@ import matplotlib.pyplot as plt
 
 from EM_field import MultiModeField
 from Charge import ChargePoint, ChargeCluster
+from simpleForceField import MorsePotential, compute_Morse_force, compute_Hmorse
 
 import constants
+from simpleMD import *
 
-np.random.seed(2024)
+np.random.seed(20)
 # FIELD SPECS
-k_ = 2 * np.pi / (1e-9 / constants.a0)
+k_ = 2 * np.pi / (100e-9 / constants.a0)
 A = MultiModeField(
     C= (np.random.rand(2) + 1j * np.random.rand(2)),
     k=np.array([k_,0,0]),
@@ -20,136 +23,119 @@ A = MultiModeField(
 #PARTICLE SPECS 
 alpha = ChargePoint(
         m = 1, q = 1, 
-        r = np.random.rand(3), # np.zeros(3), # 
+        r = np.random.rand(3),
         v = np.random.rand(3), # np.zeros(3), # 
         )
 
-# EXPLICIT CALCULATION
-print("### Initial field parameters value ###")
-C = deepcopy(A.C[0])
+beta = ChargePoint(
+        m = 1, q = -1, 
+        r = np.zeros(3), # np.random.rand(3), #
+        v = np.random.rand(3)
+        )
+
+print("####### Initial field parameters value #######")
+C = A.C[0]
 print("C = ",C)
 k_vec = deepcopy(A.k[0])
 print("k = ",k_vec)
 epsilon = np.array(A.epsilon[0])
 print("epsilon = ",epsilon)
-h = 1e-4
+h = 1e-2
 print("h = ", h)
+
 print("### Initial charge point parameters value ###")
-print("q = ",alpha.q)
-print("r = ",alpha.r)
-print("v = ",alpha.v)
-print("#######################################")
+q = [beta.q]#, alpha.q]
+print("q = ",q)
+r = np.vstack([beta.r])#, alpha.r])
+r = r.reshape(-1,3)
+print("r = ",r)
+v = np.vstack([beta.v])#, alpha.v])
+v = v.reshape(-1,3)
+print("v = ",v)
 
-def dot_C(q, r, v, k_vec, C, epsilon): 
-    k = np.sqrt(k_vec @ k_vec.T)
-    omega = constants.c * k
+print("############# others #############")
 
-    jk = np.exp(-1j * k_vec @ r) * q * v #* (1 * np.pi)**(-1.5)
-    jk_transv = (np.eye(3) - np.outer(k_vec, k_vec) / (k**2)) @ jk
-    proj_jk_transv = np.array([
-        jk_transv @ e for e in epsilon])
+box_dimension = np.array([4]*3)
+print("box dimension:", box_dimension)
 
-    return -1j * omega * C + \
-        (2 * np.pi * 1j / k) * proj_jk_transv
+k_const = None
+print("oscillator constant k_const",k_const)
 
-def compute_force(q, r, v, k_vec, C, epsilon):
-    C_dot = dot_C(q,r,v,k_vec,C,epsilon)
+De = 1495 / 4.35975e-18 / 6.023e23
+Re = (3.5e-10) / 5.29177e-11
+a = 1/ ( (1/3 * 1e-10) / 5.29177e-11)
+potential = None # MorsePotential(De=De, Re=Re, a=a)
 
-    k = np.sqrt(k_vec @ k_vec.T)
+print("#############################################")
 
-    _ma_ = np.array([0+0j,0+0j,0+0j])
-    # k part
-    # C[0] = C_{k1}; C[1] = C_{k2}
-    vk1 = epsilon[0] @ v.T ; vk2 = epsilon[1] @ v.T
+Hem, Hmat = compute_H(
+        q=q,r=r,v=v,k_vec=k_vec,C=C,epsilon=epsilon,k_const=k_const,potential=potential)
 
-    _ma_[0] += vk1 * (1j * k * C[0] * np.exp(1j * k_vec @ r) \
-        + np.conjugate(1j * k * C[0] * np.exp(1j * k_vec @ r)) )
+print("Hamiltonian: {}(field) + {}(matter)".format(Hem,Hmat))
 
-    _ma_[0] += vk2 * (1j * k * C[1] * np.exp(1j * k_vec @ r) \
-        + np.conjugate(1j * k * C[1] * np.exp(1j * k_vec @ r)) )
-
-    # epsilon part
-    for i in [1,2]:
-        _ma_[i] +=       -C_dot[i-1] * np.exp(1j * k_vec @ r) + \
-            np.conjugate(-C_dot[i-1] * np.exp(1j * k_vec @ r))
-
-        _ma_[i] += -v[0] * (1j * k * C[i-1] * np.exp(1j * k_vec @ r) \
-             + np.conjugate(1j * k * C[i-1] * np.exp(1j * k_vec @ r)) )
-
-    _ma_ *= q / constants.c
-
-    return _ma_
-
-def compute_Hmat(v):
-    return 0.5 * v @ v.T
-
-def compute_Hem(k_vec,C):
-    return (2 * np.pi)**-1 * (k_vec @ k_vec.T) \
-        * (C @ np.conjugate(C).T) 
-
-r = alpha.r
-v = alpha.v
-
+em_H_list = [Hem]
+mat_H_list = [Hmat]
+H_list = [Hem + Hmat]
 steps_list = [0]
-em_H_list = [compute_Hem(k_vec, C)]
-mat_H_list = [compute_Hmat(v)]
-H_list = [compute_Hem(k_vec, C) + compute_Hmat(v)]
 
-for i in range(int(1e4 + 1)):
+trajectory = {"initial":{"q":q,"r":r,"v":v,"k_const":k_const},
+        "r":[r], "v":[v]}
+hamiltonian = {"em":[Hem], "mat":[Hmat]}
+
+for i in range(int(2e3+1)):
     k1c = dot_C(
-        q=alpha.q, r=r, v=v, 
-        k_vec=k_vec, C=C, epsilon = epsilon)
-
+        q=q, r=r, v=v, C=C, k_vec=k_vec, epsilon=epsilon)
     k1v = compute_force(
-        q=alpha.q, r=r, v=v, 
-        k_vec=k_vec, C=C, epsilon=epsilon)
-
+        q=q, r=r, v=v, C=C, k_vec=k_vec, epsilon=epsilon,
+        k_const=k_const,potential=potential)
     k1r = v
 
     k2c = dot_C(
-        q=alpha.q, r=r + h*k1r/2, v=v + h*k1v/2, 
-        k_vec=k_vec, C=C + h*k1c/2, epsilon = epsilon)
-
+        q=q, r=r+k1r*h/2, v=v+k1v*h/2, C=C+k1c*h/2, k_vec=k_vec, epsilon=epsilon)
     k2v = compute_force(
-        q=alpha.q, r=r + h*k1r/2, v=v + h*k1v/2, 
-        k_vec=k_vec, C=C + h*k1c/2, epsilon=epsilon)
-
-    k2r = v + h*k1v/2
+        q=q, r=r+k1r*h/2, v=v+k1v*h/2, C=C+k1c*h/2, k_vec=k_vec, epsilon=epsilon,
+        k_const=k_const,potential=potential)
+    k2r = v + k1v*h/2
 
     k3c = dot_C(
-        q=alpha.q, r=r + h*k2r/2, v=v + h*k2v/2, 
-        k_vec=k_vec, C=C + h*k2c/2, epsilon = epsilon)
-
+        q=q, r=r+k2r*h/2, v=v+k2v*h/2, C=C+k2c*h/2, k_vec=k_vec, epsilon=epsilon)
     k3v = compute_force(
-        q=alpha.q, r=r + h*k2r/2, v=v + h*k2v/2, 
-        k_vec=k_vec, C=C + h*k2c/2, epsilon=epsilon)
-
-    k3r = v + h*k2v/2
+        q=q, r=r+k2r*h/2, v=v+k2v*h/2, C=C+k2c*h/2, k_vec=k_vec, epsilon=epsilon,
+        k_const=k_const,potential=potential)
+    k3r = v + k2v*h/2
 
     k4c = dot_C(
-        q=alpha.q, r=r + h*k3r, v=v + h*k3v, 
-        k_vec=k_vec, C=C + h*k3c, epsilon = epsilon)
-
+        q=q, r=r+k3r*h, v=v+k3v*h, C=C+k3c*h, k_vec=k_vec, epsilon=epsilon)
     k4v = compute_force(
-        q=alpha.q, r=r + h*k3r, v=v + h*k3v, 
-        k_vec=k_vec, C=C + h*k3c, epsilon=epsilon)
-
-    k4r = v + h*k3v
+        q=q, r=r+k3r*h, v=v+k3v*h, C=C+k3c*h, k_vec=k_vec, epsilon=epsilon,
+        k_const=k_const,potential=potential)
+    k4r = v + k3v*h
 
     r = r + (h/6) * (k1r + 2*k2r + 2*k3r + k4r)
     v = v + (h/6) * (k1v + 2*k2v + 2*k3v + k4v)
     C = C + (h/6) * (k1c + 2*k2c + 2*k3c + k4c)
 
-    H_mat = compute_Hmat(v)# * constants.c
-    mat_H_list.append(H_mat)
+    """
+    # Boundary condition: particle cross the left boundary will appear on the other side
+    r = np.where(r > box_dimension/2, r - box_dimension, r)
+    r = np.where(r < -box_dimension/2, box_dimension - r, r)
+    """
 
-    H_em = compute_Hem(k_vec, C) 
+    H_em, H_mat = compute_H(
+        q=q,r=r,v=v,k_vec=k_vec,C=C,epsilon=epsilon,k_const=k_const,potential=potential)
+
+    mat_H_list.append(H_mat)
     em_H_list.append(H_em)
 
     H_list.append(H_mat + H_em)
 
+    trajectory["r"].append(r)
+    trajectory["v"].append(v)
+    hamiltonian["em"].append(H_em)
+    hamiltonian["mat"].append(H_mat)
+
     steps_list.append(i)
-    if i % 1e3 == 0:
+    if i % 1e2 == 0:
         print("Step {}".format(i+1))
         print("r = ",r)
         print("v = ",v)
@@ -158,18 +144,26 @@ for i in range(int(1e4 + 1)):
         print("H_em = ",H_em)
         print("total H = ",H_mat + H_em)
         print("delta H_em / delta H_mat = ", 
-            (H_em - em_H_list[-2]) / (H_mat - mat_H_list[-2]) )
+            (em_H_list[-2] - H_em)/ (H_mat - mat_H_list[-2]) )
+
 
 fig, ax = plt.subplots(3)
 
 ax[0].plot(steps_list, em_H_list)
+ax[0].set_ylabel(r"$H_{field}$")
 
 ax[1].plot(steps_list, mat_H_list)
+ax[1].set_ylabel(r"$H_{matter}$")
 
 ax[2].plot(steps_list, H_list)
-ax[2].set_ylim(np.array([-0.5,0.5]) + np.mean(H_list))
+ax[2].set_ylim(np.array([-1e-2,1e-2]) + np.mean(H_list))
+ax[2].set_xlabel("Time steps")
+ax[2].set_ylabel(r"$H_{total}$")
 
-fig.savefig("result_plot\\particle_field_energy.jpeg",dpi=600)
+fig.savefig("result_plot/particle_field_energy.jpeg",dpi=600)
 
+with open("result_plot/trajectory.pkl","wb") as handle:
+    pickle.dump(trajectory,handle)
 
-
+with open("result_plot/hamiltonian.pkl","wb") as handle:
+    pickle.dump(hamiltonian,handle)

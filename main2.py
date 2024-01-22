@@ -23,40 +23,45 @@ A = MultiModeField(
 #PARTICLE SPECS 
 alpha = ChargePoint(
         m = 1, q = 1, 
-        r = np.random.rand(3),
-        v = np.random.rand(3), # np.zeros(3), # 
+        r = np.ones(3) * 7,
+        v = - np.ones(3) # np.random.rand(3), # np.zeros(3), # 
         )
 
 beta = ChargePoint(
-        m = 1, q = -1, 
+        m = 1, q = 1, 
         r = np.zeros(3), # np.random.rand(3), #
-        v = np.random.rand(3)
+        v = np.ones(3)
         )
 
+####################################################################
+####################################################################
+####################################################################
 print("####### Initial field parameters value #######")
+####################################################################
 C = A.C[0]
 print("C = ",C)
 k_vec = deepcopy(A.k[0])
 print("k = ",k_vec)
 epsilon = np.array(A.epsilon[0])
 print("epsilon = ",epsilon)
-h = 1e-2
+h = 5e-3
 print("h = ", h)
 
+####################################################################
 print("### Initial charge point parameters value ###")
-q = [beta.q]#, alpha.q]
+####################################################################
+q = [beta.q, alpha.q]
 print("q = ",q)
-r = np.vstack([beta.r])#, alpha.r])
+r = np.vstack([beta.r, alpha.r])
 r = r.reshape(-1,3)
 print("r = ",r)
-v = np.vstack([beta.v])#, alpha.v])
+v = np.vstack([beta.v, alpha.v])
 v = v.reshape(-1,3)
 print("v = ",v)
 
-print("############# others #############")
-
-box_dimension = np.array([4]*3)
-print("box dimension:", box_dimension)
+####################################################################
+print("############# Potential and oscillators parameters #############")
+####################################################################
 
 k_const = None
 print("oscillator constant k_const",k_const)
@@ -64,87 +69,83 @@ print("oscillator constant k_const",k_const)
 De = 1495 / 4.35975e-18 / 6.023e23
 Re = (3.5e-10) / 5.29177e-11
 a = 1/ ( (1/3 * 1e-10) / 5.29177e-11)
-potential = None # MorsePotential(De=De, Re=Re, a=a)
+
+potential = MorsePotential(De=De, Re=Re, a=a)
+
+####################################################################
+print("############# simulation environmental parameters #############")
+####################################################################
+
+box_dimension = np.array([4]*3)
+print("box dimension:", box_dimension)
 
 print("#############################################")
+####################################################################
+####################################################################
+####################################################################
 
-Hem, Hmat = compute_H(
-        q=q,r=r,v=v,k_vec=k_vec,C=C,epsilon=epsilon,k_const=k_const,potential=potential)
+md_sim = SimpleDynamicModel(
+    q = q, k_vec = k_vec, epsilon = epsilon, 
+    k_const = k_const, potential = potential
+)
+
+Hem, Hmat, H_osci = md_sim.compute_H(r=r, v=v, C=C)
 
 print("Hamiltonian: {}(field) + {}(matter)".format(Hem,Hmat))
 
 em_H_list = [Hem]
 mat_H_list = [Hmat]
-H_list = [Hem + Hmat]
+H_list = [Hem + Hmat + H_osci]
 steps_list = [0]
 
 trajectory = {"initial":{"q":q,"r":r,"v":v,"k_const":k_const},
         "r":[r], "v":[v]}
 hamiltonian = {"em":[Hem], "mat":[Hmat]}
 
-for i in range(int(2e3+1)):
-    k1c = dot_C(
-        q=q, r=r, v=v, C=C, k_vec=k_vec, epsilon=epsilon)
-    k1v = compute_force(
-        q=q, r=r, v=v, C=C, k_vec=k_vec, epsilon=epsilon,
-        k_const=k_const,potential=potential)
+for i in range(int(5e3+1)):
+    k1c = md_sim.dot_C(r=r, v=v, C=C)
+    k1v = md_sim.compute_force(r=r, v=v, C=C)
     k1r = v
 
-    k2c = dot_C(
-        q=q, r=r+k1r*h/2, v=v+k1v*h/2, C=C+k1c*h/2, k_vec=k_vec, epsilon=epsilon)
-    k2v = compute_force(
-        q=q, r=r+k1r*h/2, v=v+k1v*h/2, C=C+k1c*h/2, k_vec=k_vec, epsilon=epsilon,
-        k_const=k_const,potential=potential)
+    k2c = md_sim.dot_C(r=r+k1r*h/2, v=v+k1v*h/2, C=C+k1c*h/2)
+    k2v = md_sim.compute_force(r=r+k1r*h/2, v=v+k1v*h/2, C=C+k1c*h/2)
     k2r = v + k1v*h/2
 
-    k3c = dot_C(
-        q=q, r=r+k2r*h/2, v=v+k2v*h/2, C=C+k2c*h/2, k_vec=k_vec, epsilon=epsilon)
-    k3v = compute_force(
-        q=q, r=r+k2r*h/2, v=v+k2v*h/2, C=C+k2c*h/2, k_vec=k_vec, epsilon=epsilon,
-        k_const=k_const,potential=potential)
+    k3c = md_sim.dot_C(r=r+k2r*h/2, v=v+k2v*h/2, C=C+k2c*h/2)
+    k3v = md_sim.compute_force(r=r+k2r*h/2, v=v+k2v*h/2, C=C+k2c*h/2)
     k3r = v + k2v*h/2
 
-    k4c = dot_C(
-        q=q, r=r+k3r*h, v=v+k3v*h, C=C+k3c*h, k_vec=k_vec, epsilon=epsilon)
-    k4v = compute_force(
-        q=q, r=r+k3r*h, v=v+k3v*h, C=C+k3c*h, k_vec=k_vec, epsilon=epsilon,
-        k_const=k_const,potential=potential)
+    k4c = md_sim.dot_C(r=r+k3r*h, v=v+k3v*h, C=C+k3c*h)
+    k4v = md_sim.compute_force(r=r+k3r*h, v=v+k3v*h, C=C+k3c*h)
     k4r = v + k3v*h
 
     r = r + (h/6) * (k1r + 2*k2r + 2*k3r + k4r)
     v = v + (h/6) * (k1v + 2*k2v + 2*k3v + k4v)
     C = C + (h/6) * (k1c + 2*k2c + 2*k3c + k4c)
 
-    """
-    # Boundary condition: particle cross the left boundary will appear on the other side
-    r = np.where(r > box_dimension/2, r - box_dimension, r)
-    r = np.where(r < -box_dimension/2, box_dimension - r, r)
-    """
+    Hem, Hmat, H_osci = md_sim.compute_H(r=r, v=v, C=C)
 
-    H_em, H_mat = compute_H(
-        q=q,r=r,v=v,k_vec=k_vec,C=C,epsilon=epsilon,k_const=k_const,potential=potential)
+    mat_H_list.append(Hmat)
+    em_H_list.append(Hem)
 
-    mat_H_list.append(H_mat)
-    em_H_list.append(H_em)
-
-    H_list.append(H_mat + H_em)
+    H_list.append(Hmat + Hem + H_osci)
 
     trajectory["r"].append(r)
     trajectory["v"].append(v)
-    hamiltonian["em"].append(H_em)
-    hamiltonian["mat"].append(H_mat)
+    hamiltonian["em"].append(Hem)
+    hamiltonian["mat"].append(Hmat)
 
     steps_list.append(i)
     if i % 1e2 == 0:
         print("Step {}".format(i+1))
         print("r = ",r)
         print("v = ",v)
-        print("H_mat = ",H_mat)
+        print("H_mat = ",Hmat)
         print("C = ",C)
-        print("H_em = ",H_em)
-        print("total H = ",H_mat + H_em)
+        print("H_em = ",Hem)
+        print("total H = ",Hmat + Hem)
         print("delta H_em / delta H_mat = ", 
-            (em_H_list[-2] - H_em)/ (H_mat - mat_H_list[-2]) )
+            (em_H_list[-2] - Hem)/ (Hmat - mat_H_list[-2]) )
 
 
 fig, ax = plt.subplots(3)
