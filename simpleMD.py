@@ -137,7 +137,13 @@ class SimpleDynamicModel:
         self.potential = potential
         self.exclude_EM = exclude_EM
 
+        k = np.sqrt(k_vec @ k_vec.T)
+        self.omega = constants.c * k
+
     def dot_C(self, r, v, C):
+        if self.exclude_EM:
+            return -1j * self.omega * C
+
         return dot_C(q=self.q, r=r, v=v, 
             k_vec=self.k_vec, C=C, epsilon=self.epsilon)
 
@@ -160,10 +166,7 @@ class SimpleDynamicModel:
 
     def compute_H(self, r, v, C):
         H_mat = compute_Hmat_transv(q=self.q, r=r, v=v)
-        if self.exclude_EM == False:
-            H_em = compute_Hem(self.k_vec, C)
-        else: 
-            H_em = 0
+        H_em = compute_Hem(self.k_vec, C)
 
         if isinstance(self.potential, MorsePotential):
             H_mat += compute_Hmorse(r,self.potential)
@@ -178,9 +181,7 @@ class SimpleDynamicModel:
 
     def pde_step(self, r, v, C):
         mv = self.compute_force(r,v,C)
-        if self.exclude_EM == False:
-            C = self.dot_C(r,v,C)
-        else: C = 0
+        C = self.dot_C(r,v,C)
         r = v
         return r, mv, C
 
