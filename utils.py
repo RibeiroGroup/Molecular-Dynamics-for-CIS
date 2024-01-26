@@ -1,6 +1,6 @@
 import numpy as np
 
-class DistantMatrix:
+class DistanceCalculator:
     def __init__(self,n_points):
         self.n_points = n_points
         self.utriang_bool_mat = np.triu(
@@ -10,7 +10,7 @@ class DistantMatrix:
         self.utriang_bool_mat_x3 = np.tile(
                 self.utriang_bool_mat[:,:,np.newaxis],(1,1,3))
 
-    def __call__(self,R):
+    def get_distance_vector(self,R):
 
         R_mat1 = np.tile(
                 R[np.newaxis,:,:], (self.n_points,1,1))
@@ -32,7 +32,10 @@ class DistantMatrix:
         """
         R_mat2 = R_mat2[self.utriang_bool_mat_x3].reshape(-1,3)
 
-        dist = np.sqrt(np.sum((R_mat1 - R_mat2)**2,axis=-1))
+    def __call__(self,R):
+        d_vec = self.get_distance_vector(R)
+
+        dist = np.sqrt(np.sum((d_vec)**2,axis=-1))
 
         dist_mat = np.zeros((self.n_points,self.n_points))
         dist_mat[self.utriang_bool_mat] = dist

@@ -87,6 +87,7 @@ class MorsePotential(BasePotential):
         return morse_exp, force_exp
 
 
+"""
 De =  1495 / 4.35975e-18 / 6.023e23
 Re = 3.5e-10 / 5.29177e-11
 a = 1/ ( (1/3 * 1e-10) / 5.29177e-11)
@@ -105,6 +106,7 @@ for j in range(5):
             ]
             ))
 
+"""
 
 """
 

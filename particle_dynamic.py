@@ -1,23 +1,34 @@
 import numpy as np
 
-box_dim = np.ones(3) * 3 
+from utils import DistanceCalculator
 
-r = np.zeros(3)
-v = np.random.rand(3)
+De =  1495 / 4.35975e-18 / 6.023e23
+Re = 3.5e-10 / 5.29177e-11
+a = 1/ ( (1/3 * 1e-10) / 5.29177e-11)
 
-trajectory = {"r":[r],"v":[v]}
+class BoxBoundaryCondition:
+    def __init__(self, Lx, Ly, Lz):
+        self.L = np.array(
+            [Lx, Ly, Lz]
+                )
 
-h = 1e-3
+    def apply(self, r):
+        r = np.where(
+                r < self.L/2, r, r - self.L)
 
-for i in range(int(1e3 + 1)):
-    k1 = v
-    k2 = v + k1 * h/2
-    k3 = v + k2 * h/3
-    k4 = v + k4 * h
+        r = np.where(
+                r > -self.L/2, r, r + self.L)
 
-    dr = (h*6) * (k1 + 2*k2 + 2*k3 + k4)
-    r += dr
-    trajectory.append(r)
-    trajectory.append(v)
+        return r
 
+np.random.seed(2024)
 
+n_points = 5
+r = np.random.rand(3,n_points) * 10
+v = np.random.rand(3,n_points)
+
+dist_calc = DistanceCalculator()
+
+d_vec = 
+
+print(r)

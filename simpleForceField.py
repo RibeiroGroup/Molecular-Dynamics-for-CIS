@@ -75,8 +75,6 @@ def compute_Hmorse(r,potential):
             V += potential(center = rj, R = ri)
     return V/2
 
-
-
 """
 
 ### TEST ###
