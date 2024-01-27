@@ -5,7 +5,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from EM_field import MultiModeField
-from Charge import ChargePoint, ChargeCluster
 from simpleForceField import MorsePotential, compute_Morse_force, compute_Hmorse
 
 import constants
@@ -13,25 +12,12 @@ from simpleMD import *
 
 np.random.seed(20)
 # FIELD SPECS
-k_ = 1e-1/constants.c# 2 * np.pi / (100e-9 / constants.a0)
+k_ = 1/constants.c# 2 * np.pi / (100e-9 / constants.a0)
 A = MultiModeField(
     C= (np.random.rand(2) + 1j * np.random.rand(2)),
     k=np.array([k_,0,0]),
     epsilon=np.array([[0,1,0], [0,0,1]])
     )
-
-#PARTICLE SPECS 
-alpha = ChargePoint(
-        m = 1, q = 1, 
-        r = np.ones(3) * 7,
-        v = np.ones(3) * 1e-2 # np.random.rand(3), # np.zeros(3), # 
-        )
-
-beta = ChargePoint(
-        m = 1, q = 1, 
-        r = np.ones(3) * 2,# np.zeros(3), #np.random.rand(3), #
-        v = np.zeros(3), # np.ones(3) * 2 # 
-        )
 
 ####################################################################
 ####################################################################
@@ -49,12 +35,18 @@ print("epsilon = ",epsilon)
 ####################################################################
 print("### Initial charge point parameters value ###")
 ####################################################################
-q = [beta.q]#, alpha.q]
+q = [1]#,1]
 print("q = ",q)
-r = np.vstack([beta.r])#, alpha.r])
+r = np.vstack([
+        np.ones(3) * 2,
+        #np.ones(3) * 7,
+    ])
 r = r.reshape(-1,3)
 print("r = ",r)
-v = np.vstack([beta.v])#, alpha.v])
+v = np.vstack([
+        np.zeros(3),
+        #np.ones(3) * 1e-2
+    ])
 v = v.reshape(-1,3)
 print("v = ",v)
 
@@ -103,6 +95,7 @@ Hem, Hmat, H_osci = md_sim.compute_H(r=r, v=v, C=C)
 
 sim_result = {
         "initial":{"q":q,"r":r,"v":v,"k_const":k_const},
+        "C":[C],
         "r":[r], "v":[v], "steps":[0], "h" : h,
         "em":[Hem], "mat":[Hmat], "osci":[H_osci],
         "amplitude": [np.sqrt(r @ r.T)[0][0]]
@@ -129,6 +122,7 @@ for i in range(int(100e3+1)):
     sim_result["osci"].append(H_osci)
     sim_result["steps"].append(i+1)
     sim_result["amplitude"].append(np.sqrt(r @ r.T)[0][0])
+    sim_result["C"].append(C)
 
     if i % 1e3 == 0:
         print("Step {}".format(i+1))

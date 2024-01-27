@@ -11,6 +11,13 @@ class DistanceCalculator:
                 self.utriang_bool_mat[:,:,np.newaxis],(1,1,3))
 
     def get_distance_vector(self,R):
+        """
+        Return vector of distances with format:
+        [r2 - r1, r3 - r1 , ... , rN - r1
+        r3 - r2, r4 - r2, ... , rN - r2
+        r4 - r3, r5 - r3, ... , rN - r3
+        ... ... rN - r{N-1} ]
+        """
 
         R_mat1 = np.tile(
                 R[np.newaxis,:,:], (self.n_points,1,1))
@@ -31,6 +38,8 @@ class DistanceCalculator:
         r2 r3 r4 ... rN r3 r4 ... rN r4 rN ... ...r(N-1) rN rN
         """
         R_mat2 = R_mat2[self.utriang_bool_mat_x3].reshape(-1,3)
+
+        return R_mat1 - R_mat2
 
     def __call__(self,R):
         d_vec = self.get_distance_vector(R)
@@ -96,6 +105,13 @@ def verify_distant_matrix(ra):
 
     return dist_mat_
 
+def test_for_distance_vector(x, distant_calculator):
+    d = distnt_calculator.get_distance_vector(x)
 
+    d_ = []
+    for i, x1 in enumerate(x):
+        for j, x2 in enumerate(x):
+            if i >= j: continue
+            d_.append(x2 - x1)
 
-
+    print(d - d_)

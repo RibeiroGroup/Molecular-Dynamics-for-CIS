@@ -18,6 +18,9 @@ sm_Ry = sm.symbols("Ry")
 sm_Rz = sm.symbols("Rz")
 
 class BasePotential:
+    """
+    Base class for molecular potential
+    """
     def __init__(self):
         pass
 

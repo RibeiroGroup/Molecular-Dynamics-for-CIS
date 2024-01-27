@@ -5,7 +5,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from EM_field import MultiModeField
-from Charge import ChargePoint, ChargeCluster
 from simpleForceField import MorsePotential, compute_Morse_force, compute_Hmorse
 
 import constants

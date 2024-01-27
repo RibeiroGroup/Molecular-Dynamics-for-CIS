@@ -16,6 +16,9 @@ sm_Ry = sm.symbols("Ry")
 sm_Rz = sm.symbols("Rz")
 
 class MorsePotential:
+    """
+    Class for calculating Morse potential
+    """
     def __init__(self, De, Re, a):
         self.De = De
         self.Re = Re
