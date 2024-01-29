@@ -13,6 +13,46 @@ import constants
 ### COMPUTE FORCE ###################################
 #####################################################
 
+def compute_transv_force(q, r, v, k_vec, C, epsilon):
+    assert len(q) == len(v) and len(v) == len(r)
+    C_dot = dot_C(q,r,v,k_vec,C,epsilon)
+
+    k = np.sqrt(k_vec @ k_vec.T)
+    epsilon_k = k_vec / k
+
+    ma_list = []
+
+    for j, rj in enumerate(r):
+        _ma_ = np.array([0+0j,0+0j,0+0j])
+        # k part
+        vk = epsilon_k @ v[j].T   # projection of v on k_vec
+        vk1 = epsilon[0] @ v[j].T # projection of v on epsilon_k1
+        vk2 = epsilon[1] @ v[j].T # projection of v on epsilon_k2
+
+        # C[0] = 0;  C[1] = C_{k1}; C[2] = C_{k2}
+        _ma_k = vk1 * (1j * k * C[0] * np.exp(1j * k_vec @ rj) \
+           + np.conjugate(1j * k * C[0] * np.exp(1j * k_vec @ rj)) )
+
+        _ma_k += vk2 * (1j * k * C[1] * np.exp(1j * k_vec @ rj) \
+           + np.conjugate(1j * k * C[1] * np.exp(1j * k_vec @ rj)) )
+
+        _ma_ += _ma_k * epsilon_k
+
+        # epsilon part
+        for i in [1,2]:
+            _ma_ki =         -C_dot[i-1] * np.exp(1j * k_vec @ rj) + \
+                np.conjugate(-C_dot[i-1] * np.exp(1j * k_vec @ rj))
+
+            _ma_ki += -vk * (1j * k * C[i-1] * np.exp(1j * k_vec @ rj) \
+              + np.conjugate(1j * k * C[i-1] * np.exp(1j * k_vec @ rj)) )
+
+            _ma_ += _ma_ki * epsilon[i-1]
+
+        _ma_ *= q[j] / constants.c
+
+        ma_list.append(np.real(_ma_))
+
+    return np.array(ma_list)
 
 def compute_long_force(q, r, v):
     ma_list = []
@@ -54,14 +94,8 @@ def compute_Hmat_long(q,r,v):
     return K
 
 def compute_Hem(k_vec,C):
-    H_em = []
-
-    for i, Ci in enumerate(C):
-
-        H_em.append((2 * np.pi)**-1 * (k_vec[i] @ k_vec[i].T) \
-            * (Ci @ np.conjugate(Ci).T) )
-
-    return np.array(H_em)
+    return (2 * np.pi)**-1 * (k_vec @ k_vec.T) \
+        * (C @ np.conjugate(C).T) 
 
 def compute_H_oscillator(r,k_const):
     K = 0
@@ -116,7 +150,7 @@ class SimpleDynamicModel:
 
         self.k = []; self.omega = []
         for vec in k_vec:
-            k = np.sqrt(vec @ vec.T)
+            k = vec @ vec.T
             self.k.append(k)
             self.omega.append( constants.c * k)
 
@@ -134,27 +168,27 @@ class SimpleDynamicModel:
 
         C_dot = []
 
-        for j, k_vec in enumerate(self.k_vec):
+        for i, k_vec in enumerate(self.k_vec):
 
             jk = 0
             for i,qi in enumerate(self.q):
                 jk += np.exp(-1j * k_vec @ r[i]) * qi * v[i] # * (2 * np.pi)**(-1.5)
 
-            jk_transv = (np.eye(3) - np.outer(k_vec, k_vec) / (self.k[j]**2)) @ jk
-
+            jk_transv = (np.eye(3) - np.outer(k_vec, k_vec) / (self.k[i]**2)) @ jk
             proj_jk_transv = np.array([
-                jk_transv @ e for e in self.epsilon[j] 
-                ])
+                jk_transv @ e for e in self.epsilon[i] ])
 
-            C_dot.append( -1j * self.omega[j] * C[j] + \
-                (2 * np.pi * 1j / self.k[j]) * proj_jk_transv)
+            C_dot.append( -1j * omega * C + \
+                (2 * np.pi * 1j / k) * proj_jk_transv)
 
         C_dot = np.array(C_dot)
         return C_dot
 
     def compute_force(self, r, v, C):
         if self.exclude_EM == False:
-            F = self.compute_transv_force(r=r, v=v, C=C)
+            F = compute_transv_force(
+                q=self.q, r=r, v=v, k_vec=self.k_vec, C=C, 
+                epsilon=self.epsilon)
         else: F = 0
 
         if isinstance(self.potential, MorsePotential):
@@ -200,46 +234,3 @@ class SimpleDynamicModel:
 
         return r, v, C
 
-    def compute_transv_force(self, r, v, C):
-        C_dot = self.dot_C(r,v,C)
-
-        # list of unit vector along the wavevector k, hence epsilon_k
-        epsilon_k = [self.k_vec[i] / self.k[i] for i in range(len(self.k))]
-
-        ma_list = []
-
-        for j, rj in enumerate(r):
-            _ma_ = np.array([0+0j,0+0j,0+0j])
-            # sum over all wavevector k
-            for l, k_vec in enumerate(self.k_vec):
-                # k part
-                vk  =       epsilon_k[l] @ v[j].T # projection of v on k_vec
-                vk1 = self.epsilon[l][0] @ v[j].T # projection of v on epsilon_k1
-                vk2 = self.epsilon[l][1] @ v[j].T # projection of v on epsilon_k2
-
-                # C[0] = 0;  C[1] = C_{k1}; C[2] = C_{k2}
-                k = self.k[l]
-
-                _ma_k =     vk1 * (1j * k * C[l][0] * np.exp(1j * k_vec @ rj) \
-                    + np.conjugate(1j * k * C[l][0] * np.exp(1j * k_vec @ rj)) )
-
-                _ma_k +=   vk2 * (1j * k * C[l][1] * np.exp(1j * k_vec @ rj) \
-                   + np.conjugate(1j * k * C[l][1] * np.exp(1j * k_vec @ rj)) )
-
-                _ma_ += _ma_k * epsilon_k[l]
-
-                # epsilon part
-                for i in [1,2]:
-                    _ma_ki =         -C_dot[l][i-1] * np.exp(1j * k_vec @ rj) + \
-                        np.conjugate(-C_dot[l][i-1] * np.exp(1j * k_vec @ rj))
-
-                    _ma_ki += -vk * (1j * k * C[l][i-1] * np.exp(1j * k_vec @ rj) \
-                      + np.conjugate(1j * k * C[l][i-1] * np.exp(1j * k_vec @ rj)) )
-
-                    _ma_ += _ma_ki * self.epsilon[l][i-1]
-
-                _ma_ *= self.q[j] / constants.c
-
-            ma_list.append(np.real(_ma_))
-
-        return np.array(ma_list)

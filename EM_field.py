@@ -17,6 +17,7 @@ class MultiModeField:
           = sum_k real(C_k) cos(k.x) - imag(C_k) sin(k.x)
         inputs:
         + C (numpy.ndarray): array of complex values for C_k
+            shape (2,) or (n_mode x 2)
         + k (numpy.ndarray): array of real vector k in R^3
         + epsilon (numpy.ndarray): set of polarization vector
         Note that len(C) == len(k)
