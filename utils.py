@@ -10,7 +10,7 @@ class DistanceCalculator:
         self.utriang_bool_mat_x3 = np.tile(
                 self.utriang_bool_mat[:,:,np.newaxis],(1,1,3))
 
-    def get_distance_vector(self,R):
+    def get_distance(self,R):
         """
         Return vector of distances with format:
         [r2 - r1, r3 - r1 , ... , rN - r1
@@ -41,8 +41,27 @@ class DistanceCalculator:
 
         return R_mat1 - R_mat2
 
+    def get_vector_tensor(self,R):
+        """
+        Arrange the distance vector in the tensor with the format 
+        0,       r1 - r2, r1 - r3, ... , r1 - rN
+        r2 - r1, 0      , r2 - r3, ... , r2 - rN
+        r3 - r1, r3 - r2, 0      , ... , r3 - rN
+        ........................................
+        rN - r1, rN - r2, rN - r3, ... , 0
+        """
+        d_vec = self.get_distance(R)
+
+        vec_tensor = np.zeros((self.n_points,self.n_points,3))
+
+        vec_tensor[self.utriang_bool_mat_x3] = - d_vec.ravel()
+
+        vec_tensor -= np.transpose(vec_tensor, (1,0,2))
+
+        return vec_tensor
+
     def __call__(self,R):
-        d_vec = self.get_distance_vector(R)
+        d_vec = self.get_distance(R)
 
         dist = np.sqrt(np.sum((d_vec)**2,axis=-1))
 
@@ -50,68 +69,32 @@ class DistanceCalculator:
         dist_mat[self.utriang_bool_mat] = dist
         dist_mat += dist_mat.T
 
+        """
         dist_mat = dist_mat[
                 ~np.eye(self.n_points,dtype=bool)].reshape(
                         self.n_points,self.n_points-1)
+        """
 
         return dist_mat
 
-def compute_dist_mat1(ra):
-    """
-    Compute distance matrix with the form:
-    [ d{12} d{13} d{14} .. d{1N}
-      d{21} d{23} d{24} .. d{2N}
-      d{31} d{32} d{34} .. d{3N}
-      ..... ..... ..... .. .....
-      d{N1} d{N2} d{N3} .. d{N,N-1}
-    Args:
-    + ra (np.array): array of coordinates with shape n_points x 3
-    """
-    n_points = ra.shape[0]
-    ra_mat1 = np.tile(
-            ra[np.newaxis,:,:],(n_points,1,1))[
-                    ~np.eye(n_points,dtype=bool)].reshape(
-                            n_points,n_points-1,3)
-    # give the array a "new axis" -> repeat the array along the new axis
-    # -> remove element along the diagonal
-
-    #print(ra_mat1.shape)
-
-    ra_mat2 = np.tile(
-            ra[:,np.newaxis,:],(1,n_points-1,1)) 
-    #print(ra_mat2.shape)
-    """
-    shape of ra_mat2 should be:
-    [r1 r1 r1 .. r1
-     r2 r2 r2 .. r2
-     r3 r3 r3 .. r3
-     .. .. .. .. ..
-     rN rN rN .. rN] (N rows and N-1 columns)
-    """
-    ra_mat2 = ra_mat2[upper_triang_bool_by3_mat]
-
-    dist_mat = np.sqrt(np.sum((ra_mat1 - ra_mat2)**2,axis=-1))
-    #print(dist_mat.shape)
-    return dist_mat
-
 def verify_distant_matrix(ra):
     n_points = ra.shape[0]
-    dist_mat_ = np.zeros((n_points,n_points-1))
+    dist_mat_ = np.zeros((n_points,n_points))
     for i, ri in enumerate(ra):
         for j,rj in enumerate(ra):
             if i == j: continue
-            j_ = j if j < i else j-1
-            dist_mat_[i][j_] = np.sqrt(np.sum((ri - rj)**2))
+            #j_ = j if j < i else j-1
+            dist_mat_[i][j] = np.sqrt(np.sum((ri - rj)**2))
 
     return dist_mat_
 
-def test_for_distance_vector(x, distant_calculator):
-    d = distnt_calculator.get_distance_vector(x)
+def test_for_distance_vector(x):
+    n_points = x.shape[0]
 
-    d_ = []
+    d_ = np.zeros((n_points, n_points, 3))
     for i, x1 in enumerate(x):
         for j, x2 in enumerate(x):
-            if i >= j: continue
-            d_.append(x2 - x1)
+            if i == j: continue
+            d_[i,j,:] = x1 - x2
 
-    print(d - d_)
+    return d_
