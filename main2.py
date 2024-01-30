@@ -12,20 +12,20 @@ from simpleMD import *
 
 np.random.seed(20)
 # FIELD SPECS
-n_modes = 2
+n_modes = 3
 k_ = 1/constants.c# 2 * np.pi / (100e-9 / constants.a0)
 A = MultiModeField(
-    C = (np.random.rand(n_modes,2) + 1j * np.random.rand(n_modes,2)),
+    C = np.tile((np.random.rand(1,2) + 1j * np.random.rand(1,2)),(n_modes,1)),
     k = np.array([
         [k_,0,0],
-        [k_,0,0],
-        #[0,k_,0],
+        #[k_,0,0],
+        [0,k_,0],
         [0,0,k_],
         [k_,k_,0]]),
     epsilon = np.array([
         [[0,1,0], [0,0,1]],
-        [[0,1,0], [0,0,1]],
-        #[[1,0,0], [0,0,1]],
+        #[[0,1,0], [0,0,1]],
+        [[1,0,0], [0,0,1]],
         [[0,1,0], [1,0,0]],
         [[0,0,1], [2**(-0.5),-2**(-0.5),0.0]],
         ], dtype=np.float64)
@@ -58,8 +58,9 @@ r = np.vstack([
 r = r.reshape(-1,3)
 print("r = ",r)
 v = np.vstack([
+        [10,0,0]
         #np.zeros(3),
-        np.ones(3)
+        #np.ones(3)
     ])
 v = v.reshape(-1,3)
 print("v = ",v)
@@ -80,7 +81,7 @@ potential = None # MorsePotential(De=De, Re=Re, a=a)
 ####################################################################
 print("############# simulation environmental parameters #############")
 ####################################################################
-h = 1e-3
+h = 5e-4
 print("h = ", h)
 
 box_dimension = np.array([4]*3)
@@ -99,7 +100,7 @@ md_sim = SimpleDynamicModel(
 Hem, Hmat, H_osci = md_sim.compute_H(r=r, v=v, C=C)
 
 sim_result = {
-        "initial":{"q":q,"r":r,"v":v,"k_const":k_const},
+        "initial":{"k_vec":k_vec,"k_const":k_const},
         "C":[C],
         "r":[r], "v":[v], "steps":[0], "h" : h,
         "em":[Hem], "mat":[Hmat], "osci":[H_osci],
@@ -126,7 +127,7 @@ sim_result2 = {
         }
 
 """
-for i in range(int(100e3+1)):
+for i in range(int(40e3+1)):
     r,v,C = md_sim.rk4_step(r=r,v=v,C=C,h=h)
     Hem, Hmat, H_osci = md_sim.compute_H(r=r, v=v, C=C)
 

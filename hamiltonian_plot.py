@@ -19,30 +19,35 @@ steps_list = np.array(sim_result["steps"][plot_range]) * sim_result["h"]
 """
 PLOTTING EM FIELD HAMILTONIAN
 """
-ax[0,0].plot(steps_list, sim_result["em"][plot_range],c="c")
-ax[0,0].plot(steps_list, sim_result2["em"][plot_range],c="r",linestyle="--")
-ax[0,0].set_ylabel("H, field")
+H_em = np.array(sim_result["em"])
+print(H_em.shape[1])
+for i in range(H_em.shape[1]):
+    ax[0,0].plot(steps_list, H_em[plot_range,i],
+            label = ["x", "y", "z", "xy"][i] )
 
-ax[1,0].plot(steps_list, sim_result2["mat"][plot_range],c="r",linestyle="--")
+ax[0,0].set_ylabel("H, field")
+ax[0,0].legend()
+
 ax[1,0].plot(steps_list, sim_result["mat"][plot_range],c="c")
+#ax[1,0].plot(steps_list, sim_result2["mat"][plot_range],c="r",linestyle="--")
 ax[1,0].set_ylabel("H, matter")
 ax[1,0].set_xlabel("Absolute time")
 
 """
 PLOTTING OSCILLATOR HAMILTONIAN
 """
-ax[1,1].plot(steps_list, sim_result2["osci"][plot_range],c="r",linestyle="--")
 ax[1,1].plot(steps_list, sim_result["osci"][plot_range],c="c")
+#ax[1,1].plot(steps_list, sim_result2["osci"][plot_range],c="r",linestyle="--")
 ax[1,1].set_ylabel("H, oscillator")
 ax[1,1].set_xlabel("Absolute time")
 
-ax[1,2].plot(steps_list, sim_result2["amplitude"][plot_range],c="r",linestyle="--")
 ax[1,2].plot(steps_list, sim_result["amplitude"][plot_range],c="c")
+#ax[1,2].plot(steps_list, sim_result2["amplitude"][plot_range],c="r",linestyle="--")
 ax[1,2].set_ylabel(r"Amplitude $|x|$")
 ax[1,2].set_xlabel("Absolute time")
 
 H_list = np.array(sim_result["mat"][plot_range]) \
-        + np.array(sim_result["em"][plot_range]) \
+        + np.sum(np.array(sim_result["em"][plot_range]),axis=1) \
         + np.array(sim_result["osci"][plot_range])
 
 ax[0,1].plot(steps_list, H_list,c="c")
@@ -50,11 +55,13 @@ ax[0,2].plot([],[],c="c")
 ax[0,2].plot([],[],c="r")
 ax[0,1].set_ylabel("H, total for HO in EM")
 
+"""
 H_list2 = np.array(sim_result2["mat"][plot_range]) \
         + np.array(sim_result2["em"][plot_range]) \
         + np.array(sim_result2["osci"][plot_range])
 
 ax[0,2].plot(steps_list, H_list2,c="r",linestyle="--")
+"""
 ax[0,2].plot([],[],c="c",label = "HO in EM field")
 ax[0,2].plot([],[],c="r",label = "Ordinary HO")
 ax[0,2].legend()
@@ -62,11 +69,11 @@ ax[0,2].set_ylabel("H, total for ordinary HO")
 
 fig.savefig("result_plot/particle_field_energy.jpeg",dpi=600,bbox_inches="tight")
 
-fig, ax = plt.subplots()
-
 """
 PLOTTING OSCILLATOR VELOCITY
-"""
+
+fig, ax = plt.subplots()
+
 velocity = np.array(sim_result["v"])[plot_range,0,0]
 ax.plot(steps_list, velocity, label = r"$v_k$")
 velocity = np.array(sim_result["v"])[plot_range,0,1]
@@ -76,12 +83,13 @@ ax.plot(steps_list, velocity, label = r"$v_{k2}$", linestyle = "dashed")
 
 ax.legend()
 fig.savefig("result_plot/velocity.jpeg",dpi=500)
-
-fig, ax = plt.subplots()
+"""
 
 """
 PLOTTING OSCILLATOR POSITION
-"""
+
+fig, ax = plt.subplots()
+
 velocity = np.array(sim_result["r"])[plot_range,0,0]
 ax.plot(steps_list, velocity, label = r"$r_k$")
 velocity = np.array(sim_result["r"])[plot_range,0,1]
@@ -104,3 +112,4 @@ ax[1].plot(steps_list, np.imag(C[:,1]), color = "red", label = r"imag($C_{k2}$)"
 ax[0].legend()
 ax[1].legend()
 fig.savefig("result_plot/EM_coef.jpeg",dpi=500)
+"""
