@@ -238,7 +238,7 @@ class SimpleDynamicModel:
 
                     _ma_ += _ma_ki * self.epsilon[l][i-1]
 
-                _ma_ *= self.q[j] / constants.c
+            _ma_ *= self.q[j] / constants.c
 
             ma_list.append(np.real(_ma_))
 

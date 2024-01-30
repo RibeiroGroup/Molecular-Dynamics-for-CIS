@@ -16,10 +16,16 @@ n_modes = 2
 k_ = 1/constants.c# 2 * np.pi / (100e-9 / constants.a0)
 A = MultiModeField(
     C = (np.random.rand(n_modes,2) + 1j * np.random.rand(n_modes,2)),
-    k = np.array([[k_,0,0],[0,k_,0],[0,0,k_],[k_,k_,0]]),
+    k = np.array([
+        [k_,0,0],
+        [k_,0,0],
+        #[0,k_,0],
+        [0,0,k_],
+        [k_,k_,0]]),
     epsilon = np.array([
         [[0,1,0], [0,0,1]],
-        [[1,0,0], [0,0,1]],
+        [[0,1,0], [0,0,1]],
+        #[[1,0,0], [0,0,1]],
         [[0,1,0], [1,0,0]],
         [[0,0,1], [2**(-0.5),-2**(-0.5),0.0]],
         ], dtype=np.float64)
