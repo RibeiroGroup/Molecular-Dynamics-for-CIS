@@ -12,7 +12,7 @@ from simpleMD import *
 
 np.random.seed(20)
 # FIELD SPECS
-n_modes = 3
+n_modes = 4
 k_ = 1/constants.c# 2 * np.pi / (100e-9 / constants.a0)
 A = MultiModeField(
     C = np.tile((np.random.rand(1,2) + 1j * np.random.rand(1,2)),(n_modes,1)),
@@ -81,7 +81,7 @@ potential = None # MorsePotential(De=De, Re=Re, a=a)
 ####################################################################
 print("############# simulation environmental parameters #############")
 ####################################################################
-h = 5e-4
+h = 1e-3
 print("h = ", h)
 
 box_dimension = np.array([4]*3)
@@ -127,7 +127,7 @@ sim_result2 = {
         }
 
 """
-for i in range(int(40e3+1)):
+for i in range(int(10e3+1)):
     r,v,C = md_sim.rk4_step(r=r,v=v,C=C,h=h)
     Hem, Hmat, H_osci = md_sim.compute_H(r=r, v=v, C=C)
 
@@ -141,7 +141,7 @@ for i in range(int(40e3+1)):
     sim_result["amplitude"].append(np.sqrt(r @ r.T)[0][0])
     sim_result["C"].append(C)
 
-    if i % 1e3 == 0:
+    if i % 1e2 == 0:
         print("Step {}".format(i+1))
         print("r = ",r)
         print("v = ",v)
