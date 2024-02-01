@@ -10,8 +10,10 @@ from sympy.abc import r as sm_Re
 from sympy.abc import x as sm_x, y as sm_y, z as sm_z
 
 import constants
-from simpleForceField_1 import MorsePotential as OldMorsePotential,\
+from simpleForceField import MorsePotential as OldMorsePotential,\
     compute_Morse_force, compute_Hmorse
+
+from utils import DistanceCalculator
 
 sm_Rx = sm.symbols("Rx")
 sm_Ry = sm.symbols("Ry")

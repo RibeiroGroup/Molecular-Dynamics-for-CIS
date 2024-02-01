@@ -77,7 +77,7 @@ class DistanceCalculator:
 
         return dist_mat
 
-def verify_distant_matrix(ra):
+def test_for_distance_matrix(ra):
     n_points = ra.shape[0]
     dist_mat_ = np.zeros((n_points,n_points))
     for i, ri in enumerate(ra):
