@@ -52,25 +52,33 @@ class BasePotential:
         return V/2
 
 class MorsePotential(BasePotential):
-    def __init__(self, De, Re, a):
+    def __init__(self, n_particles, De, Re, a):
         super().__init__()
 
         self.De = De
         self.Re = Re
         self.a = a
 
+        self.n_particles = n_particles
+
         self.potential = lambda Ri, Rj:\
                 De*(1 - np.exp(-a*(self.get_Rij(Ri,Rj) - Re)))**2
 
 
-    def force(self, Ri, Rj):
+    def force(self, distance_vector, distance_matrix):
 
-        force = 2*a*De*(1 - np.exp(-a*(-Re + self.get_Rij(Ri,Rj) ))) \
-            *np.exp(-a*(-Re + self.get_Rij(Ri,Rj) )) \
-            /self.get_Rij(Ri,Rj) 
+        """
+        Compute force exert BY atom Rj ON atom Ri (means that Ri move on the
+        opposite direction to Rj)
+        """
 
-        force = np.tile( force[:,np.newaxis],(1,3)) \
-                * (-1.0*Rj + 1.0*Ri)
+        force = 2*self.a*self.De 
+        force *= (1 - np.exp(-self.a*(-self.Re + distance_matrix )))
+        force *= np.exp(-self.a*(-self.Re + distance_matrix ))
+        force /= (distance_matrix + np.eye(self.n_particles, self.n_particles) )
+
+        force = np.tile( force[:,:,np.newaxis],(1,1,3)) \
+                * distance_vector# (-1.0*Rj + 1.0*Ri)
 
         return force
 

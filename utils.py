@@ -1,7 +1,21 @@
+import time
 import numpy as np
 
+def timeit(func):
+    def inner(*args, **kwargs):
+        start = time.time()
+        result = func(*args, **kwargs)
+        print(time.time() - start)
+        return result
+    return inner
+
+def PBC_wrapping(r, L):
+    r = np.where(r >= L/2, r - L, r)
+    r = np.where(r < -L/2, r + L, r)
+    return r
+
 class DistanceCalculator:
-    def __init__(self,n_points):
+    def __init__(self,n_points,box_length  = None):
         self.n_points = n_points
         self.utriang_bool_mat = np.triu(
                 np.ones((n_points,n_points),dtype=bool),
@@ -9,6 +23,8 @@ class DistanceCalculator:
                 )
         self.utriang_bool_mat_x3 = np.tile(
                 self.utriang_bool_mat[:,:,np.newaxis],(1,1,3))
+
+        self.L = box_length
 
     def get_distance(self,R):
         """
@@ -41,7 +57,8 @@ class DistanceCalculator:
 
         return R_mat1 - R_mat2
 
-    def get_vector_tensor(self,R):
+    #@timeit
+    def __call__(self,R):
         """
         Arrange the distance vector in the tensor with the format 
         0,       r1 - r2, r1 - r3, ... , r1 - rN
@@ -58,9 +75,12 @@ class DistanceCalculator:
 
         vec_tensor -= np.transpose(vec_tensor, (1,0,2))
 
+        if self.L is not None:
+            vec_tensor = PBC_wrapping(vec_tensor, self.L)
+
         return vec_tensor
 
-    def __call__(self,R):
+    def get_distance_vector(self,R):
         d_vec = self.get_distance(R)
 
         dist = np.sqrt(np.sum((d_vec)**2,axis=-1))
@@ -76,6 +96,15 @@ class DistanceCalculator:
         """
 
         return dist_mat
+
+"""
+L = 100
+n_points = 1000
+all_r = np.random.uniform(-L/2,L/2,size=(n_points,3))
+
+dc = DistanceCalculator(n_points, box_length= L)
+dc(all_r)
+"""
 
 def test_for_distance_matrix(ra):
     n_points = ra.shape[0]
@@ -98,3 +127,21 @@ def test_for_distance_vector(x):
             d_[i,j,:] = x1 - x2
 
     return d_
+
+"""
+@PBC_decorator(L = L)
+def get_dist_vector(R):
+    rij_vec_tensor = np.zeros((n_points, n_points,3))
+    for i in range(len(R)):
+        for j in range(i, len(R)):
+            
+            ri = R[i]; rj = R[j];
+
+            rij_vec = ri - rj
+            #rij = np.sqrt(np.sum((ri - rj)**2))
+
+            rij_vec_tensor[i,j,:] = rij_vec
+            rij_vec_tensor[j,i,:] = - rij_vec
+
+    return rij_vec_tensor
+"""

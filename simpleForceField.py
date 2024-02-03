@@ -14,6 +14,9 @@ import constants
 sm_Rx = sm.symbols("Rx")
 sm_Ry = sm.symbols("Ry")
 sm_Rz = sm.symbols("Rz")
+sm_D = sm.symbols("D")
+sm_a = sm.symbols("a")
+sm_Re = sm.symbols("Re")
 
 class MorsePotential:
     """
@@ -37,6 +40,7 @@ class MorsePotential:
             -sm.diff(self.morse_exp, sm_sym)
             for sm_sym in [sm_x, sm_y, sm_z]
                 ]
+
         self.force = [
             sm.lambdify([sm_Rx,sm_Ry,sm_Rz,sm_x,sm_y,sm_z], 
                 force_component)
@@ -78,11 +82,20 @@ def compute_Hmorse(r,potential):
             V += potential(center = rj, R = ri)
     return V/2
 
+Rij = ((sm_x - sm_Rx)**2 + (sm_y - sm_Ry)**2 + (sm_z - sm_Rz)**2) ** 0.5
+V = sm_D * (1 - sm.exp(-sm_a * (Rij - sm_Re))) ** 2
+print(V)
+
+print(sm.diff(-V, sm_x))
+"""
+D*(1 - exp(-a*(-Re + ((-Rx + x)**2 + (-Ry + y)**2 + (-Rz + z)**2)**0.5)))**2
+
+-2*D*a*(1 - exp(-a*(-Re + ((-Rx + x)**2 + (-Ry + y)**2 + (-Rz + z)**2)**0.5)))*(-1.0*Rx + 1.0*x)*exp(-a*(-Re + ((-Rx + x)**2 + (-Ry + y)**2 + (-Rz + z)**2)**0.5))/((-Rx + x)**2 + (-Ry + y)**2 + (-Rz + z)**2)**0.5"""
+
 """
 
 ### TEST ###
 De =  1495 / 4.35975e-18 / 6.023e23
-#De = 1495
 Re = 3.5e-10 / 5.29177e-11
 a = 1/ ( (1/3 * 1e-10) / 5.29177e-11)
 
