@@ -1,3 +1,4 @@
+import pickle
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -6,17 +7,16 @@ from utils import DistanceCalculator, \
 
 ########### BOX DIMENSION ##################
 
-n_points = 500
-L = 100
+n_points = 25
+L = 20
 
 ########### PARTICLES ##################
 
 np.random.seed(100)
 all_r = np.random.uniform(-L/2,L/2,size=(n_points,3))
 print(all_r.shape)
-all_v = np.random.rand(n_points,3)
+all_v = np.random.rand(n_points,3) * 1e1
 print(all_v.shape)
-
 
 """
 0      , r1 - r2, r1 - r3, ...
@@ -90,18 +90,19 @@ potential = MorsePotential(
 
 r = all_r
 v = all_v
-h = 1e-3
-n_steps = 5000
+h = 1e-4
+n_steps = 50000
 
-energy = {"T":[], "K":[], "H":[]}
+trajectory = {"steps": [0], "T":[], "K":[], "H":[], "r":[]}
 
 T = 0.5 * np.sum(np.einsum("ij,ji->i", v, v.T))
-energy["T"].append(T)
+trajectory["T"].append(T)
 K = np.sum(potential.get_potential(r) )
-energy["K"].append(K)
+trajectory["K"].append(K)
 H = T + K
-energy["H"].append(H)
+trajectory["H"].append(H)
 H0 = H
+trajectory["r"].append(r)
 
 for i in range(1, n_steps + 1):
     k1v = potential.get_force(r)
@@ -121,21 +122,21 @@ for i in range(1, n_steps + 1):
     v = v + (h/6) * (k1v + 2*k2v + 2*k3v + k4v)
 
     T = 0.5 * np.sum(np.einsum("ij,ji->i", v, v.T))
-    energy["T"].append(T)
     K = np.sum(potential.get_potential(r) )
-    energy["K"].append(K)
     H = T + K
-    energy["H"].append(H)
+
+    if i % 100 == 0:
+        trajectory["steps"].append(i)
+        trajectory["T"].append(T)
+        trajectory["K"].append(K)
+        trajectory["H"].append(H)
+        trajectory["r"].append(r)
+
     if i % 100 == 0:
         print("H = ",H, " K = ", K, " T = ", T)
 
 print(H0 - H)
 
-fig, ax = plt.subplots()
-ax.plot(np.arange(n_steps+1), energy["H"])
-fig.savefig("foo.jpeg")
 
-fig, ax = plt.subplots()
-ax.plot(np.arange(n_steps+1), energy["T"])
-ax.plot(np.arange(n_steps+1), energy["K"])
-fig.savefig("foo2.jpeg")
+with open("result_plot/trajectory.pkl","wb") as handle:
+    pickle.dump(trajectory, handle)
