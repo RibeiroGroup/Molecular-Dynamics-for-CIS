@@ -2,70 +2,75 @@ import pickle
 import numpy as np
 import matplotlib.pyplot as plt
 
-from utils import DistanceCalculator, \
-    test_for_distance_vector, test_for_distance_matrix
+from utils import DistanceCalculator, get_dist_matrix, PBC_wrapping
 
 ########### BOX DIMENSION ##################
 
-n_points = 25
-L = 20
+n_points = 100
+L = 40
 
 ########### PARTICLES ##################
 
 np.random.seed(100)
 all_r = np.random.uniform(-L/2,L/2,size=(n_points,3))
 print(all_r.shape)
-all_v = np.random.rand(n_points,3) * 1e1
+all_v = np.random.uniform(-1e2, 1e2, size=(n_points,3))
 print(all_v.shape)
 
-"""
-0      , r1 - r2, r1 - r3, ...
-r2 - r1, 0      , r2 - r3, ...
-"""
-def PBC_wrapping(r, L):
-    r = np.where(r >= L/2, r - L, r)
-    r = np.where(r < -L/2, r + L, r)
-    return r
 
-def PBC_decorator(L):
-    def real_PBC_wrap(func):
-        def PBC_wrapping_wrapper(*args,**kwargs):
-            dist = func(*args, **kwargs)
-            dist = PBC_wrapping(dist, L)
-
-            return dist
-
-        return PBC_wrapping_wrapper
-    return real_PBC_wrap
-
-def get_dist_matrix(distance_vector):
-
-    distance_matrix = np.sqrt(
-        np.sum(distance_vector**2, axis = -1))
-    
-    return distance_matrix
-
-class MorsePotential:
-    def __init__(self, n_points, De, Re, a, L):
-
-        self.De = De
-        self.Re = Re
-        self.a = a
+class BasePotential:
+    def __init__(self, n_points, L = None):
 
         self.distance_calc = DistanceCalculator(n_points,L)
 
-    def get_potential(self, R):
+    def get_potential(self,R):
+
         distance_vector = self.distance_calc(R)
         distance_matrix = get_dist_matrix(distance_vector)
 
         distance = distance_matrix[
             np.triu(np.ones(distance_matrix.shape, dtype=bool),k=1)]
-        return self.De*(1 - np.exp(-self.a*(-self.Re + distance)))**2
+
+        return np.sum(self.potential(distance))
 
     def get_force(self, R):
         
         distance_vector = self.distance_calc(R)
         distance_matrix = get_dist_matrix(distance_vector)
+
+        return self.force(
+                distance_matrix = distance_matrix, 
+                distance_vector = distance_vector) 
+
+class LennardJonesPotential(BasePotential):
+    def __init__(self, epsilon, sigma, n_points, L = None):
+
+        super().__init__(self,n_points, L)
+        self.epsilon = epsilon
+        self.sigma = sigma
+
+    def potential(self, distance_matrix):
+        V = 4 * self.epsilon * ( \
+                (self.sigma/distance_matrix)**12 \
+                - (self.sigma/distance_matrix)**6 )
+
+    def force(self,distance_matrix,distance_vector):
+        f = 4 * epsilon  
+
+class MorsePotential(BasePotential):
+    def __init__(self, De, Re, a, n_points, L = None):
+
+        super().__init__(n_points, L)
+
+        self.De = De
+        self.Re = Re
+        self.a = a
+
+    def potential(self, distance):
+
+        return self.De*(1 - np.exp(-self.a*(-self.Re + distance)))**2
+
+    def force(self,distance_matrix, distance_vector):
 
         f= -2*self.De*self.a*(1 - np.exp(-self.a*(-self.Re + distance_matrix)))\
             *np.exp(-self.a*(-self.Re + distance_matrix)) \
@@ -78,7 +83,6 @@ class MorsePotential:
         f = np.sum(f, axis = 1)
 
         return f
-
 
 potential = MorsePotential(
     n_points = n_points,
@@ -97,9 +101,9 @@ trajectory = {"steps": [0], "T":[], "K":[], "H":[], "r":[]}
 
 T = 0.5 * np.sum(np.einsum("ij,ji->i", v, v.T))
 trajectory["T"].append(T)
-K = np.sum(potential.get_potential(r) )
-trajectory["K"].append(K)
-H = T + K
+K = potential.get_potential(r)
+trajectory["V"].append(K)
+H = T + V
 trajectory["H"].append(H)
 H0 = H
 trajectory["r"].append(r)
@@ -122,13 +126,13 @@ for i in range(1, n_steps + 1):
     v = v + (h/6) * (k1v + 2*k2v + 2*k3v + k4v)
 
     T = 0.5 * np.sum(np.einsum("ij,ji->i", v, v.T))
-    K = np.sum(potential.get_potential(r) )
-    H = T + K
+    V = potential.get_potential(r)
+    H = T + V
 
     if i % 100 == 0:
         trajectory["steps"].append(i)
         trajectory["T"].append(T)
-        trajectory["K"].append(K)
+        trajectory["V"].append(K)
         trajectory["H"].append(H)
         trajectory["r"].append(r)
 

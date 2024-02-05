@@ -97,6 +97,13 @@ class DistanceCalculator:
 
         return dist_mat
 
+def get_dist_matrix(distance_vector):
+
+    distance_matrix = np.sqrt(
+        np.sum(distance_vector**2, axis = -1))
+    
+    return distance_matrix
+
 """
 L = 100
 n_points = 1000
@@ -144,4 +151,22 @@ def get_dist_vector(R):
             rij_vec_tensor[j,i,:] = - rij_vec
 
     return rij_vec_tensor
+
+def PBC_wrapping(r, L):
+    r = np.where(r >= L/2, r - L, r)
+    r = np.where(r < -L/2, r + L, r)
+    return r
+
+def PBC_decorator(L):
+    def real_PBC_wrap(func):
+        def PBC_wrapping_wrapper(*args,**kwargs):
+            dist = func(*args, **kwargs)
+            dist = PBC_wrapping(dist, L)
+
+            return dist
+
+        return PBC_wrapping_wrapper
+    return real_PBC_wrap
+
+
 """

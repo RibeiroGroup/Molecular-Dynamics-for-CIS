@@ -82,10 +82,23 @@ def compute_Hmorse(r,potential):
             V += potential(center = rj, R = ri)
     return V/2
 
+print("Morse Potential")
+
 Rij = ((sm_x - sm_Rx)**2 + (sm_y - sm_Ry)**2 + (sm_z - sm_Rz)**2) ** 0.5
 V = sm_D * (1 - sm.exp(-sm_a * (Rij - sm_Re))) ** 2
-print(V)
 
+print(V)
+print(sm.diff(-V, sm_x))
+
+print("Lennard-Jones Potential")
+
+sm_e = sm.symbols("e")
+sm_s = sm.symbols("s")
+
+Rij = ((sm_x - sm_Rx)**2 + (sm_y - sm_Ry)**2 + (sm_z - sm_Rz)**2) ** 0.5
+V = 4 * sm_e * ( (sm_s/Rij)**12 - (sm_s/Rij)**6 )
+
+print(V)
 print(sm.diff(-V, sm_x))
 """
 D*(1 - exp(-a*(-Re + ((-Rx + x)**2 + (-Ry + y)**2 + (-Rz + z)**2)**0.5)))**2
