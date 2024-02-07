@@ -11,15 +11,15 @@ L = 20
 
 ########### PARTICLES ##################
 
-n_points = 2
+n_points = 20
 
 np.random.seed(100)
-#all_r = np.random.uniform(-L/2,L/2,size=(n_points,3))
-all_r = np.array([[-5,-5,-5],[5,5,5]])
+all_r = np.random.uniform(-L/2,L/2,size=(n_points,3))
+#all_r = np.array([[-5,-5,-5],[5,5,5]])
 print(all_r.shape)
 
-#all_v = np.random.uniform(-1e2, 1e2, size=(n_points,3))
-all_v = np.array([[1,1,1],[-1,-1,-1]]) * 1e1
+all_v = np.random.uniform(-1e2, 1e2, size=(n_points,3))
+#all_v = np.array([[1,1,1],[-1,-1,-1]]) * 1e1
 print(all_v.shape)
 
 
@@ -201,7 +201,7 @@ lennardj = LennardJonesPotential(
 @timeit
 def run_md_sim(n_points, weight_tensor, r, v, potential, h, n_steps, L, n_records):
 
-    trajectory = {"steps": [0], "T":[], "V":[], "H":[], "r":[], "L": L}
+    trajectory = {"steps": [0], "T":[], "V":[], "H":[], "r":[], "L": L, "h": h}
 
     T = 0.5 * np.sum(np.einsum("ij,ji->i", v, v.T) * weight_tensor)
     trajectory["T"].append(T)
@@ -255,7 +255,7 @@ def run_md_sim(n_points, weight_tensor, r, v, potential, h, n_steps, L, n_record
 
     return trajectory
 
-h = 1e-4
+h = 1e-5
 n_steps = 100000
 
 trajectory = run_md_sim(
