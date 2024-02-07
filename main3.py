@@ -2,20 +2,24 @@ import pickle
 import numpy as np
 import matplotlib.pyplot as plt
 
-from utils import DistanceCalculator, get_dist_matrix, PBC_wrapping
+from utils import DistanceCalculator, get_dist_matrix, PBC_wrapping, timeit
 from scipy.constants import m_e, m_n, m_p
 
 ########### BOX DIMENSION ##################
 
-n_points = 16
-L = 10
+L = 20
 
 ########### PARTICLES ##################
 
+n_points = 2
+
 np.random.seed(100)
-all_r = np.random.uniform(-L/2,L/2,size=(n_points,3))
+#all_r = np.random.uniform(-L/2,L/2,size=(n_points,3))
+all_r = np.array([[-5,-5,-5],[5,5,5]])
 print(all_r.shape)
-all_v = np.random.uniform(-1e1, 1e1, size=(n_points,3))
+
+#all_v = np.random.uniform(-1e2, 1e2, size=(n_points,3))
+all_v = np.array([[1,1,1],[-1,-1,-1]]) * 1e1
 print(all_v.shape)
 
 
@@ -101,6 +105,8 @@ class LennardJonesPotential(BasePotential):
         f = 4 * self.epsilon * (
                 12 * (self.sigma**12 / distance_matrix**14) - 6 * (self.sigma**6 / distance_matrix**8)
                 )
+        
+        f[np.eye(self.n_points, dtype = bool)] = 0
 
         f = np.tile(f[:,:,np.newaxis],(1,1,3)) * (distance_vector)
 
@@ -188,62 +194,74 @@ lennardj = LennardJonesPotential(
     sigma = sigma,
     L = L)
 
-potential = lennardj
-
 #######################################################################
 ##################### SIMULATION START ################################
 #######################################################################
 
-r = all_r
-v = all_v
-h = 1e-4
-n_steps = 50000
+@timeit
+def run_md_sim(n_points, weight_tensor, r, v, potential, h, n_steps, L, n_records):
 
-trajectory = {"steps": [0], "T":[], "V":[], "H":[], "r":[], "L": L}
-
-T = 0.5 * np.sum(np.einsum("ij,ji->i", v, v.T) * weight_tensor)
-trajectory["T"].append(T)
-V = potential.get_potential(r)
-trajectory["V"].append(V)
-H = T + V
-trajectory["H"].append(H)
-H0 = H
-trajectory["r"].append(r)
-
-for i in range(1, n_steps + 1):
-    weight_tensor_x3 = np.tile(weight_tensor[:,np.newaxis], (1,3))
-
-    k1v = potential.get_force(r) / weight_tensor_x3
-    k1r = v
-
-    k2v = potential.get_force(r + k1r*h/2) / weight_tensor_x3
-    k2r = v + k1v*h/2
-
-    k3v = potential.get_force(r + k2r*h/2) / weight_tensor_x3
-    k3r = v + k2v*h/2
-
-    k4v = potential.get_force(r + k3r*h) / weight_tensor_x3
-    k4r = v + k3v*h
-
-    r = r + (h/6) * (k1r + 2*k2r + 2*k3r + k4r)
-    r = PBC_wrapping(r, L)
-    v = v + (h/6) * (k1v + 2*k2v + 2*k3v + k4v)
+    trajectory = {"steps": [0], "T":[], "V":[], "H":[], "r":[], "L": L}
 
     T = 0.5 * np.sum(np.einsum("ij,ji->i", v, v.T) * weight_tensor)
+    trajectory["T"].append(T)
     V = potential.get_potential(r)
+    trajectory["V"].append(V)
     H = T + V
+    trajectory["H"].append(H)
+    H0 = H
+    trajectory["r"].append(r)
 
-    if i % 100 == 0:
-        trajectory["steps"].append(i)
-        trajectory["T"].append(T)
-        trajectory["V"].append(V)
-        trajectory["H"].append(H)
-        trajectory["r"].append(r)
+    n_records = int(n_steps/n_records)
 
-    if i % 100 == 0:
-        print("H = ",H, " V = ", V, " T = ", T)
+    for i in range(1, n_steps + 1):
+        weight_tensor_x3 = np.tile(weight_tensor[:,np.newaxis], (1,3))
 
-print(H0 - H)
+        k1v = potential.get_force(r) / weight_tensor_x3
+        k1r = v
+
+        k2v = potential.get_force(r + k1r*h/2) / weight_tensor_x3
+        k2r = v + k1v*h/2
+
+        k3v = potential.get_force(r + k2r*h/2) / weight_tensor_x3
+        k3r = v + k2v*h/2
+
+        k4v = potential.get_force(r + k3r*h) / weight_tensor_x3
+        k4r = v + k3v*h
+
+        r = r + (h/6) * (k1r + 2*k2r + 2*k3r + k4r)
+        r = PBC_wrapping(r, L)
+        v = v + (h/6) * (k1v + 2*k2v + 2*k3v + k4v)
+
+        T = 0.5 * np.sum(np.einsum("ij,ji->i", v, v.T) * weight_tensor)
+        V = potential.get_potential(r)
+        H = T + V
+
+        if i % n_records == 0:
+            trajectory["steps"].append(i)
+            trajectory["T"].append(T)
+            trajectory["V"].append(V)
+            trajectory["H"].append(H)
+            trajectory["r"].append(r)
+
+        if i % 1000 == 0:
+            print("H = ",H, " V = ", V, " T = ", T)
+
+    print("Total Hamiltonian variation: ", 
+            max(trajectory["H"]) - min(trajectory["H"]))
+
+    print("Total Hamiltonian deviation: ", 
+            np.std(trajectory["H"]) )
+
+    return trajectory
+
+h = 1e-4
+n_steps = 100000
+
+trajectory = run_md_sim(
+    n_points = n_points, weight_tensor = weight_tensor, r = all_r , v = all_v,
+    potential = lennardj, h = h, n_steps = n_steps, L = L, n_records = 500
+        )
 
 with open("result_plot/trajectory.pkl","wb") as handle:
     pickle.dump(trajectory, handle)
