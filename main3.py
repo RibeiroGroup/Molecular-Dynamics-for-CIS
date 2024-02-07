@@ -255,8 +255,8 @@ def run_md_sim(n_points, weight_tensor, r, v, potential, h, n_steps, L, n_record
 
     return trajectory
 
-h = 1e-5
-n_steps = 100000
+h = 1e-4
+n_steps = 10000
 
 trajectory = run_md_sim(
     n_points = n_points, weight_tensor = weight_tensor, r = all_r , v = all_v,
