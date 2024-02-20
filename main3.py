@@ -7,19 +7,19 @@ from scipy.constants import m_e, m_n, m_p
 
 ########### BOX DIMENSION ##################
 
-L = 20
+L = 6
 
 ########### PARTICLES ##################
 
-n_points = 20
+n_points = 2
 
 np.random.seed(100)
 all_r = np.random.uniform(-L/2,L/2,size=(n_points,3))
-#all_r = np.array([[-5,-5,-5],[5,5,5]])
+all_r = np.array([[-5,-5,-5],[5,5,5]])
 print(all_r.shape)
 
 all_v = np.random.uniform(-1e2, 1e2, size=(n_points,3))
-#all_v = np.array([[1,1,1],[-1,-1,-1]]) * 1e1
+all_v = np.array([[1,1,1],[-1,-1,-1]]) * 1e1
 print(all_v.shape)
 
 
