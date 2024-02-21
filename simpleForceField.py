@@ -101,106 +101,98 @@ V = 4 * sm_e * ( (sm_s/Rij)**12 - (sm_s/Rij)**6 )
 print(V)
 print(sm.diff(-V, sm_x))
 """
-D*(1 - exp(-a*(-Re + ((-Rx + x)**2 + (-Ry + y)**2 + (-Rz + z)**2)**0.5)))**2
 
--2*D*a*(1 - exp(-a*(-Re + ((-Rx + x)**2 + (-Ry + y)**2 + (-Rz + z)**2)**0.5)))*(-1.0*Rx + 1.0*x)*exp(-a*(-Re + ((-Rx + x)**2 + (-Ry + y)**2 + (-Rz + z)**2)**0.5))/((-Rx + x)**2 + (-Ry + y)**2 + (-Rz + z)**2)**0.5"""
+class BasePotential:
+    def __init__(self, n_points, L = None):
 
-"""
+        self.distance_calc = DistanceCalculator(n_points,L)
+        self.n_points = n_points
 
-### TEST ###
-De =  1495 / 4.35975e-18 / 6.023e23
-Re = 3.5e-10 / 5.29177e-11
-a = 1/ ( (1/3 * 1e-10) / 5.29177e-11)
+    def get_potential(self,R):
 
-print("a = ",a)
-print("De = ",De)
-print("Re = ",Re)
+        distance_vector = self.distance_calc(R)
+        distance_matrix = get_dist_matrix(distance_vector)
 
-np.random.seed(2024)
+        distance = distance_matrix[
+            np.triu(
+                np.ones(distance_matrix.shape, dtype=bool),
+                k=1)
+            ]
 
-h = 1e-2
-n_particles = 2
-r = np.array([[0,0,0],[10,0,0]],dtype=np.float64)
-v = np.array([[1,0,0],[-1,0,0]],dtype=np.float64) * 5e-1
+        return np.sum(self.potential(distance))
 
-potential = MorsePotential(
-        De=De, Re=Re, a=a)
+    def get_force(self, R):
 
-#
+        distance_vector = self.distance_calc(R)
+        distance_matrix = get_dist_matrix(distance_vector)
 
-center = np.zeros(3)
-X = np.arange(6,20,0.1)
-V = [potential(center, np.array([i,0,0])) for i in X]
-F = np.array([potential.compute_force(center, np.array([i,0,0])) for i in X])
-print(F)
+        f = self.force(
+                distance_matrix = distance_matrix, 
+                distance_vector = distance_vector) 
 
-fig, ax = plt.subplots()
+        f = np.sum(f, axis = 1)
 
-ax.plot(X,V)
-fig.savefig("morse_potential.jpeg",dpi=600)
+        return f
 
-fig, ax = plt.subplots()
+class LennardJonesPotential(BasePotential):
+    def __init__(self, epsilon, sigma, n_points, L = None):
 
-ax.plot(X,F[:,0])
-fig.savefig("morse_force.jpeg",dpi=600)
+        super().__init__(n_points, L)
+        self.epsilon = epsilon
+        self.sigma = sigma
 
-#
+    def potential(self, distance_matrix):
+        epsilon = self.epsilon[
+                np.triu(
+                    np.ones((self.n_points, self.n_points), dtype = bool),
+                    k = 1
+                    )]
 
-K = np.sum([0.5 * (vi @ vi.T) for vi in v])
-V = compute_Hmorse(r,potential)
-E = K + V
-print("E = ", E)
+        sigma = self.sigma[
+                np.triu(
+                    np.ones((self.n_points, self.n_points), dtype = bool),
+                    k = 1
+                    )]
 
-trajectory = {"r":[r],"v":[v]}
-K_list = [K]
-V_list = [V]
-E_list = [E]
-dist = []
+        V = 4 * epsilon * ( (sigma/distance_matrix)**12 - (sigma/distance_matrix)**6 )
 
-for step in range(1000+1):
-    k1v = compute_Morse_force(r, potential)
-    k1r = v
+        return V
 
-    k2v = compute_Morse_force(r + k1r * h/2, potential)
-    k2r = v + k1v * h/2
+    def force(self,distance_matrix,distance_vector):
+        distance_matrix += np.eye(self.n_points)
 
-    k3v = compute_Morse_force(r + k2r * h/2, potential)
-    k3r = v + k2v * h/2
+        f = 4 * self.epsilon * (
+                12 * (self.sigma**12 / distance_matrix**14) - 6 * (self.sigma**6 / distance_matrix**8)
+                )
+        
+        f[np.eye(self.n_points, dtype = bool)] = 0
 
-    k4v = compute_Morse_force(r + k3r * h, potential)
-    k4r = v + k3v * h
+        f = np.tile(f[:,:,np.newaxis],(1,1,3)) * (distance_vector)
 
-    dr = (h/6) * (k1r + 2*k2r + 2*k3r + k4r)
-    r += dr
+        return f
 
-    dv = (h/6) * (k1v + 2*k2v + 2*k3v + k4v)
-    v += dv
+class MorsePotential(BasePotential):
+    def __init__(self, De, Re, a, n_points, L = None):
 
-    K = np.sum([0.5 * (vi @ vi.T) for vi in v])
-    V = compute_Hmorse(r,potential)
-    E = K + V
+        super().__init__(n_points, L)
 
-    E_list.append(E)
-    trajectory["r"].append(r)
-    trajectory["v"].append(v)
+        self.De = De
+        self.Re = Re
+        self.a = a
 
-    dist.append(np.sqrt((r[0]-r[1]) @ (r[0]-r[1]).T))
-    if step % 100 == 0:
-        print(step,", E = ", E)
+    def potential(self, distance):
 
-fig, ax = plt.subplots()
-ax.plot(
-        np.arange(len(E_list)),
-        E_list)
-ax.set_ylim(np.mean(E_list) + np.array([-1e-1,1e-1]))
+        return self.De*(1 - np.exp(-self.a*(-self.Re + distance)))**2
 
-fig.savefig("Morse_energy.jpeg",dpi=600)
+    def force(self,distance_matrix, distance_vector):
 
-fig, ax = plt.subplots()
-ax.plot(
-        np.arange(len(dist)),
-        dist)
+        f= -2*self.De*self.a*(1 - np.exp(-self.a*(-self.Re + distance_matrix)))\
+            *np.exp(-self.a*(-self.Re + distance_matrix)) \
+            /( distance_matrix + np.eye(len(distance_matrix)) )
 
-fig.savefig("Morse_dist.jpeg",dpi=600)
+        f = np.tile(f[:,:,np.newaxis], (1,1,3))
 
+        f *= distance_vector# (-1.0*Rx + 1.0*x) 
+
+        return f
 """

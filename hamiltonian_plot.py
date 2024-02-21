@@ -19,6 +19,7 @@ steps_list = np.array(sim_result["steps"][plot_range]) * sim_result["h"]
 """
 PLOTTING EM FIELD HAMILTONIAN
 """
+
 H_em = np.array(sim_result["em"])
 linestyle_list = ["solid","dashed","dotted","dashdot"]
 c_list = ["r","g","black","blue"]
