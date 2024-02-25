@@ -123,6 +123,19 @@ class MorsePotential(BasePotential):
 
 def construct_param_matrix(n_points, half_n_points, pure_param, mixed_param):
 
+    """
+    Constructing the parameter matrix for potential of mixture of atoms:
+    Given pure parameter r_aa and r_bb, and "mixed parameter" r_ab, the result look like:
+    [r_aa ... r_aa r_ab ... r_ab
+    ...
+    r_ab ... r_ab r_bb ... r_bb
+    ...]
+    where the block of first n rows and first n columns are r_aa,
+    block of first n_rows and last m_columns are r_bb
+    block of last m_rows and first n_columns are r_ab
+    block of last m_rows and last m_columns are r_bb
+    """
+
     param_matrix = np.zeros((n_points, n_points))
 
     param_matrix[0:half_n_points, 0:half_n_points] = pure_param[0]

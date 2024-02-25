@@ -5,7 +5,7 @@ def timeit(func):
     def inner(*args, **kwargs):
         start = time.time()
         result = func(*args, **kwargs)
-        print(time.time() - start)
+        print("Runtime by timeit: ",time.time() - start)
         return result
     return inner
 
@@ -46,6 +46,14 @@ class DistanceCalculator:
          r1 r2 r3 r4 ... rN] (N rows and N-1 columns)
         """
         R_mat2 = np.transpose(R_mat1, (1,0,2))
+        """
+        shape of ra_mat1 should be:
+        [r1 r1 r1 r1 ... r1
+         r2 r2 r2 r2 ... r2
+         r3 r3 r3 r3 ... r3
+         ...............
+         rN rN rN rN ... rN] (N rows and N-1 columns)
+        """
 
         R_mat1 = R_mat1[self.utriang_bool_mat_x3].reshape(-1,3)
         """
@@ -54,6 +62,11 @@ class DistanceCalculator:
         r2 r3 r4 ... rN r3 r4 ... rN r4 rN ... ...r(N-1) rN rN
         """
         R_mat2 = R_mat2[self.utriang_bool_mat_x3].reshape(-1,3)
+        """
+        Get the flattened upper triangular matrix of R_mat1 one line above the
+        diagonal:
+        r1 r1 ...(N-1 times)... r1 r2 ...(N-2 times) ... r2 r3 ...... r_(N-1) 
+        """
 
         return R_mat1 - R_mat2
 
@@ -80,23 +93,6 @@ class DistanceCalculator:
 
         return vec_tensor
 
-    def get_distance_vector(self,R):
-        d_vec = self.get_distance(R)
-
-        dist = np.sqrt(np.sum((d_vec)**2,axis=-1))
-
-        dist_mat = np.zeros((self.n_points,self.n_points))
-        dist_mat[self.utriang_bool_mat] = dist
-        dist_mat += dist_mat.T
-
-        """
-        dist_mat = dist_mat[
-                ~np.eye(self.n_points,dtype=bool)].reshape(
-                        self.n_points,self.n_points-1)
-        """
-
-        return dist_mat
-
 def get_dist_matrix(distance_vector):
 
     distance_matrix = np.sqrt(
@@ -106,11 +102,17 @@ def get_dist_matrix(distance_vector):
 
 """
 L = 100
-n_points = 1000
+n_points = 10
 all_r = np.random.uniform(-L/2,L/2,size=(n_points,3))
 
-dc = DistanceCalculator(n_points, box_length= L)
-dc(all_r)
+dc = DistanceCalculator(5, box_length= L)
+dc_ = DistanceCalculator(n_points, box_length= L)
+rvec = dc.get_distance2(all_r[5:], all_r[:5])
+
+foo = dc_(all_r)
+foo = foo[:5,5:,:][dc.utriang_bool_mat_x3].reshape(-1,3)
+
+print(rvec + foo)
 """
 
 def test_for_distance_matrix(ra):
@@ -135,6 +137,19 @@ def test_for_distance_vector(x):
 
     return d_
 
+
+"""
+n_points = 10
+all_r = np.random.rand(n_points,3)
+distant_calc = DistanceCalculator(n_points)
+
+rvec = distant_calc(all_r)
+
+rvec_test = test_for_distance_vector(all_r)
+
+print(rvec - rvec_test)
+
+"""
 """
 @PBC_decorator(L = L)
 def get_dist_vector(R):

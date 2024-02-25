@@ -6,22 +6,23 @@ from utils import DistanceCalculator, get_dist_matrix, PBC_wrapping, timeit
 from scipy.constants import m_e, m_n, m_p
 
 from forcefield import MorsePotential, LennardJonesPotential, construct_param_matrix
+from dipole import DipoleFunction
 
 ########### BOX DIMENSION ##################
 
-L = 6
+L = 20
 
 ########### PARTICLES ##################
 
 n_points = 2
 
 np.random.seed(100)
-all_r = np.random.uniform(-L/2,L/2,size=(n_points,3))
-all_r = np.array([[-5,-5,-5],[5,5,5]])
+#all_r = np.random.uniform(-L/2,L/2,size=(n_points,3))
+all_r = np.array([[-5,0,0],[5,0,0]])
 print(all_r.shape)
 
-all_v = np.random.uniform(-1e2, 1e2, size=(n_points,3))
-all_v = np.array([[1,1,1],[-1,-1,-1]]) * 1e1
+#all_v = np.random.uniform(-1e2, 1e2, size=(n_points,3))
+all_v = np.array([[1,0,0],[-1,0,0]]) * 1e1
 print(all_v.shape)
 
 ###########################################################
@@ -67,14 +68,64 @@ lennardj = LennardJonesPotential(
     sigma = sigma,
     L = L)
 
+gri_dipole_func = DipoleFunction(
+        parameters = {
+            "mu0":1, "R0": 7.10, "a":1.5121, "D7":300},
+        engine = "grigoriev"
+)
+
 #######################################################################
 ##################### SIMULATION START ################################
 #######################################################################
 
-@timeit
-def run_md_sim(n_points, weight_tensor, r, v, potential, h, n_steps, L, n_records):
+class DipoleCalculator:
+    def __init__(self, n_points, distance_calc, dipole_function):
 
-    trajectory = {"steps": [0], "T":[], "V":[], "H":[], "r":[], "L": L, "h": h}
+        self.distance_calc = distance_calc
+        self.dipole_function = dipole_function
+
+        # triangular matrix for computing the dipole, see comment for the calculation of
+        # dipole below
+        dipole_triu_mat = np.triu(np.ones(int(n_points/2), dtype = bool))
+        self.dipole_triu_mat = np.tile(dipole_triu_mat[:,:,np.newaxis], (1,1,3))
+
+    def total_dipole_vector(self, r):
+        distance_vector = self.distance_calc(r)
+
+        # take right upper part of the distance matrix
+        rvec_ar_xe = distance_vector[
+            : int(n_points/2) , int(n_points/2) : , :]
+
+        # only need the upper triangle matrix part of the distance vector
+        # to avoid double counting
+        rvec_ar_xe = rvec_ar_xe[self.dipole_triu_mat].reshape(-1,3)
+
+        r_ar_xe = np.einsum("ij,ji->i",rvec_ar_xe,rvec_ar_xe.T)
+        r_ar_xe = np.tile(r_ar_xe[:,np.newaxis], (1,3))
+
+        dipole = self.dipole_function(r_ar_xe)
+        dipole_vec = dipole * rvec_ar_xe / r_ar_xe
+
+        total_dipole_vec = np.sum(dipole_vec,axis = 0)
+
+        return total_dipole_vec
+
+@timeit
+def run_md_sim(
+    n_points, weight_tensor, 
+    r, v, 
+    potential, 
+    h, n_steps, L, n_records, 
+    dipole_function = None):
+
+    if dipole_function is not None:
+        dipole_calc = DipoleCalculator(
+            n_points = n_points, 
+            distance_calc = potential.distance_calc,
+            dipole_function = dipole_function)
+
+    # for recording the trajectory
+    trajectory = {"steps": [0], "T":[], "V":[], "H":[], "r":[], "L": L, "h": h, "dipole": []}
 
     T = 0.5 * np.sum(np.einsum("ij,ji->i", v, v.T) * weight_tensor)
     trajectory["T"].append(T)
@@ -84,12 +135,30 @@ def run_md_sim(n_points, weight_tensor, r, v, potential, h, n_steps, L, n_record
     trajectory["H"].append(H)
     H0 = H
     trajectory["r"].append(r)
+    total_dipole_vec = dipole_calc.total_dipole_vector(r)
+    total_dipole = np.sqrt(total_dipole_vec @ total_dipole_vec.T)
+    trajectory["dipole"].append(total_dipole)
 
     n_records = int(n_steps/n_records)
 
     for i in range(1, n_steps + 1):
+
+        # the mentioned calculation of distance vector and matrix 
+        distance_vector = potential.distance_calc(r)
+        distance_matrix = get_dist_matrix(distance_vector)
+        ### DIPOLE CALCULATION START ###
+        if dipole_function is not None:
+            total_dipole_vec = dipole_calc.total_dipole_vector(r)
+            total_dipole = np.sqrt(total_dipole_vec @ total_dipole_vec.T)
+
+        ### DIPOLE CALCULATION END ###
+
         weight_tensor_x3 = np.tile(weight_tensor[:,np.newaxis], (1,3))
 
+        # RUNGE - KUTTA 4TH ORDER CALCULATION  
+        # Note, since the distance vector and matrix is calculated later (with updated r)
+        # for calculating the dipole, they is very well be used for the first calculation of 
+        # the update based on force.
         k1v = potential.get_force(r) / weight_tensor_x3
         k1r = v
 
@@ -101,10 +170,12 @@ def run_md_sim(n_points, weight_tensor, r, v, potential, h, n_steps, L, n_record
 
         k4v = potential.get_force(r + k3r*h) / weight_tensor_x3
         k4r = v + k3v*h
+        # RUNGE - KUTTA 4TH ORDER UPDATE 
 
         r = r + (h/6) * (k1r + 2*k2r + 2*k3r + k4r)
         r = PBC_wrapping(r, L)
         v = v + (h/6) * (k1v + 2*k2v + 2*k3v + k4v)
+        # RUNGE - KUTTA 4TH ORDER FINISH 
 
         T = 0.5 * np.sum(np.einsum("ij,ji->i", v, v.T) * weight_tensor)
         V = potential.get_potential(r)
@@ -116,9 +187,11 @@ def run_md_sim(n_points, weight_tensor, r, v, potential, h, n_steps, L, n_record
             trajectory["V"].append(V)
             trajectory["H"].append(H)
             trajectory["r"].append(r)
+            trajectory["dipole"].append(total_dipole)
 
         if i % 1000 == 0:
             print("H = ",H, " V = ", V, " T = ", T)
+            print("dipole = ", total_dipole)
 
     print("Total Hamiltonian variation: ", 
             max(trajectory["H"]) - min(trajectory["H"]))
@@ -129,11 +202,12 @@ def run_md_sim(n_points, weight_tensor, r, v, potential, h, n_steps, L, n_record
     return trajectory
 
 h = 1e-4
-n_steps = 10000
+n_steps = 50000
 
 trajectory = run_md_sim(
     n_points = n_points, weight_tensor = weight_tensor, r = all_r , v = all_v,
-    potential = lennardj, h = h, n_steps = n_steps, L = L, n_records = 500
+    potential = lennardj, h = h, n_steps = n_steps, L = L, n_records = 5000,
+    dipole_function = gri_dipole_func
         )
 
 with open("result_plot/trajectory.pkl","wb") as handle:
