@@ -10,8 +10,12 @@ def timeit(func):
     return inner
 
 def PBC_wrapping(r, L):
-    r = np.where(r >= L/2, r - L, r)
-    r = np.where(r < -L/2, r + L, r)
+    if L is None:
+        return r
+    else:
+        assert isinstance(L,float) or isinstance(L,int)
+        r = np.where(r >= L/2, r - L, r)
+        r = np.where(r < -L/2, r + L, r)
     return r
 
 class DistanceCalculator:
