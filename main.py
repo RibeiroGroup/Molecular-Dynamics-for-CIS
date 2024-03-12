@@ -8,23 +8,32 @@ from scipy.constants import m_e, m_n, m_p
 from forcefield import MorsePotential, LennardJonesPotential, construct_param_matrix
 from dipole import DipoleFunction
 
+with open("result_plot//trajectory_2.pkl","rb") as handle:
+    trajectory = pickle.load(handle)
+
 ########### BOX DIMENSION ##################
 
-L = 20
+L = 40 # trajectory["L"]
 
 ########### PARTICLES ##################
 
-n_points = 2
 
 np.random.seed(100)
 #all_r = np.random.uniform(-L/2,L/2,size=(n_points,3))
-all_r = np.array([[-5,0,0],[5,0,0]])
+all_r = np.vstack([
+    trajectory["initial r_Ar"],
+    trajectory["initial r_Xe"]
+    ])
 print(all_r.shape)
 
 #all_v = np.random.uniform(-1e2, 1e2, size=(n_points,3))
-all_v = np.array([[1,0,0],[-1,0,0]]) * 1e1
+all_v = np.vstack([
+    trajectory["initial v_Ar"],
+    trajectory["initial v_Xe"],
+])
 print(all_v.shape)
 
+n_points = len(all_r)
 ###########################################################
 ############# MATERIAL SPECIFICATION   ####################
 ###########################################################
@@ -54,14 +63,6 @@ mixed_sigma = 3.735 * (1e-10 / 5.29177e-11)
 epsilon = construct_param_matrix(n_points,half_n_points,pure_epsilon,mixed_epsilon)
 sigma = construct_param_matrix(n_points,half_n_points,pure_sigma,mixed_sigma)
 
-morse = MorsePotential(
-    n_points = n_points,
-    De =  1495 / 4.35975e-18 / 6.023e23,
-    Re = 3.5e-10 / 5.29177e-11,
-    a = 1/ ( (1/3 * 1e-10) / 5.29177e-11),
-    L = L
-)
-
 lennardj = LennardJonesPotential(
     n_points = n_points,
     epsilon = epsilon,
@@ -70,7 +71,7 @@ lennardj = LennardJonesPotential(
 
 gri_dipole_func = DipoleFunction(
         parameters = {
-            "mu0":1, "R0": 7.10, "a":1.5121, "D7":300},
+            "mu0":0.0124, "R0": 7.10, "a":1.5121, "D7":0},
         engine = "grigoriev"
 )
 
@@ -84,29 +85,28 @@ class DipoleCalculator:
         self.distance_calc = distance_calc
         self.dipole_function = dipole_function
 
-        # triangular matrix for computing the dipole, see comment for the calculation of
-        # dipole below
-        dipole_triu_mat = np.triu(np.ones(int(n_points/2), dtype = bool))
-        self.dipole_triu_mat = np.tile(dipole_triu_mat[:,:,np.newaxis], (1,1,3))
-
     def total_dipole_vector(self, r):
         distance_vector = self.distance_calc(r)
+        distance_mat = get_dist_matrix(distance_vector)
 
         # take right upper part of the distance matrix
         rvec_ar_xe = distance_vector[
             : int(n_points/2) , int(n_points/2) : , :]
 
+        r_ar_xe = distance_mat[
+            : int(n_points/2) , int(n_points/2) :].ravel()
+
         # only need the upper triangle matrix part of the distance vector
         # to avoid double counting
-        rvec_ar_xe = rvec_ar_xe[self.dipole_triu_mat].reshape(-1,3)
-
-        r_ar_xe = np.einsum("ij,ji->i",rvec_ar_xe,rvec_ar_xe.T)
-        r_ar_xe = np.tile(r_ar_xe[:,np.newaxis], (1,3))
+        rvec_ar_xe = rvec_ar_xe.reshape(-1,3)
 
         dipole = self.dipole_function(r_ar_xe)
-        dipole_vec = dipole * rvec_ar_xe / r_ar_xe
+        dipole /= r_ar_xe
+        dipole = np.tile(dipole[:,np.newaxis],(1,3))
 
-        total_dipole_vec = np.sum(dipole_vec,axis = 0)
+        dipole = dipole * rvec_ar_xe 
+
+        total_dipole_vec = np.sum(dipole,axis = 0)
 
         return total_dipole_vec
 
@@ -202,15 +202,15 @@ def run_md_sim(
     return trajectory
 
 h = 1e-4
-n_steps = 50000
+n_steps = 10000
 
 trajectory = run_md_sim(
     n_points = n_points, weight_tensor = weight_tensor, r = all_r , v = all_v,
-    potential = lennardj, h = h, n_steps = n_steps, L = L, n_records = 5000,
+    potential = lennardj, h = h, n_steps = n_steps, L = L, n_records = 10000,
     dipole_function = gri_dipole_func
         )
 
-with open("result_plot/trajectory.pkl","wb") as handle:
+with open("result_plot/no_EM_trajectory.pkl","wb") as handle:
     pickle.dump(trajectory, handle)
 
 
