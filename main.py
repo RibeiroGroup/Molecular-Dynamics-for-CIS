@@ -8,8 +8,8 @@ from scipy.constants import m_e, m_n, m_p
 from forcefield import MorsePotential, LennardJonesPotential, construct_param_matrix
 from dipole import DipoleFunction
 
-with open("result_plot//trajectory_2.pkl","rb") as handle:
-    trajectory = pickle.load(handle)
+with open("result_plot//trajectory_3.pkl","rb") as handle:
+    trajectory_ = pickle.load(handle)
 
 ########### BOX DIMENSION ##################
 
@@ -18,18 +18,18 @@ L = 40 # trajectory["L"]
 ########### PARTICLES ##################
 
 
-np.random.seed(100)
+#np.random.seed(100)
 #all_r = np.random.uniform(-L/2,L/2,size=(n_points,3))
 all_r = np.vstack([
-    trajectory["initial r_Ar"],
-    trajectory["initial r_Xe"]
+    trajectory_["initial r_Ar"],
+    trajectory_["initial r_Xe"]
     ])
 print(all_r.shape)
 
 #all_v = np.random.uniform(-1e2, 1e2, size=(n_points,3))
 all_v = np.vstack([
-    trajectory["initial v_Ar"],
-    trajectory["initial v_Xe"],
+    trajectory_["initial v_Ar"],
+    trajectory_["initial v_Xe"],
 ])
 print(all_v.shape)
 
@@ -206,7 +206,7 @@ n_steps = 10000
 
 trajectory = run_md_sim(
     n_points = n_points, weight_tensor = weight_tensor, r = all_r , v = all_v,
-    potential = lennardj, h = h, n_steps = n_steps, L = L, n_records = 10000,
+    potential = lennardj, h = h, n_steps = n_steps, L = L, n_records = n_steps,
     dipole_function = gri_dipole_func
         )
 
@@ -214,4 +214,25 @@ with open("result_plot/no_EM_trajectory.pkl","wb") as handle:
     pickle.dump(trajectory, handle)
 
 
+plot_range = slice(0, len(trajectory["steps"])-1)
 
+t = np.array(trajectory["steps"][plot_range])* trajectory["h"]
+
+fig, ax = plt.subplots(2,2,figsize = (12,6))
+ax[0,0].plot(t, trajectory["dipole"][plot_range],label = "No field")
+ax[0,0].plot(t, trajectory_["dipole"][plot_range],label = "In EM field", linestyle = "dotted")
+ax[0,0].set_ylabel("Dipole")
+ax[0,0].legend()
+
+ax[0,1].plot(t, trajectory["H"][plot_range])
+ax[0,1].set_ylabel("Total Hamiltonian")
+ax[0,1].set_xlabel("Time")
+
+ax[1,0].plot(t, trajectory["T"][plot_range])
+ax[1,0].set_ylabel("Kinetic energy")
+
+ax[1,1].plot(t, trajectory["V"][plot_range])
+ax[1,1].set_ylabel("Potential (repulsive) energy")
+ax[1,1].set_xlabel("Time")
+
+fig.savefig("result_plot/hamiltonians.jpeg", bbox_inches="tight",dpi=600)
