@@ -1,172 +1,238 @@
 import pickle
-from copy import deepcopy
-
 import numpy as np
 import matplotlib.pyplot as plt
 
-from EM_field import MultiModeField
-from simpleForceField import MorsePotential, compute_Morse_force, compute_Hmorse
+from utils import DistanceCalculator, get_dist_matrix, PBC_wrapping, timeit
+from scipy.constants import m_e, m_n, m_p
 
-import constants
-from simpleMD import *
+from forcefield import MorsePotential, LennardJonesPotential, construct_param_matrix
+from dipole import DipoleFunction
 
-np.random.seed(20)
-# FIELD SPECS
-n_modes = 4
-k_ = 1/constants.c# 2 * np.pi / (100e-9 / constants.a0)
-A = MultiModeField(
-    C = np.tile((np.random.rand(1,2) + 1j * np.random.rand(1,2)),(n_modes,1)),
-    k = np.array([
-        [k_,0,0],
-        #[k_,0,0],
-        [0,k_,0],
-        [0,0,k_],
-        [k_,k_,0]]),
-    epsilon = np.array([
-        [[0,1,0], [0,0,1]],
-        #[[0,1,0], [0,0,1]],
-        [[1,0,0], [0,0,1]],
-        [[0,1,0], [1,0,0]],
-        [[0,0,1], [2**(-0.5),-2**(-0.5),0.0]],
-        ], dtype=np.float64)
-    )
+with open("result_plot//trajectory_3.pkl","rb") as handle:
+    trajectory_ = pickle.load(handle)
 
-####################################################################
-####################################################################
-####################################################################
-print("####### Initial field parameters value #######")
-####################################################################
-C = A.C[:n_modes].reshape(-1,2)
-#C = np.zeros(2)
-print("C = ",C)
+########### BOX DIMENSION ##################
 
-k_vec = deepcopy(A.k)[:n_modes]
-print("k = ",k_vec)
+L = 40 # trajectory["L"]
 
-epsilon = A.epsilon[:n_modes]
-print("epsilon = ",epsilon)
+########### PARTICLES ##################
 
-####################################################################
-print("### Initial charge point parameters value ###")
-####################################################################
-q = [1]#,1]
-print("q = ",q)
-r = np.vstack([
-        #np.ones(3) * 2,
-        np.zeros(3),
+
+#np.random.seed(100)
+#all_r = np.random.uniform(-L/2,L/2,size=(n_points,3))
+all_r = np.vstack([
+    trajectory_["initial r_Ar"],
+    trajectory_["initial r_Xe"]
     ])
-r = r.reshape(-1,3)
-print("r = ",r)
-v = np.vstack([
-        [10,0,0]
-        #np.zeros(3),
-        #np.ones(3)
+print(all_r.shape)
+
+#all_v = np.random.uniform(-1e2, 1e2, size=(n_points,3))
+all_v = np.vstack([
+    trajectory_["initial v_Ar"],
+    trajectory_["initial v_Xe"],
+])
+print(all_v.shape)
+
+n_points = len(all_r)
+###########################################################
+############# MATERIAL SPECIFICATION   ####################
+###########################################################
+
+half_n_points = int(n_points/2)
+
+Z_Ar = 18
+m_Ar = Z_Ar * (m_p / m_e) + Z_Ar + (40 - Z_Ar) * (m_n / m_e) 
+Z_Xe = 54
+m_Xe = Z_Xe * (m_p / m_e) + Z_Xe + (131 - Z_Xe) * (m_n / m_e)
+
+weight_tensor = np.hstack([
+    [m_Ar] * half_n_points,
+    [m_Xe] * half_n_points
     ])
-v = v.reshape(-1,3)
-print("v = ",v)
 
-####################################################################
-print("############# Potential and oscillators parameters #############")
-####################################################################
+###########################################################
+############# POTENTIAL SPECIFICATION   ###################
+###########################################################
 
-k_const = None
-print("oscillator constant k_const",k_const)
+pure_epsilon = np.array([0.996, 1.904]) * 1.59360e-3
+mixed_epsilon = 1.377 * 1.59360e-3
 
-De = 1495 / 4.35975e-18 / 6.023e23
-Re = (3.5e-10) / 5.29177e-11
-a = 1/ ( (1/3 * 1e-10) / 5.29177e-11)
+pure_sigma = np.array([3.41, 4.06]) * (1e-10 / 5.29177e-11)
+mixed_sigma = 3.735 * (1e-10 / 5.29177e-11)
 
-potential = None # MorsePotential(De=De, Re=Re, a=a)
+epsilon = construct_param_matrix(n_points,half_n_points,pure_epsilon,mixed_epsilon)
+sigma = construct_param_matrix(n_points,half_n_points,pure_sigma,mixed_sigma)
 
-####################################################################
-print("############# simulation environmental parameters #############")
-####################################################################
-h = 1e-3
-print("h = ", h)
+lennardj = LennardJonesPotential(
+    n_points = n_points,
+    epsilon = epsilon,
+    sigma = sigma,
+    L = L)
 
-box_dimension = np.array([4]*3)
-print("box dimension:", box_dimension)
-
-print("#############################################")
-####################################################################
-####################################################################
-####################################################################
-
-md_sim = SimpleDynamicModel(
-    q = q, k_vec = k_vec, epsilon = epsilon, 
-    k_const = k_const, potential = potential,
+gri_dipole_func = DipoleFunction(
+        parameters = {
+            "mu0":0.0124, "R0": 7.10, "a":1.5121, "D7":0},
+        engine = "grigoriev"
 )
 
-Hem, Hmat, H_osci = md_sim.compute_H(r=r, v=v, C=C)
+#######################################################################
+##################### SIMULATION START ################################
+#######################################################################
 
-sim_result = {
-        "initial":{"k_vec":k_vec,"k_const":k_const},
-        "C":[C],
-        "r":[r], "v":[v], "steps":[0], "h" : h,
-        "em":[Hem], "mat":[Hmat], "osci":[H_osci],
-        "amplitude": [np.sqrt(r @ r.T)[0][0]]
-        }
+class DipoleCalculator:
+    def __init__(self, n_points, distance_calc, dipole_function):
 
-"""
-md_sim_2 = SimpleDynamicModel(
-    q = q, k_vec = k_vec, epsilon = epsilon, 
-    k_const = k_const, potential = potential,
-    exclude_EM = True
-)
-r2 = deepcopy(r)
-v2 = deepcopy(v)
-C2 = deepcopy(C)
+        self.distance_calc = distance_calc
+        self.dipole_function = dipole_function
 
-Hem, Hmat, H_osci = md_sim_2.compute_H(r=r, v=v, C=C)
-H_list2 = [Hem + Hmat + H_osci]
-sim_result2 = {
-        "initial":{"q":q,"r":r2,"v":v2,"k_const":k_const},
-        "r":[r], "v":[v], "steps":[0], "h" : h,
-        "em":[Hem], "mat":[Hmat], "osci":[H_osci],
-        "amplitude": [np.sqrt(r2 @ r2.T)[0][0]]
-        }
+    def total_dipole_vector(self, r):
+        distance_vector = self.distance_calc(r)
+        distance_mat = get_dist_matrix(distance_vector)
 
-"""
-for i in range(int(10e3+1)):
-    r,v,C = md_sim.rk4_step(r=r,v=v,C=C,h=h)
-    Hem, Hmat, H_osci = md_sim.compute_H(r=r, v=v, C=C)
+        # take right upper part of the distance matrix
+        rvec_ar_xe = distance_vector[
+            : int(n_points/2) , int(n_points/2) : , :]
 
-    sim_result["r"].append(r)
-    sim_result["v"].append(v)
+        r_ar_xe = distance_mat[
+            : int(n_points/2) , int(n_points/2) :].ravel()
 
-    sim_result["em"].append(Hem)
-    sim_result["mat"].append(Hmat)
-    sim_result["osci"].append(H_osci)
-    sim_result["steps"].append(i+1)
-    sim_result["amplitude"].append(np.sqrt(r @ r.T)[0][0])
-    sim_result["C"].append(C)
+        # only need the upper triangle matrix part of the distance vector
+        # to avoid double counting
+        rvec_ar_xe = rvec_ar_xe.reshape(-1,3)
 
-    if i % 1e2 == 0:
-        print("Step {}".format(i+1))
-        print("r = ",r)
-        print("v = ",v)
-        print("H_mat = ",Hmat)
-        print("C = ",C)
-        print("H_em = ",Hem)
-        print("total H = ",Hmat + np.sum(Hem) + H_osci)
+        dipole = self.dipole_function(r_ar_xe)
+        dipole /= r_ar_xe
+        dipole = np.tile(dipole[:,np.newaxis],(1,3))
 
-    """
-    r2,v2,C2 = md_sim_2.rk4_step(r=r2,v=v2,C=C2,h=h)
-    Hem, Hmat, H_osci = md_sim_2.compute_H(r=r2, v=v2, C=C2)
+        dipole = dipole * rvec_ar_xe 
 
-    sim_result2["r"].append(r2)
-    sim_result2["v"].append(v2)
+        total_dipole_vec = np.sum(dipole,axis = 0)
 
-    sim_result2["em"].append(Hem)
-    sim_result2["mat"].append(Hmat)
-    sim_result2["osci"].append(H_osci)
-    sim_result2["amplitude"].append(np.sqrt(r2 @ r2.T)[0][0])
+        return total_dipole_vec
 
-    """
-with open("result_plot/sim_result.pkl","wb") as handle:
-    pickle.dump(sim_result,handle)
+@timeit
+def run_md_sim(
+    n_points, weight_tensor, 
+    r, v, 
+    potential, 
+    h, n_steps, L, n_records, 
+    dipole_function = None):
 
-"""
-with open("result_plot/sim_result2.pkl","wb") as handle:
-    pickle.dump(sim_result2,handle)
-"""
+    if dipole_function is not None:
+        dipole_calc = DipoleCalculator(
+            n_points = n_points, 
+            distance_calc = potential.distance_calc,
+            dipole_function = dipole_function)
+
+    # for recording the trajectory
+    trajectory = {"steps": [0], "T":[], "V":[], "H":[], "r":[], "L": L, "h": h, "dipole": []}
+
+    T = 0.5 * np.sum(np.einsum("ij,ji->i", v, v.T) * weight_tensor)
+    trajectory["T"].append(T)
+    V = potential.get_potential(r)
+    trajectory["V"].append(V)
+    H = T + V
+    trajectory["H"].append(H)
+    H0 = H
+    trajectory["r"].append(r)
+    total_dipole_vec = dipole_calc.total_dipole_vector(r)
+    total_dipole = np.sqrt(total_dipole_vec @ total_dipole_vec.T)
+    trajectory["dipole"].append(total_dipole)
+
+    n_records = int(n_steps/n_records)
+
+    for i in range(1, n_steps + 1):
+
+        # the mentioned calculation of distance vector and matrix 
+        distance_vector = potential.distance_calc(r)
+        distance_matrix = get_dist_matrix(distance_vector)
+        ### DIPOLE CALCULATION START ###
+        if dipole_function is not None:
+            total_dipole_vec = dipole_calc.total_dipole_vector(r)
+            total_dipole = np.sqrt(total_dipole_vec @ total_dipole_vec.T)
+
+        ### DIPOLE CALCULATION END ###
+
+        weight_tensor_x3 = np.tile(weight_tensor[:,np.newaxis], (1,3))
+
+        # RUNGE - KUTTA 4TH ORDER CALCULATION  
+        # Note, since the distance vector and matrix is calculated later (with updated r)
+        # for calculating the dipole, they is very well be used for the first calculation of 
+        # the update based on force.
+        k1v = potential.get_force(r) / weight_tensor_x3
+        k1r = v
+
+        k2v = potential.get_force(r + k1r*h/2) / weight_tensor_x3
+        k2r = v + k1v*h/2
+
+        k3v = potential.get_force(r + k2r*h/2) / weight_tensor_x3
+        k3r = v + k2v*h/2
+
+        k4v = potential.get_force(r + k3r*h) / weight_tensor_x3
+        k4r = v + k3v*h
+        # RUNGE - KUTTA 4TH ORDER UPDATE 
+
+        r = r + (h/6) * (k1r + 2*k2r + 2*k3r + k4r)
+        r = PBC_wrapping(r, L)
+        v = v + (h/6) * (k1v + 2*k2v + 2*k3v + k4v)
+        # RUNGE - KUTTA 4TH ORDER FINISH 
+
+        T = 0.5 * np.sum(np.einsum("ij,ji->i", v, v.T) * weight_tensor)
+        V = potential.get_potential(r)
+        H = T + V
+
+        if i % n_records == 0:
+            trajectory["steps"].append(i)
+            trajectory["T"].append(T)
+            trajectory["V"].append(V)
+            trajectory["H"].append(H)
+            trajectory["r"].append(r)
+            trajectory["dipole"].append(total_dipole)
+
+        if i % 1000 == 0:
+            print("H = ",H, " V = ", V, " T = ", T)
+            print("dipole = ", total_dipole)
+
+    print("Total Hamiltonian variation: ", 
+            max(trajectory["H"]) - min(trajectory["H"]))
+
+    print("Total Hamiltonian deviation: ", 
+            np.std(trajectory["H"]) )
+
+    return trajectory
+
+h = 1e-4
+n_steps = 10000
+
+trajectory = run_md_sim(
+    n_points = n_points, weight_tensor = weight_tensor, r = all_r , v = all_v,
+    potential = lennardj, h = h, n_steps = n_steps, L = L, n_records = n_steps,
+    dipole_function = gri_dipole_func
+        )
+
+with open("result_plot/no_EM_trajectory.pkl","wb") as handle:
+    pickle.dump(trajectory, handle)
+
+
+plot_range = slice(0, len(trajectory["steps"])-1)
+
+t = np.array(trajectory["steps"][plot_range])* trajectory["h"]
+
+fig, ax = plt.subplots(2,2,figsize = (12,6))
+ax[0,0].plot(t, trajectory["dipole"][plot_range],label = "No field")
+ax[0,0].plot(t, trajectory_["dipole"][plot_range],label = "In EM field", linestyle = "dotted")
+ax[0,0].set_ylabel("Dipole")
+ax[0,0].legend()
+
+ax[0,1].plot(t, trajectory["H"][plot_range])
+ax[0,1].set_ylabel("Total Hamiltonian")
+ax[0,1].set_xlabel("Time")
+
+ax[1,0].plot(t, trajectory["T"][plot_range])
+ax[1,0].set_ylabel("Kinetic energy")
+
+ax[1,1].plot(t, trajectory["V"][plot_range])
+ax[1,1].set_ylabel("Potential (repulsive) energy")
+ax[1,1].set_xlabel("Time")
+
+fig.savefig("result_plot/hamiltonians.jpeg", bbox_inches="tight",dpi=600)

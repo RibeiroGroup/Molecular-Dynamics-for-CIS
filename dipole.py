@@ -45,21 +45,3 @@ class DipoleFunction:
         else:
             raise Exception
 
-
-Rax = sm.symbols("Rax")
-Ray = sm.symbols("Ray")
-Raz = sm.symbols("Raz")
-
-Rbx = sm.symbols("Rbx")
-Rby = sm.symbols("Rby")
-Rbz = sm.symbols("Rbz")
-
-mu0 = sm.symbols("mu0")
-a = sm.symbols("a")
-d0 = sm.symbols("d0")
-d7 = sm.symbols("d7")
-
-d = ((Rax - Rbx)**2 + (Ray - Rby)**2 + (Raz - Rbz)**2)**(1/2)
-dipole_function = mu0 * sm.exp(-a*(d-d0)) # - d7/(d**7)
-
-print(sm.diff(sm.diff(dipole_function, Rax),Ray))
