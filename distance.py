@@ -3,16 +3,22 @@ import numpy as np
 from utils import PBC_wrapping
 
 class DistanceCalculator:
-    def __init__(self,n_points,box_length  = None):
+    def __init__(self,n_points, mask = None ,box_length  = None):
         self.n_points = n_points
-        self.utriang_bool_mat = np.triu(
-                np.ones((n_points,n_points),dtype=bool),
-                k = 1
-                )
+        self.update_mask(mask)
+        self.L = box_length
+
+    def update_mask(self, mask = None):
+        if mask is None:
+            mask = np.ones((self.n_points,self.n_points),dtype=bool)
+        else:
+            assert isinstance(mask, np.ndarray)
+            assert mask.shape == (self.n_points, self.n_points)
+
+        self.utriang_bool_mat = np.triu(mask ,k = 1 )
+
         self.utriang_bool_mat_x3 = np.tile(
                 self.utriang_bool_mat[:,:,np.newaxis],(1,1,3))
-
-        self.L = box_length
 
     def get_all_distance_vector_array(self,R):
         """
@@ -70,6 +76,8 @@ class DistanceCalculator:
 
         return d_vec
 
+    def apply_dvector_function(self, R, func):
+
     def get_all_distance_vector_tensor(self,R):
 
         d_vec = self.get_all_distance_vector_array(R)
@@ -99,8 +107,3 @@ class DistanceCalculator:
 
         return distance_mat
 
-R = np.random.uniform(-5,5,size = (10,3))
-
-distance_calc = DistanceCalculator(n_points = 10, box_length = 10)
-
-print(distance_calc.get_all_distance_matrix(R))
