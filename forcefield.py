@@ -5,7 +5,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 import constants
-from utils import DistanceCalculator, get_dist_matrix, PBC_wrapping, timeit
+from utils import PBC_wrapping, timeit
+from distance import DistanceCalculator
 
 class BasePotential:
     """
@@ -14,12 +15,14 @@ class BasePotential:
     + n_points (int): number of particles in the simulation
     + L (float): box length for the wrapping effect of the periodic boundary condition
     """
-    def __init__(self, n_points, L = None):
+    def __init__(self, distance_calc):
 
-        self.distance_calc = DistanceCalculator(n_points,L)
-        self.n_points = n_points
+        assert isinstance(distance_calc, DistanceCalculator)
+        self.distance_calc = distance_calc
 
-    def get_potential(self,R):
+        self.n_points = self.distance_calc.n_points
+
+    def potential(self, R, return_matrix = False):
         """
         Calculate the potential.
         Args:
@@ -28,18 +31,14 @@ class BasePotential:
         + float: potential energy summing from all atom-atoms interactions
         """
 
-        distance_vector = self.distance_calc(R)
-        distance_matrix = get_dist_matrix(distance_vector)
+        potential_matrix = self.distance_calc.apply_function(
+            R, func=self.get_potential, output_shape = 1)
 
-        distance = distance_matrix[
-            np.triu(
-                np.ones(distance_matrix.shape, dtype=bool),
-                k=1)
-            ]
+        if return_matrix: return potential_matrix
 
-        return np.sum(self.potential(distance))
+        return np.sum(potential_matrix)
 
-    def get_force(self, R):
+    def force(self, R, return_matrix = False):
         """
         Calculate the force.
         Args:
@@ -48,58 +47,57 @@ class BasePotential:
         + np.array: 
         """
 
-        distance_vector = self.distance_calc(R)
-        distance_matrix = get_dist_matrix(distance_vector)
+        force_matrix = self.distance_calc.apply_function(
+            R, func=self.get_force, output_shape = 3)
 
-        f = self.force(
-                distance_matrix = distance_matrix, 
-                distance_vector = distance_vector) 
+        if return_matrix: return force_matrix
 
-        f = np.sum(f, axis = 1)
+        f = np.sum(force_matrix, axis = 1)
 
         return f
 
 class LennardJonesPotential(BasePotential):
-    def __init__(self, epsilon, sigma, n_points, L = None):
+    def __init__(self, epsilon, sigma, distance_calc):
 
-        super().__init__(n_points, L)
+        """
+        Args:
+        + epsilon (np.ndarray):
+        + sigma (np.ndarray): Note, both epsilon and sigma have to be a matrix
+            where the ij element is the parameter describe the force between 
+            i-th and j-th atoms (e.g. Ar-Ar, Xe- Xe, or Ar-Xe)
+        """
+
+        super().__init__(distance_calc)
+        assert epsilon.shape == (self.n_points, self.n_points)
         self.epsilon = epsilon
+
+        assert sigma.shape == (self.n_points, self.n_points)
         self.sigma = sigma
 
-    def potential(self, distance_matrix):
-        epsilon = self.epsilon[
-                np.triu(
-                    np.ones((self.n_points, self.n_points), dtype = bool),
-                    k = 1
-                    )]
+    def get_potential(self, distance, distance_vec):
+        epsilon = self.epsilon[self.distance_calc.utriang_mask]
+        sigma = self.sigma[self.distance_calc.utriang_mask]
 
-        sigma = self.sigma[
-                np.triu(
-                    np.ones((self.n_points, self.n_points), dtype = bool),
-                    k = 1
-                    )]
-
-        V = 4 * epsilon * ( (sigma/distance_matrix)**12 - (sigma/distance_matrix)**6 )
+        V = 4 * epsilon * ( (sigma/distance)**12 - (sigma/distance)**6 )
 
         return V
 
-    def force(self,distance_matrix,distance_vector):
-        distance_matrix += np.eye(self.n_points)
+    def get_force(self,distance,distance_vec):
+        epsilon = self.epsilon[self.distance_calc.utriang_mask]
+        sigma = self.sigma[self.distance_calc.utriang_mask]
 
-        f = 4 * self.epsilon * (
-                12 * (self.sigma**12 / distance_matrix**14) - 6 * (self.sigma**6 / distance_matrix**8)
+        f = 4 * epsilon * (
+                12 * (sigma**12 / distance**14) - 6 * (sigma**6 / distance**8)
                 )
-        
-        f[np.eye(self.n_points, dtype = bool)] = 0
 
-        f = np.tile(f[:,:,np.newaxis],(1,1,3)) * (distance_vector)
+        f = np.tile(f[:,np.newaxis],(1,3)) * (distance_vec)
 
         return f
 
 class MorsePotential(BasePotential):
-    def __init__(self, De, Re, a, n_points, L = None):
+    def __init__(self, De, Re, a, distance_calc): 
 
-        super().__init__(n_points, L)
+        super().__init__(distance_calc)
 
         self.De = De
         self.Re = Re
@@ -109,7 +107,7 @@ class MorsePotential(BasePotential):
 
         return self.De*(1 - np.exp(-self.a*(-self.Re + distance)))**2
 
-    def force(self,distance_matrix, distance_vector):
+    def force(self,distance, distance_vector):
 
         f= -2*self.De*self.a*(1 - np.exp(-self.a*(-self.Re + distance_matrix)))\
             *np.exp(-self.a*(-self.Re + distance_matrix)) \
@@ -120,6 +118,17 @@ class MorsePotential(BasePotential):
         f *= distance_vector# (-1.0*Rx + 1.0*x) 
 
         return f
+
+def explicit_test_LJ(R, epsilon ,sigma):
+
+    N = len(R)
+
+    epsilon_ = epsilon[~np.eye(N,dtype=bool)].reshape(N,N-1)
+    sigma_ = sigma[~np.eye(N,dtype=bool)].reshape(N,N-1)
+
+    potential_ = 4 * epsilon_ * ( (sigma_/distance_)**12 - (sigma_/distance_)**6 )
+
+    return potential_
 
 def construct_param_matrix(n_points, half_n_points, pure_param, mixed_param):
 
