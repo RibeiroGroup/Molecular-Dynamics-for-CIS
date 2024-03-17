@@ -1,28 +1,28 @@
 import numpy as np
-import matplotlib.pyplot as plt
-import sympy as sm
 
-class DipoleFunction:
-    def __init__(self, parameters, engine = "Grigoriev"):
-        if engine == "Grigoriev":
-            assert "mu0" in parameters.keys()
-            assert "a" in parameters.keys()
-            assert "R0" in parameters.keys()
-            assert "D7" in parameters.keys()
+from distance import DistanceCalculator
 
-        self.engine = engine
-        self.parameters = parameters
+class BaseDipoleFunction:
+    def __init__(self, distance_calc):
 
-    def grigoriev_dipole_function(self, distance):
-        mu0 = self.parameters["mu0"]
-        a = self.parameters["a"]
-        R0 = self.parameters["R0"]
-        D7 = self.parameters["D7"]
-        return mu0 * np.exp(-a*(distance-R0)) - D7/(R**7)
+        self.distance_calc = distance_calc
 
     def __call__(self, distance, distance_vec):
-        if self.engine == "grigoriev":
-            return self.grigoriev_dipole_function(distance)
-        else:
-            raise Exception("Dipole function not found")
 
+        return self.distance_calc.apply_function(dipole_func)
+
+    def gradient(self,distance, distance_vec):
+
+        return self.distance_calc.apply_function(gradient_func)
+
+
+class SimpleDipoleFunction(BaseDipoleFunction):
+    def __init__(self, distance_calc, mu0, a, d0):
+
+        super().__init__()
+        self.mu0 = mu0
+        self.a = a
+        self.d0 = d0
+
+    def dipole_func(self, distance, distance_vec):
+        

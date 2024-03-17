@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 
 import constants
 from utils import PBC_wrapping, timeit
-from distance import DistanceCalculator
+from distance import DistanceCalculator, explicit_test
 
 class BasePotential:
     """
@@ -119,16 +119,26 @@ class MorsePotential(BasePotential):
 
         return f
 
-def explicit_test_LJ(R, epsilon ,sigma):
+def explicit_test_LJ(R, epsilon ,sigma, L):
 
     N = len(R)
+    distance_, distance_vec_ = explicit_test(R, L)
 
     epsilon_ = epsilon[~np.eye(N,dtype=bool)].reshape(N,N-1)
     sigma_ = sigma[~np.eye(N,dtype=bool)].reshape(N,N-1)
 
     potential_ = 4 * epsilon_ * ( (sigma_/distance_)**12 - (sigma_/distance_)**6 )
 
-    return potential_
+    epsilon_ = epsilon[~np.eye(N,dtype=bool)].reshape(N,N-1)
+    sigma_ = sigma[~np.eye(N,dtype=bool)].reshape(N,N-1)
+
+    force_ =  4 * epsilon_ * (
+            12 * (sigma_**12 / distance_**14) - 6 * (sigma_**6 / distance_**8)
+        )
+
+    force_ = np.tile(force_[:,:,np.newaxis],(1,1,3)) * (distance_vec_)
+
+    return potential_, force_
 
 def construct_param_matrix(n_points, half_n_points, pure_param, mixed_param):
 
