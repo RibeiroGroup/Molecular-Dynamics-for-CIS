@@ -3,11 +3,11 @@ import numpy as np
 
 from distance import DistanceCalculator, explicit_test
 from forcefield import LennardJonesPotential, explicit_test_LJ
-from dipole import SimpleDipoleFunction
+from dipole import SimpleDipoleFunction, DipoleFunctionExplicitTest
 
 np.random.seed(10)
 
-L = 1000
+L = 500
 cell_width = 10
 
 #calculate the cell interval
@@ -72,23 +72,32 @@ def neighbor_list_mask(R_all, L, cell_width):
 
     return mask
 
-mask = neighbor_list_mask(R_all, cell_center_list)
+mask = neighbor_list_mask(R_all, L, cell_width)
 
 start = time.time()
 distance_calc = DistanceCalculator(
-        n_points = len(R_all), mask = mask,
-        box_length = L)
+        n_points = len(R_all), 
+        mask = mask,
+        box_length = L
+        )
 
 forcefield = LennardJonesPotential(
     sigma = sigma, epsilon = epsilon, distance_calc = distance_calc
 )
-
-dipole = SimpleDipoleFunction()
+dipole_function = SimpleDipoleFunction(
+        distance_calc, mu0=0.0124 , a=1.5121, d0=7.10,
+        positive_atom_idx = idxXe,
+        negative_atom_idx = idxAr
+        )
 
 potential = forcefield.potential(R_all, return_matrix = True)
 force = forcefield.force(R_all, return_matrix = True)
+
+dipole = dipole_function(R_all)
+
 print(time.time() - start)
 
+"""
 start = time.time()
 distance_calc = DistanceCalculator(
         n_points = len(R_all),
@@ -101,9 +110,22 @@ forcefield = LennardJonesPotential(
 forcefield.potential(R_all, return_matrix = True)
 forcefield.force(R_all, return_matrix = True)
 print(time.time() - start)
+"""
 
+"""
+potential_, force_ = explicit_test_LJ(R_all, epsilon, sigma, L)
+print(np.sum(potential - potential_))
+"""
 
+start = time.time()
+dipole_func_ = DipoleFunctionExplicitTest(
+        mu0=0.0124 , a=1.5121, d0=7.10, 
+        positive_atom_idx = idxXe, negative_atom_idx = idxAr, L = L)
 
+dipole_ = dipole_func_(R_all)
+
+print(start - time.time())
+print(np.sum(dipole_ - dipole))
 
 
 

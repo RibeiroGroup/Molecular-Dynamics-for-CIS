@@ -5,20 +5,14 @@ from utils import PBC_wrapping
 class DistanceCalculator:
     def __init__(self,n_points,mask = None,box_length  = None):
         self.n_points = n_points
-        self.update_mask(mask)
-        self.L = box_length
 
-    def update_mask(self, mask = None):
         if mask is None:
             mask = np.ones((self.n_points,self.n_points),dtype=bool)
         else:
             assert isinstance(mask, np.ndarray)
             assert mask.shape == (self.n_points, self.n_points)
 
-        self.utriang_mask = np.triu(mask ,k = 1 )
-
-        self.utriang_mask_x3 = np.tile(
-                self.utriang_mask[:,:,np.newaxis],(1,1,3))
+        self.utriang_mat = np.triu(mask ,k = 1 )
 
         self.identity_mat = np.eye(self.n_points, dtype = bool)
 
@@ -26,15 +20,41 @@ class DistanceCalculator:
                 self.identity_mat[:,:,np.newaxis],(1,1,3)
         )
 
-    def get_all_distance_vector_array(self,R):
-        """
-        First, then return vector of distances with format:
-        [r2 - r1, r3 - r1 , ... , rN - r1
-        r3 - r2, r4 - r2, ... , rN - r2
-        r4 - r3, r5 - r3, ... , rN - r3
-        ... ... rN - r{N-1} ]
+        self.update_global_mask(mask)
 
+        self.L = box_length
+
+    def update_global_mask(self, mask = None):
+        self.utriang_mask = mask * self.utriang_mat
+
+        self.utriang_mask_x3 = np.tile(
+                self.utriang_mask[:,:,np.newaxis],(1,1,3))
+
+    def get_local_mask(self, mask, output_shape):
+        utriang_mask = self.utriang_mask * mask         
+
+        if output_shape == 1:
+            return utriang_mask
+
+        elif output_shape == 3:
+            utriang_mask_x3 = np.tile(utriang_mask[:,:,np.newaxis],(1,1,3))
+            return utriang_mask_x3
+
+    def get_all_distance_vector_array(self,R, mask = None):
         """
+        Return array of distances with format:
+        [r1 - r2, r1 - r3, r1 - r4 ... r1 - rN
+        r2 - r3, r2 - r4, ... r2 - rN
+        r3 - r4, r3 - r5, ... r3 - rN
+        ...
+        r[N-1] - rN
+        """
+
+        if mask is None:
+            utriang_mask_x3 = self.utriang_mask_x3
+
+        elif isinstance(mask, np.ndarray):
+            utriang_mask_x3 = self.get_local_mask(mask, output_shape = 3)
 
         R_mat1 = np.tile(
                 R[np.newaxis,:,:], (self.n_points,1,1))
@@ -69,20 +89,16 @@ class DistanceCalculator:
         r1 r1 ...(N-1 times)... r1 r2 ...(N-2 times) ... r2 r3 ...... r_(N-1) 
         """
 
-        d_vec = R_mat1 - R_mat2 # r2 - r1, r3 - r1, ... , r3 - r2, ...
-        d_vec = - d_vec
+        d_vec = R_mat2 - R_mat1 # r1 - r2, r1 - r3, ... , r2 - r3, ...
 
         if self.L is not None:
             d_vec = PBC_wrapping(d_vec, self.L)
 
         return d_vec
 
-    def apply_function(self, R, func, output_shape = 3):
-        """
-        Compute matrix: 
-        """
+    def apply_function(self, R, func, output_shape, mask = None):
 
-        distance_vec_array = self.get_all_distance_vector_array(R)
+        distance_vec_array = self.get_all_distance_vector_array(R, mask)
 
         distance_array = np.sqrt(
                 np.einsum("ij,ij->i", distance_vec_array, distance_vec_array)
