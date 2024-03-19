@@ -22,6 +22,10 @@ class BasePotential:
 
         self.n_points = self.distance_calc.n_points
 
+    def update_distance_calc(self,distance_calc):
+
+        self.distance_calc = distance_calc
+
     def potential(self, R, return_matrix = False):
         """
         Calculate the potential.

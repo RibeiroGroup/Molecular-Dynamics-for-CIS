@@ -3,16 +3,27 @@ import numpy as np
 from utils import PBC_wrapping
 
 class DistanceCalculator:
+    """
+    Utility class for calculating atomic pair-wise distance
+    Methods:
+        + update_global_mask (return None): set attribute utriang_mask
+        + get_local_mask
+    Attribute:
+        + utriang_mask (np.ndarray, shape (N,N), dtype = bool): This mask-matrix serve two purpose, to
+            retrieve the element of the triangular matrix (above the diagonal, not include the diagonal), 
+            and to set elements of the said matrix to particular values. This limit the calculation
+            to only the upper triangular matrix, and, by assuming that the matrix is symmetric, the lower 
+            triangular part of the matrix can be deduced.
+    """
     def __init__(self,n_points,mask = None,box_length  = None):
+        """
+        Args:
+        + n_points (int)
+        + mask (np.ndarray of shape (N,N) ): recommend for incorporating the neighbor list by using neighbor_list_mask
+            function from neighborlist.py module
+        + box_lenth (float): for incorporating the Periodic Boundary condition 
+        """
         self.n_points = n_points
-
-        if mask is None:
-            mask = np.ones((self.n_points,self.n_points),dtype=bool)
-        else:
-            assert isinstance(mask, np.ndarray)
-            assert mask.shape == (self.n_points, self.n_points)
-
-        self.utriang_mat = np.triu(mask ,k = 1 )
 
         self.identity_mat = np.eye(self.n_points, dtype = bool)
 
@@ -25,7 +36,14 @@ class DistanceCalculator:
         self.L = box_length
 
     def update_global_mask(self, mask = None):
-        self.utriang_mask = mask * self.utriang_mat
+
+        if mask is None:
+            mask = np.ones((self.n_points,self.n_points),dtype=bool)
+        else:
+            assert isinstance(mask, np.ndarray)
+            assert mask.shape == (self.n_points, self.n_points)
+
+        self.utriang_mask = np.triu(mask ,k = 1 )
 
         self.utriang_mask_x3 = np.tile(
                 self.utriang_mask[:,:,np.newaxis],(1,1,3))

@@ -1,4 +1,5 @@
 import numpy as np
+import sympy as sm
 
 from distance import DistanceCalculator
 from utils import PBC_wrapping
@@ -8,6 +9,9 @@ class BaseDipoleFunction:
             self, distance_calc, 
             positive_atom_idx, negative_atom_idx
             ):
+
+        assert len(positive_atom_idx) == distance_calc.n_points
+        assert len(negative_atom_idx) == distance_calc.n_points
 
         self.distance_calc = distance_calc
         #boolean mask for the distance matrix to extract distance from positive to negative atoms
