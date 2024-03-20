@@ -10,9 +10,9 @@ kinetic_energy = np.array(trajectory["kinetic_energy"])
 potential_energy = np.array(trajectory["potential_energy"])/2
 hamiltonian = kinetic_energy + potential_energy
 
-plot_range = slice(0, len(trajectory["steps"]))
+plot_range = slice(0, len(trajectory["time"]))
 
-t = np.array(trajectory["steps"][plot_range])
+t = np.array(trajectory["time"][plot_range])
 
 fig, ax = plt.subplots(2,2,figsize = (12,6))
 #ax[0,0].plot(t, trajectory["dipole"][plot_range])

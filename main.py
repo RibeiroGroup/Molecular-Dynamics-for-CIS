@@ -19,7 +19,7 @@ np.random.seed(319)
 ###### BOX LENGTH ######
 ########################
 
-L = 100
+L = 200
 cell_width = 20
 
 ##########################
@@ -27,8 +27,8 @@ cell_width = 20
 ##########################
 
 # number of atoms
-N_Ar = int(L / 3)
-N_Xe = int(L / 3)
+N_Ar = int(L / 4)
+N_Xe = int(L / 4)
 N = N_Ar + N_Xe
 
 # randomized initial coordinates
@@ -134,8 +134,9 @@ trajectory = {
 }
 
 time = 0
+i = 0
 
-for i in range(n_steps):
+while time < 10:
 
     if i % 10 == 0: 
         mask = neighbor_list_mask(r, L, cell_width)
@@ -175,17 +176,20 @@ for i in range(n_steps):
     trajectory["kinetic_energy"].append(kinetic_energy)
 
     time += h
+    i += 1
     trajectory["time"].append(time)
 
     if potential_energy < 1e1:
         h = 1e-2
     elif potential_energy < 1e2:
         h = 1e-3
+    elif potential_energy > 1e4:
+        h = 1e-5
     else:
         h = 1e-4
 
     if i % 100 == 0:
-        print(i)
+        print(time)
         print("Total energy", kinetic_energy + potential_energy/2)
 
         print("\t + kinetic_energy",kinetic_energy)
