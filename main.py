@@ -13,22 +13,22 @@ from dipole import SimpleDipoleFunction, DipoleFunctionExplicitTest
 from forcefield_old import LennardJonesPotential as LennardJonesPotentialOld, \
     construct_param_matrix
 
-np.random.seed(10)
+np.random.seed(319)
 
 ########################
 ###### BOX LENGTH ######
 ########################
 
-L = 50
-cell_width = 10
+L = 100
+cell_width = 20
 
 ##########################
 ###### ATOMIC INPUT ######
 ##########################
 
 # number of atoms
-N_Ar = int(L/3)
-N_Xe = int(L/3)
+N_Ar = int(L / 3)
+N_Xe = int(L / 3)
 N = N_Ar + N_Xe
 
 # randomized initial coordinates
@@ -130,14 +130,17 @@ v = V_all
 trajectory = {
     "potential_energy":[],
     "kinetic_energy":[],
-    "steps":[]
+    "time":[]
 }
+
+time = 0
 
 for i in range(n_steps):
 
-    mask = neighbor_list_mask(r, L, cell_width)
-    distance_calc.update_global_mask(mask)
-    force_field.update_distance_calc(distance_calc)
+    if i % 10 == 0: 
+        mask = neighbor_list_mask(r, L, cell_width)
+        distance_calc.update_global_mask(mask)
+        force_field.update_distance_calc(distance_calc)
 
     k1v = force_field.force(r) / (1837 * 30)
     #_, k1v = explicit_test_LJ(r, epsilon ,sigma, L)
@@ -170,10 +173,14 @@ for i in range(n_steps):
 
     trajectory["potential_energy"].append(potential_energy)
     trajectory["kinetic_energy"].append(kinetic_energy)
-    trajectory["steps"].append(i)
 
-    if potential_energy > 1e4:
-        h = 1e-6
+    time += h
+    trajectory["time"].append(time)
+
+    if potential_energy < 1e1:
+        h = 1e-2
+    elif potential_energy < 1e2:
+        h = 1e-3
     else:
         h = 1e-4
 
