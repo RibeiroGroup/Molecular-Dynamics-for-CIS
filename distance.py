@@ -15,7 +15,7 @@ class DistanceCalculator:
             to only the upper triangular matrix, and, by assuming that the matrix is symmetric, the lower 
             triangular part of the matrix can be deduced.
     """
-    def __init__(self,n_points,mask = None,box_length  = None):
+    def __init__(self,n_points, neighbor_mask = None, box_length  = None):
         """
         Args:
         + n_points (int)
@@ -31,34 +31,28 @@ class DistanceCalculator:
                 self.identity_mat[:,:,np.newaxis],(1,1,3)
         )
 
-        self.update_global_mask(mask)
+        self.update_global_mask(neighbor_mask)
 
         self.L = box_length
 
-    def update_global_mask(self, mask = None):
+    def update_global_mask(self, neighbor_mask = None):
 
-        if mask is None:
+        if neighbor_mask is None:
+            self.neighbor_mask = None
             mask = np.ones((self.n_points,self.n_points),dtype=bool)
-        else:
-            assert isinstance(mask, np.ndarray)
-            assert mask.shape == (self.n_points, self.n_points)
 
-        self.utriang_mask = np.triu(mask ,k = 1 )
+        else:
+            assert isinstance(neighbor_mask, np.ndarray)
+            assert neighbor_mask.shape == (self.n_points, self.n_points)
+            self.neighbor_mask = neighbor_mask
+            mask = neighbor_mask
+
+        self.utriang_mask = np.triu(mask ,k = 1)
 
         self.utriang_mask_x3 = np.tile(
                 self.utriang_mask[:,:,np.newaxis],(1,1,3))
 
-    def get_local_mask(self, mask, output_shape):
-        utriang_mask = self.utriang_mask * mask         
-
-        if output_shape == 1:
-            return utriang_mask
-
-        elif output_shape == 3:
-            utriang_mask_x3 = np.tile(utriang_mask[:,:,np.newaxis],(1,1,3))
-            return utriang_mask_x3
-
-    def get_all_distance_vector_array(self,R, mask = None):
+    def get_all_distance_vector_array(self, R):
         """
         Return array of distances with format:
         [r1 - r2, r1 - r3, r1 - r4 ... r1 - rN
@@ -68,11 +62,7 @@ class DistanceCalculator:
         r[N-1] - rN
         """
 
-        if mask is None:
-            utriang_mask_x3 = self.utriang_mask_x3
-
-        elif isinstance(mask, np.ndarray):
-            utriang_mask_x3 = self.get_local_mask(mask, output_shape = 3)
+        utriang_mask_x3 = self.utriang_mask_x3
 
         R_mat1 = np.tile(
                 R[np.newaxis,:,:], (self.n_points,1,1))
@@ -114,9 +104,14 @@ class DistanceCalculator:
 
         return d_vec
 
-    def apply_function(self, R, func, output_shape, mask = None, symmetric = True):
+    def apply_function(self, R, func, output_shape):
+        """
+        Compute a square function that has element rij = func( |rij| , rij)
+        e.g. output of function that takes distance btw atom i and atom j (|rij|)
+        and the distance vector between the two (rij)
+        """
 
-        distance_vec_array = self.get_all_distance_vector_array(R, mask)
+        distance_vec_array = self.get_all_distance_vector_array(R)
 
         distance_array = np.sqrt(
                 np.einsum("ij,ij->i", distance_vec_array, distance_vec_array)

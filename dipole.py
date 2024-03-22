@@ -31,10 +31,11 @@ class BaseDipoleFunction:
     def __call__(self, R_all):
         
         dipole_vec_tensor = self.distance_calc.apply_function(
-                R_all, self.dipole_func, output_shape = 3, mask = self.dipole_mask
+                R_all, self.dipole_func, output_shape = 3
                 )
 
         dipole_vec_tensor *= self.sign_correction
+
         return dipole_vec_tensor
 
     def gradient(self, R_all):

@@ -79,7 +79,7 @@ mass_x3 = np.tile(mass[:,np.newaxis],(1,3))
 
 distance_calc = DistanceCalculator(
         n_points = len(R_all), 
-        mask = None,
+        neighbor_mask = None,
         box_length = L
         )
 
@@ -87,40 +87,24 @@ force_field = LennardJonesPotential(
     sigma = sigma, epsilon = epsilon, distance_calc = distance_calc
 )
 
-"""
-epsilon_pmat = construct_param_matrix(
-    N, int(N/2), 
-    [0.996 * 1.59360e-3, 1.904 * 1.59360e-3],
-    1.377 * 1.59360e-3)
-sigma_pmat = construct_param_matrix(
-    N, int(N/2),
-    [sigma_Ar_Ar, sigma_Xe_Xe],
-    sigma_Ar_Xe
-)
-
-force_field2 = LennardJonesPotentialOld(
-    epsilon_pmat, sigma_pmat, N, L)
-
 dipole_function = SimpleDipoleFunction(
         distance_calc, mu0=0.0124 , a=1.5121, d0=7.10,
         positive_atom_idx = idxXe,
         negative_atom_idx = idxAr
         )
 
-potential = force_field.potential(R_all)
-force = force_field.force(R_all)
+dipole_function2 = DipoleFunctionExplicitTest(
+        positive_atom_idx = idxXe,
+        negative_atom_idx = idxAr,
+        mu0=0.0124 , a=1.5121, d0=7.10, L=L
+        )
 
-print(force)
+dipole = dipole_function(R_all)
+dipole_ = dipole_function2(R_all)
 
-potential_, force_ = explicit_test_LJ(R_all, epsilon ,sigma, L)
-force_ = np.sum(force_,axis = 1)
+print(np.sum(dipole - dipole_))
 
-print(force_)
-
-force2 = force_field2.get_force(R_all)
-print(np.sum(force2 - force))
 """
-
 ###################################
 ###### SIMULATION START HERE ######
 ###################################
@@ -143,7 +127,7 @@ while time < 100:
 
     if i % 10 == 0: 
         mask = neighbor_list_mask(r, L, cell_width)
-        distance_calc.update_global_mask(mask)
+        distance_calc.update_global_mask(neighbor_mask)
         force_field.update_distance_calc(distance_calc)
 
     k1v = force_field.force(r) / mass_x3
@@ -205,3 +189,5 @@ while time < 100:
 
 with open("result_plot/trajectory_temp.pkl","wb") as handle:
     pickle.dump(trajectory,handle)
+
+"""
