@@ -114,7 +114,7 @@ class DistanceCalculator:
 
         return d_vec
 
-    def apply_function(self, R, func, output_shape, mask = None):
+    def apply_function(self, R, func, output_shape, mask = None, symmetric = True):
 
         distance_vec_array = self.get_all_distance_vector_array(R, mask)
 

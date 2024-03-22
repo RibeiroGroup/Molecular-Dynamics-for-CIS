@@ -19,16 +19,16 @@ np.random.seed(319)
 ###### BOX LENGTH ######
 ########################
 
-L = 200
-cell_width = 20
+L = 300
+cell_width = 15
 
 ##########################
 ###### ATOMIC INPUT ######
 ##########################
 
 # number of atoms
-N_Ar = int(L / 4)
-N_Xe = int(L / 4)
+N_Ar = int(L / 2)
+N_Xe = int(L / 2)
 N = N_Ar + N_Xe
 
 # randomized initial coordinates
@@ -48,17 +48,17 @@ idxXe = np.hstack(
     [np.zeros(N_Ar), np.ones(N_Xe)]
 )
 
-####################################
-###### FORCE FIELD PARAMETERS ######
-####################################
+######################################
+###### FORCE-RELATED PARAMETERS ######
+######################################
 
-epsilon_Ar_Ar = 0.996 * 1.59360e-3
-epsilon_Ar_Xe = 1.377 * 1.59360e-3
-epsilon_Xe_Xe = 1.904 * 1.59360e-3
+epsilon_Ar_Ar = 1 # 0.996 * 1.59360e-3
+epsilon_Ar_Xe = 1.377 / 0.996 # * 1.59360e-3
+epsilon_Xe_Xe = 1.904 / 0.996 # * 1.59360e-3
 
-sigma_Ar_Ar = 3.41* (1e-10 / 5.29177e-11)
-sigma_Ar_Xe = 3.735* (1e-10 / 5.29177e-11)
-sigma_Xe_Xe = 4.06* (1e-10 / 5.29177e-11)
+sigma_Ar_Ar = 1 # 3.41 * (1e-10 / 5.29177e-11)
+sigma_Ar_Xe = 3.735 / 3.41 #* (1e-10 / 5.29177e-11)
+sigma_Xe_Xe = 4.06  / 3.41 #* (1e-10 / 5.29177e-11)
 
 epsilon = (np.outer(idxAr,idxAr) * epsilon_Ar_Ar \
     + np.outer(idxAr, idxXe) * epsilon_Ar_Xe \
@@ -69,6 +69,9 @@ sigma = (np.outer(idxAr,idxAr) * sigma_Ar_Ar \
     + np.outer(idxAr, idxXe) * sigma_Ar_Xe \
     + np.outer(idxXe, idxAr) * sigma_Ar_Xe \
     + np.outer(idxXe, idxXe) * sigma_Xe_Xe) 
+
+mass = np.array(idxAr) * 1 + np.array(idxXe) * 131.293/39.948
+mass_x3 = np.tile(mass[:,np.newaxis],(1,3))
 
 ##########################################################################
 ###### INITIATE UTILITY CLASSES (PLEASE UPDATE THEM DURING LOOPING) ######  
@@ -136,29 +139,29 @@ trajectory = {
 time = 0
 i = 0
 
-while time < 10:
+while time < 100:
 
     if i % 10 == 0: 
         mask = neighbor_list_mask(r, L, cell_width)
         distance_calc.update_global_mask(mask)
         force_field.update_distance_calc(distance_calc)
 
-    k1v = force_field.force(r) / (1837 * 30)
+    k1v = force_field.force(r) / mass_x3
     #_, k1v = explicit_test_LJ(r, epsilon ,sigma, L)
     #k1v = np.sum(k1v,axis = 1) / (1837 * 30)
     k1r = v
 
-    k2v = force_field.force(r + k1r * h/2) / (1837 * 30)
+    k2v = force_field.force(r + k1r * h/2) / mass_x3
     #_, k2v = explicit_test_LJ(r + k1r*h/2, epsilon ,sigma, L)
     #k2v = np.sum(k2v,axis = 1) / (1837 * 30)
     k2r = v + k1v * h/2
 
-    k3v = force_field.force(r + k2r * h/2) / (1837 * 30)
+    k3v = force_field.force(r + k2r * h/2) / mass_x3
     #_, k3v = explicit_test_LJ(r + k2r*h/2, epsilon ,sigma, L)
     #k3v = np.sum(k3v,axis = 1) / (1837 * 30)
     k3r = v + k2v * h/2
 
-    k4v = force_field.force(r + k3r * h) / (1837 * 30)
+    k4v = force_field.force(r + k3r * h) / mass_x3
     #_, k4v = explicit_test_LJ(r + k3r*h, epsilon ,sigma, L)
     #k4v = np.sum(k4v,axis = 1) / (1837 * 30)
     k4r = v + k3v * h
@@ -167,10 +170,11 @@ while time < 10:
     r += (k1r + 2*k2r + 2*k3r + k4r) * h/6
     r = PBC_wrapping(r,L)
 
-    kinetic_energy = 0.5 * np.sum(np.einsum("ij,ij->i",v,v)) * (1837 * 30)
-    potential_energy, _ = explicit_test_LJ(r, epsilon ,sigma, L)
+    kinetic_energy = 0.5 * np.sum(np.einsum("ij,ij->i",v,v) * mass) 
+    potential_energy = force_field.potential(r)
     potential_energy = np.sum(potential_energy)
-    #potential_energy = force_field.potential(r)
+
+    dipole = 
 
     trajectory["potential_energy"].append(potential_energy)
     trajectory["kinetic_energy"].append(kinetic_energy)
@@ -179,23 +183,25 @@ while time < 10:
     i += 1
     trajectory["time"].append(time)
 
-    if potential_energy < 1e1:
+    if potential_energy < 1e-4:
         h = 1e-2
-    elif potential_energy < 1e2:
+    elif potential_energy < 1e-3:
         h = 1e-3
-    elif potential_energy > 1e4:
-        h = 1e-5
-    else:
+    elif potential_energy < 1e-2:
         h = 1e-4
+    else:
+        h = 1e-5
 
-    if i % 100 == 0:
+    if i % 10 == 0:
         print(time)
         print("Total energy", kinetic_energy + potential_energy/2)
 
         print("\t + kinetic_energy",kinetic_energy)
         print("\t + potential_energy",potential_energy)
 
+    if i % 1000 == 0:
+        with open("result_plot/trajectory_temp.pkl","wb") as handle:
+            pickle.dump(trajectory,handle)
+
 with open("result_plot/trajectory_temp.pkl","wb") as handle:
     pickle.dump(trajectory,handle)
-
-
