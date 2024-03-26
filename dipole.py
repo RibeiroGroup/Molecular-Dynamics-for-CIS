@@ -17,26 +17,47 @@ class BaseDipoleFunction:
         #boolean mask for the distance matrix to extract distance from positive to negative atoms
         r_pn = np.outer(positive_atom_idx, negative_atom_idx)
 
+        self.r_pn_mask = r_pn[~distance_calc.identity_mat].reshape(distance_calc.n_points,-1)
+
+        self.r_pn_mask = np.array(
+                np.tile(self.r_pn_mask[:,:,np.newaxis], (1,1,3)),
+                dtype = bool)
+
         #boolean mask for the distance matrix to extract distance from negative to positive atoms
         r_np = np.outer(negative_atom_idx,positive_atom_idx)
 
+        self.r_np_mask = r_np[~distance_calc.identity_mat].reshape(distance_calc.n_points,-1)
+
+        self.r_np_mask = np.array(
+                np.tile(self.r_np_mask[:,:,np.newaxis], (1,1,3)),
+                dtype = bool)
+
+        """
         self.dipole_mask = np.array(r_pn + r_np, dtype = bool)
 
+        # flip the sign of dipole calculating from distance vector that point from negative to positive atom
         self.sign_correction = np.tile(
                 (r_pn - r_np)[:,:,np.newaxis],(1,1,3))
 
         self.sign_correction = self.sign_correction[~distance_calc.identity_mat_x3].reshape(
             distance_calc.n_points, distance_calc.n_points-1,3)
+        """
 
-    def __call__(self, R_all):
+    def __call__(self, R_all, return_tensor = False):
         
         dipole_vec_tensor = self.distance_calc.apply_function(
                 R_all, self.dipole_func, output_shape = 3
                 )
 
-        dipole_vec_tensor *= self.sign_correction
+        if return_tensor:
+            dipole_vec_tensor[self.r_np_mask] *= -1
 
-        return dipole_vec_tensor
+            return dipole_vec_tensor
+
+        else:
+            dipole_vec = dipole_vec_tensor[self.r_pn_mask].reshape(-1,3)
+
+            return dipole_vec
 
     def gradient(self, R_all):
 
@@ -82,6 +103,7 @@ class DipoleFunctionExplicitTest:
                     sign = 1
                 elif self.positive_atom_idx[j] and self.negative_atom_idx[i]:
                     sign = -1
+                    #continue
                 else:
                     continue
                 if j > i: j -= 1
@@ -96,6 +118,8 @@ class DipoleFunctionExplicitTest:
                 dipole_vec[i,j,:] = dipole
 
         return dipole_vec
+
+
 
 
 

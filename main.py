@@ -2,6 +2,9 @@ import pickle
 import time
 import numpy as np
 
+from scipy.constants import physical_constants
+from scipy.constants import epsilon_0, speed_of_light, proton_mass, neutron_mass, electron_mass
+
 from utils import PBC_wrapping
 
 from distance import DistanceCalculator, explicit_test
@@ -19,7 +22,7 @@ np.random.seed(319)
 ###### BOX LENGTH ######
 ########################
 
-L = 300
+L = 30
 cell_width = 15
 
 ##########################
@@ -52,26 +55,29 @@ idxXe = np.hstack(
 ###### FORCE-RELATED PARAMETERS ######
 ######################################
 
-epsilon_Ar_Ar = 1 # 0.996 * 1.59360e-3
-epsilon_Ar_Xe = 1.377 / 0.996 # * 1.59360e-3
-epsilon_Xe_Xe = 1.904 / 0.996 # * 1.59360e-3
+epsilon_Ar_Ar = 0.996 * 1.59360e-3
+epsilon_Ar_Xe = 1.377 * 1.59360e-3
+epsilon_Xe_Xe = 1.904 * 1.59360e-3
 
-sigma_Ar_Ar = 1 # 3.41 * (1e-10 / 5.29177e-11)
-sigma_Ar_Xe = 3.735 / 3.41 #* (1e-10 / 5.29177e-11)
-sigma_Xe_Xe = 4.06  / 3.41 #* (1e-10 / 5.29177e-11)
+sigma_Ar_Ar = 3.41 * (1e-10 / 5.29177e-11)
+sigma_Ar_Xe = 3.735* (1e-10 / 5.29177e-11)
+sigma_Xe_Xe = 4.06 * (1e-10 / 5.29177e-11)
 
-epsilon = (np.outer(idxAr,idxAr) * epsilon_Ar_Ar \
+epsilon_mat = (np.outer(idxAr,idxAr) * epsilon_Ar_Ar \
     + np.outer(idxAr, idxXe) * epsilon_Ar_Xe \
     + np.outer(idxXe, idxAr) * epsilon_Ar_Xe \
     + np.outer(idxXe, idxXe) * epsilon_Xe_Xe )
 
-sigma = (np.outer(idxAr,idxAr) * sigma_Ar_Ar \
+sigma_mat = (np.outer(idxAr,idxAr) * sigma_Ar_Ar \
     + np.outer(idxAr, idxXe) * sigma_Ar_Xe \
     + np.outer(idxXe, idxAr) * sigma_Ar_Xe \
     + np.outer(idxXe, idxXe) * sigma_Xe_Xe) 
 
-mass = np.array(idxAr) * 1 + np.array(idxXe) * 131.293/39.948
-mass_x3 = np.tile(mass[:,np.newaxis],(1,3))
+M_Ar = (18 * proton_mass + (40 - 18) * neutron_mass) / electron_mass
+M_Xe = (54 * proton_mass + (131 - 54) * neutron_mass)/ electron_mass 
+
+M_Xe = M_Xe / M_Ar
+M_Ar = 1
 
 ##########################################################################
 ###### INITIATE UTILITY CLASSES (PLEASE UPDATE THEM DURING LOOPING) ######  
@@ -84,11 +90,12 @@ distance_calc = DistanceCalculator(
         )
 
 force_field = LennardJonesPotential(
-    sigma = sigma, epsilon = epsilon, distance_calc = distance_calc
+    sigma = sigma_mat, epsilon = epsilon_mat, distance_calc = distance_calc
 )
 
 dipole_function = SimpleDipoleFunction(
-        distance_calc, mu0=0.0124 , a=1.5121, d0=7.10,
+        distance_calc, 
+        mu0=0.0124 , a=1.5121, d0=7.10,
         positive_atom_idx = idxXe,
         negative_atom_idx = idxAr
         )
@@ -99,10 +106,9 @@ dipole_function2 = DipoleFunctionExplicitTest(
         mu0=0.0124 , a=1.5121, d0=7.10, L=L
         )
 
-dipole = dipole_function(R_all)
-dipole_ = dipole_function2(R_all)
+dipole_tensor = dipole_function(R_all, return_tensor = True)
 
-print(np.sum(dipole - dipole_))
+dipole_tensor_ = dipole_function2(R_all)
 
 """
 ###################################
