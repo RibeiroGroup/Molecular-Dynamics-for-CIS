@@ -22,7 +22,7 @@ np.random.seed(319)
 ###### BOX LENGTH ######
 ########################
 
-L = 30
+L = 1000
 cell_width = 15
 
 ##########################
@@ -30,8 +30,8 @@ cell_width = 15
 ##########################
 
 # number of atoms
-N_Ar = int(L / 2)
-N_Xe = int(L / 2)
+N_Ar = int(L/2)
+N_Xe = int(L/2)
 N = N_Ar + N_Xe
 
 # randomized initial coordinates
@@ -79,6 +79,9 @@ M_Xe = (54 * proton_mass + (131 - 54) * neutron_mass)/ electron_mass
 M_Xe = M_Xe / M_Ar
 M_Ar = 1
 
+mass = M_Ar * idxAr + M_Xe * idxXe
+mass_x3 = np.tile(mass[:,np.newaxis], (1,3))
+
 ##########################################################################
 ###### INITIATE UTILITY CLASSES (PLEASE UPDATE THEM DURING LOOPING) ######  
 ##########################################################################
@@ -100,6 +103,7 @@ dipole_function = SimpleDipoleFunction(
         negative_atom_idx = idxAr
         )
 
+"""
 dipole_function2 = DipoleFunctionExplicitTest(
         positive_atom_idx = idxXe,
         negative_atom_idx = idxAr,
@@ -109,8 +113,8 @@ dipole_function2 = DipoleFunctionExplicitTest(
 dipole_tensor = dipole_function(R_all, return_tensor = True)
 
 dipole_tensor_ = dipole_function2(R_all)
-
 """
+
 ###################################
 ###### SIMULATION START HERE ######
 ###################################
@@ -121,20 +125,25 @@ r = R_all
 v = V_all
 
 trajectory = {
-    "potential_energy":[],
-    "kinetic_energy":[],
-    "time":[]
+    "potential_energy" : [],
+    "kinetic_energy" : [],
+    "total dipole" : [],
+    "sum of all dipole" : [],
+    "time" : [], "step" : [],
 }
 
-time = 0
+sim_time = 0
 i = 0
 
-while time < 100:
+start = time.time()
+while sim_time < 10:
 
     if i % 10 == 0: 
         mask = neighbor_list_mask(r, L, cell_width)
-        distance_calc.update_global_mask(neighbor_mask)
+        distance_calc.update_global_mask(mask)
+
         force_field.update_distance_calc(distance_calc)
+        dipole_function.update_distance_calc(distance_calc)
 
     k1v = force_field.force(r) / mass_x3
     #_, k1v = explicit_test_LJ(r, epsilon ,sigma, L)
@@ -164,36 +173,47 @@ while time < 100:
     potential_energy = force_field.potential(r)
     potential_energy = np.sum(potential_energy)
 
-    dipole = 
-
     trajectory["potential_energy"].append(potential_energy)
     trajectory["kinetic_energy"].append(kinetic_energy)
 
-    time += h
-    i += 1
-    trajectory["time"].append(time)
+    dipole_vec_tensor = dipole_function(r)
 
-    if potential_energy < 1e-4:
+    total_dipole_vec = np.sum(dipole_vec_tensor, axis = 0)
+    total_dipole = np.sqrt(total_dipole_vec @ total_dipole_vec)
+    trajectory["total dipole"].append(total_dipole)
+
+    sim_time += h
+    i += 1
+    trajectory["time"].append(sim_time)
+
+    if potential_energy < 1:
         h = 1e-2
-    elif potential_energy < 1e-3:
+    elif potential_energy < 10:
         h = 1e-3
-    elif potential_energy < 1e-2:
+    elif potential_energy < 100:
         h = 1e-4
     else:
         h = 1e-5
 
     if i % 10 == 0:
-        print(time)
+        print("-- Iteration #", i,  " Simulated time: ",sim_time, "--")
         print("Total energy", kinetic_energy + potential_energy/2)
 
         print("\t + kinetic_energy",kinetic_energy)
         print("\t + potential_energy",potential_energy)
+        print("\t + total dipole",total_dipole)
+
+        print("Runtime: ", time.time() - start)
 
     if i % 1000 == 0:
         with open("result_plot/trajectory_temp.pkl","wb") as handle:
             pickle.dump(trajectory,handle)
 
+        print("Autosave!")
+
+print("############ JOB COMPLETE ############")
+print("Total runtime: ", time.time() - start)
+
 with open("result_plot/trajectory_temp.pkl","wb") as handle:
     pickle.dump(trajectory,handle)
 
-"""

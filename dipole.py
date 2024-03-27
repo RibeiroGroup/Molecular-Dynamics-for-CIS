@@ -64,6 +64,10 @@ class BaseDipoleFunction:
         return self.distance_calc.apply_function(
                 R_all, self.gradient_func, output_shape = 9)
 
+    def update_distance_calc(self,distance_calc):
+
+        self.distance_calc = distance_calc
+
 class SimpleDipoleFunction(BaseDipoleFunction):
     def __init__(self, distance_calc, positive_atom_idx, negative_atom_idx, mu0, a, d0):
 
