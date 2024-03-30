@@ -22,7 +22,7 @@ np.random.seed(319)
 ###### BOX LENGTH ######
 ########################
 
-L = 1000
+L = 150
 cell_width = 15
 
 ##########################
@@ -146,23 +146,15 @@ while sim_time < 10:
         dipole_function.update_distance_calc(distance_calc)
 
     k1v = force_field.force(r) / mass_x3
-    #_, k1v = explicit_test_LJ(r, epsilon ,sigma, L)
-    #k1v = np.sum(k1v,axis = 1) / (1837 * 30)
     k1r = v
 
     k2v = force_field.force(r + k1r * h/2) / mass_x3
-    #_, k2v = explicit_test_LJ(r + k1r*h/2, epsilon ,sigma, L)
-    #k2v = np.sum(k2v,axis = 1) / (1837 * 30)
     k2r = v + k1v * h/2
 
     k3v = force_field.force(r + k2r * h/2) / mass_x3
-    #_, k3v = explicit_test_LJ(r + k2r*h/2, epsilon ,sigma, L)
-    #k3v = np.sum(k3v,axis = 1) / (1837 * 30)
     k3r = v + k2v * h/2
 
     k4v = force_field.force(r + k3r * h) / mass_x3
-    #_, k4v = explicit_test_LJ(r + k3r*h, epsilon ,sigma, L)
-    #k4v = np.sum(k4v,axis = 1) / (1837 * 30)
     k4r = v + k3v * h
 
     v += (k1v + 2*k2v + 2*k3v + k4v) * h/6

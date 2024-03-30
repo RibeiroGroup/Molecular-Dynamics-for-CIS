@@ -31,6 +31,10 @@ class DistanceCalculator:
                 self.identity_mat[:,:,np.newaxis],(1,1,3)
         )
 
+        self.identity_mat_x3x3 = np.tile(
+                self.identity_mat_x3[:,:,:,np.newaxis],(1,1,1,3)
+        )
+
         self.update_global_mask(neighbor_mask)
 
         self.L = box_length
@@ -52,7 +56,12 @@ class DistanceCalculator:
         self.utriang_mask_x3 = np.tile(
                 self.utriang_mask[:,:,np.newaxis],(1,1,3))
 
-    def get_all_distance_vector_array(self, R):
+    def generate_custom_mask(self, custom_mask):
+        mask = self.utriang_mask * custom_mask
+
+        return mask
+
+    def get_all_distance_vector_array(self, R, custom_mask=None):
         """
         Return array of distances with format:
         [r1 - r2, r1 - r3, r1 - r4 ... r1 - rN
@@ -62,7 +71,15 @@ class DistanceCalculator:
         r[N-1] - rN
         """
 
-        utriang_mask_x3 = self.utriang_mask_x3
+        if custom_mask is None:
+            utriang_mask_x3 = self.utriang_mask_x3
+        else:
+            try: 
+                assert custom_mask.shape == (self.n_points, self.n_points, 3)
+            except AssertionError:
+                raise Exception("custom_mask must have shape {} x {} x 3".format(
+                    self.n_points,self.n_points))
+            utriang_mask_x3 = custom_mask
 
         R_mat1 = np.tile(
                 R[np.newaxis,:,:], (self.n_points,1,1))
@@ -84,13 +101,13 @@ class DistanceCalculator:
          rN rN rN rN ... rN] (N rows and N-1 columns)
         """
 
-        R_mat1 = R_mat1[self.utriang_mask_x3].reshape(-1,3)
+        R_mat1 = R_mat1[utriang_mask_x3].reshape(-1,3)
         """
         Get the flattened upper triangular matrix of R_mat1 one line above the
         diagonal:
         r2 r3 r4 ... rN r3 r4 ... rN r4 rN ... ...r(N-1) rN rN
         """
-        R_mat2 = R_mat2[self.utriang_mask_x3].reshape(-1,3)
+        R_mat2 = R_mat2[utriang_mask_x3].reshape(-1,3)
         """
         Get the flattened upper triangular matrix of R_mat1 one line above the
         diagonal:
@@ -104,14 +121,28 @@ class DistanceCalculator:
 
         return d_vec
 
-    def apply_function(self, R, func, output_shape):
+    def apply_function(self, R, func, output_shape, custom_mask=None, antisymmetric=True):
         """
-        Compute a square function that has element rij = func( |rij| , rij)
+        Compute a square matrix that has element rij = func( |rij| , rij)
         e.g. output of function that takes distance btw atom i and atom j (|rij|)
-        and the distance vector between the two (rij)
+        and the distance vector between the two (rij = ri - rj)
         """
 
-        distance_vec_array = self.get_all_distance_vector_array(R)
+        if custom_mask is None:
+            mask = self.utriang_mask
+            mask_x3 = self.utriang_mask_x3 
+        else:
+            mask = custom_mask
+            mask_x3 = np.tile(custom_mask[:,:,np.newaxis], (1,1,3))
+            if output_shape == (3,3):
+                mask_x3x3 = np.tile(mask_x3[:,:,:,np.newaxis], (1,1,1,3))
+
+        if antisymmetric: 
+            sign = -1
+        else:
+            sign = +1
+
+        distance_vec_array = self.get_all_distance_vector_array(R, mask_x3)
 
         distance_array = np.sqrt(
                 np.einsum("ij,ij->i", distance_vec_array, distance_vec_array)
@@ -123,9 +154,9 @@ class DistanceCalculator:
 
             some_tensor = np.zeros((self.n_points,self.n_points,3))
 
-            some_tensor[self.utriang_mask_x3] = some_array.ravel()
+            some_tensor[mask_x3] = some_array.ravel()
 
-            some_tensor -= np.transpose(some_tensor, (1,0,2))
+            some_tensor += np.transpose(some_tensor, (1,0,2)) * sign
 
             some_tensor = some_tensor[~self.identity_mat_x3].reshape(
                 self.n_points, self.n_points-1,3)
@@ -138,13 +169,31 @@ class DistanceCalculator:
 
             some_matrix = np.zeros((self.n_points, self.n_points))
 
-            some_matrix[self.utriang_mask] = some_scalar.ravel()
+            some_matrix[mask] = some_scalar.ravel()
 
             some_matrix += some_matrix.T
 
             some_matrix = some_matrix[~self.identity_mat].reshape(self.n_points, self.n_points-1)
 
             return some_matrix
+
+        elif output_shape == (3,3):
+
+            some_tensor = func(distance_array, distance_vec_array)
+
+            some_bigger_tensor = np.zeros((self.n_points, self.n_points, 3, 3))
+
+            some_bigger_tensor[mask_x3x3] = some_tensor.ravel()
+
+            some_bigger_tensor -= np.transpose(some_bigger_tensor, (1,0,2,3))
+
+            some_bigger_tensor = some_bigger_tensor[~self.identity_mat_x3x3].reshape(
+                self.n_points, self.n_points-1,3,3)
+
+            return some_bigger_tensor
+
+        else:
+            raise Exception("DistanceCalculator.apply_function only accept output shape 1,3,(3,3)")
 
     def get_all_distance_vector_tensor(self,R):
         """
