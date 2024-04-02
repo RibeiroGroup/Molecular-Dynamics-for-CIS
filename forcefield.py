@@ -8,6 +8,14 @@ import constants
 from utils import PBC_wrapping, timeit
 from distance import DistanceCalculator, explicit_test
 
+parser = argparse.ArgumentParser(
+    prog = "distance.py",
+    description = "Python module for calculating pairwise distance.")
+
+parser.add_argument("-t","--runtest",default=False)
+
+args = parser.parse_args()
+
 class BasePotential:
     """
     Base potential class
@@ -18,6 +26,7 @@ class BasePotential:
     def __init__(self, distance_calc):
 
         assert isinstance(distance_calc, DistanceCalculator)
+
         self.distance_calc = distance_calc
 
         self.n_points = self.distance_calc.n_points
@@ -35,12 +44,15 @@ class BasePotential:
         + float: potential energy summing from all atom-atoms interactions
         """
 
-        potential_matrix = self.distance_calc.apply_function(
-            R, func=self.get_potential, output_shape = 1)
+        potential_array = self.distance_calc.apply_function(
+            R, func=self.get_potential)
 
-        if return_matrix: return potential_matrix
+        if return_matrix: 
+            potential_matrix = self.distance_calc.construct_matrix(
+                potential_array, output_shape = 1, symmetry = -1)
+            return potential_matrix
 
-        return np.sum(potential_matrix)
+        return np.sum(potential_array)
 
     def force(self, R, return_matrix = False):
         """
@@ -51,8 +63,11 @@ class BasePotential:
         + np.array: 
         """
 
-        force_matrix = self.distance_calc.apply_function(
-            R, func=self.get_force, output_shape = 3)
+        force_array = self.distance_calc.apply_function(
+            R, func=self.get_force)
+
+        force_matrix = self.distance_calc.construct_matrix(
+            force_array, output_shape = 3, symmetry = -1)
 
         if return_matrix: return force_matrix
 
@@ -144,30 +159,14 @@ def explicit_test_LJ(R, epsilon ,sigma, L):
 
     return potential_, force_
 
-def construct_param_matrix(n_points, half_n_points, pure_param, mixed_param):
+if args.runtest:
+    
 
-    """
-    Constructing the parameter matrix for potential of mixture of atoms:
-    Given pure parameter r_aa and r_bb, and "mixed parameter" r_ab, the result look like:
-    [r_aa ... r_aa r_ab ... r_ab
-    ...
-    r_ab ... r_ab r_bb ... r_bb
-    ...]
-    where the block of first n rows and first n columns are r_aa,
-    block of first n_rows and last m_columns are r_bb
-    block of last m_rows and first n_columns are r_ab
-    block of last m_rows and last m_columns are r_bb
-    """
 
-    param_matrix = np.zeros((n_points, n_points))
 
-    param_matrix[0:half_n_points, 0:half_n_points] = pure_param[0]
-    param_matrix[half_n_points:n_points, half_n_points:n_points] = pure_param[1]
 
-    param_matrix[0:half_n_points, half_n_points:n_points] = mixed_param
-    param_matrix[half_n_points:n_points, 0:half_n_points] = mixed_param
 
-    param_matrix[np.eye(n_points, dtype=bool)] = 0
 
-    return param_matrix
+
+
 

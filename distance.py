@@ -1,6 +1,15 @@
+import argparse
 import numpy as np
 
 from utils import PBC_wrapping
+
+parser = argparse.ArgumentParser(
+    prog = "distance.py",
+    description = "Python module for calculating pairwise distance.")
+
+parser.add_argument("-t","--runtest",default=False)
+
+args = parser.parse_args()
 
 class DistanceCalculator:
     """
@@ -42,8 +51,8 @@ class DistanceCalculator:
     def update_global_mask(self, neighbor_mask = None):
 
         if neighbor_mask is None:
-            self.neighbor_mask = None
-            mask = np.ones((self.n_points,self.n_points),dtype=bool)
+            self.neighbor_mask = np.ones((self.n_points,self.n_points),dtype=bool)
+            mask = self.neighbor_mask
 
         else:
             assert isinstance(neighbor_mask, np.ndarray)
@@ -56,8 +65,12 @@ class DistanceCalculator:
         self.utriang_mask_x3 = np.tile(
                 self.utriang_mask[:,:,np.newaxis],(1,1,3))
 
-    def generate_custom_mask(self, custom_mask):
-        mask = self.utriang_mask * custom_mask
+    def generate_custom_mask(self, custom_mask, only_neighbor_mask = True):
+
+        if only_neighbor_mask:
+            mask = self.neighbor_mask* custom_mask
+        else:
+            mask = self.utriang_mask * custom_mask
 
         return mask
 
@@ -121,7 +134,7 @@ class DistanceCalculator:
 
         return d_vec
 
-    def apply_function(self, R, func, output_shape, custom_mask=None, antisymmetric=True):
+    def apply_function(self, R, func, custom_mask=None):
         """
         Compute a square matrix that has element rij = func( |rij| , rij)
         e.g. output of function that takes distance btw atom i and atom j (|rij|)
@@ -129,18 +142,9 @@ class DistanceCalculator:
         """
 
         if custom_mask is None:
-            mask = self.utriang_mask
             mask_x3 = self.utriang_mask_x3 
         else:
-            mask = custom_mask
-            mask_x3 = np.tile(custom_mask[:,:,np.newaxis], (1,1,3))
-            if output_shape == (3,3):
-                mask_x3x3 = np.tile(mask_x3[:,:,:,np.newaxis], (1,1,1,3))
-
-        if antisymmetric: 
-            sign = -1
-        else:
-            sign = +1
+            mask_x3 = custom_mask
 
         distance_vec_array = self.get_all_distance_vector_array(R, mask_x3)
 
@@ -148,15 +152,32 @@ class DistanceCalculator:
                 np.einsum("ij,ij->i", distance_vec_array, distance_vec_array)
                 )
 
+        some_array = func(distance_array, distance_vec_array)
+
+        return some_array
+
+    def construct_matrix(
+            self, array, output_shape, custom_mask = None, 
+            symmetry = -1
+        ):
+        """
+        Args:
+        + symmetry: -1 for antisymmetry (M[i,j] = -M[j,i]), 0 for no symmetry
+            and 1 for symmetry matrix
+        """
+
         if output_shape == 3:
 
-            some_array = func(distance_array, distance_vec_array)
+            if custom_mask is None:
+                mask_x3 = self.utriang_mask_x3 
+            else:
+                mask_x3 = custom_mask
 
             some_tensor = np.zeros((self.n_points,self.n_points,3))
 
-            some_tensor[mask_x3] = some_array.ravel()
+            some_tensor[mask_x3] = array.ravel()
 
-            some_tensor += np.transpose(some_tensor, (1,0,2)) * sign
+            some_tensor += np.transpose(some_tensor, (1,0,2)) * symmetry
 
             some_tensor = some_tensor[~self.identity_mat_x3].reshape(
                 self.n_points, self.n_points-1,3)
@@ -165,21 +186,22 @@ class DistanceCalculator:
 
         elif output_shape == 1:
 
-            some_scalar = func(distance_array, distance_vec_array)
+            if custom_mask is None:
+                mask = self.utriang_mask
+            else:
+                mask = custom_mask
 
-            some_matrix = np.zeros((self.n_points, self.n_points))
+            some_tensor = np.zeros((self.n_points, self.n_points))
 
-            some_matrix[mask] = some_scalar.ravel()
+            some_tensor[mask] = array.ravel()
 
-            some_matrix += some_matrix.T
+            some_tensor += some_tensor.T
 
-            some_matrix = some_matrix[~self.identity_mat].reshape(self.n_points, self.n_points-1)
+            some_tensor = some_tensor[~self.identity_mat].reshape(self.n_points, self.n_points-1)
 
-            return some_matrix
+            return some_tensor
 
         elif output_shape == (3,3):
-
-            some_tensor = func(distance_array, distance_vec_array)
 
             some_bigger_tensor = np.zeros((self.n_points, self.n_points, 3, 3))
 
@@ -249,10 +271,83 @@ def explicit_test(R , L = None):
 
     return all_distance_matrix, all_distance_vec_tensor
             
+if args.runtest:
 
+    try:
+        from neighborlist import neighbor_list_mask
+        neighbor_list_module_availability = True
+    except:
+        print("Neighborlist module cannot be found. Testing without neighborlist.")
 
+    ########################
+    ###### BOX LENGTH ######
+    ########################
 
+    L = 200
+    cell_width = 20
 
+    ##########################
+    ###### ATOMIC INPUT ######
+    ##########################
 
+    # number of atoms
+    N_Ar = int(L/5)
+    N_Xe = int(L/5)
+    N = N_Ar + N_Xe
+
+    # randomized initial coordinates
+    R_all = np.random.uniform(-L/2, L/2, (N, 3))
+
+    # Calculation from explicit test
+    true_distance_mat, true_distance_vec = explicit_test(R_all, L) 
+    De = 10
+    true_potential = np.exp(De - true_distance_mat)
+
+    ############################################
+    ##### Test without neighbor cell list. #####
+    ############################################
+    print("##### Test without neighbor cell list. #####")
+
+    distance_calc = DistanceCalculator(
+        n_points = N, neighbor_mask = None, box_length = L)
+
+    distance_mat = distance_calc.apply_function(R_all, func = lambda d, ar: d)
+    distance_mat = distance_calc.construct_matrix(distance_mat, output_shape = 1)
+
+    print("+++ Difference between DistanceCalculator class and ExpliciTest for distance matrix +++")
+    print(np.sum(distance_mat - true_distance_mat))
+        
+    distance_vec = distance_calc.apply_function(R_all, func = lambda d, ar: ar)
+    distance_vec = distance_calc.construct_matrix(distance_vec, output_shape = 3)
+
+    print("+++ Difference between DistanceCalculator class and ExpliciTest for distance vector array +++")
+    print(np.sum(abs(distance_vec - true_distance_vec)))
+
+    #########################################
+    ##### Test with neighbor cell list. #####
+    #########################################
+    print("##### Test with neighbor cell list. #####")
+
+    distance_calc = DistanceCalculator(
+        n_points = N, neighbor_mask = neighbor_list_mask(R_all, L, cell_width) , 
+        box_length = L)
+
+    distance_mat = distance_calc.apply_function(R_all, func = lambda d, ar: d)
+    distance_mat = distance_calc.construct_matrix(distance_mat, output_shape = 1)
+
+    print("+++ Difference between DistanceCalculator class and ExpliciTest for distance matrix +++")
+    print(np.sum(distance_mat - true_distance_mat))
+
+    potential = distance_calc.apply_function(R_all, func = lambda d, ar: np.exp(De - d))
+    potential = distance_calc.construct_matrix(potential, output_shape = 1)
+
+    print("+++ Difference between DistanceCalculator class and ExpliciTest for potential +++")
+    print(np.sum(potential - true_potential))
+        
+    distance_vec = distance_calc.apply_function(R_all, func = lambda d, ar: ar)
+    distance_vec = distance_calc.construct_matrix(distance_vec, output_shape = 3)
+
+    print("+++ Difference between DistanceCalculator class and ExpliciTest for distance vector array +++")
+    print(np.sum(abs(distance_vec - true_distance_vec)))
 
 
