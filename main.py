@@ -11,7 +11,7 @@ from distance import DistanceCalculator, explicit_test
 from neighborlist import neighbor_list_mask
 
 from forcefield import LennardJonesPotential, explicit_test_LJ
-#from dipole import SimpleDipoleFunction, DipoleFunctionExplicitTest
+from dipole import SimpleDipoleFunction, DipoleFunctionExplicitTest
 
 from forcefield_old import LennardJonesPotential as LennardJonesPotentialOld, \
     construct_param_matrix
@@ -22,8 +22,8 @@ np.random.seed(319)
 ###### BOX LENGTH ######
 ########################
 
-L = 60
-cell_width = 15
+L = 256
+cell_width = 32
 
 ##########################
 ###### ATOMIC INPUT ######
@@ -96,13 +96,13 @@ force_field = LennardJonesPotential(
     sigma = sigma_mat, epsilon = epsilon_mat, distance_calc = distance_calc
 )
 
-"""
 dipole_function = SimpleDipoleFunction(
         distance_calc, 
         mu0=0.0124 , a=1.5121, d0=7.10,
         positive_atom_idx = idxXe,
         negative_atom_idx = idxAr
         )
+"""
 dipole_function2 = DipoleFunctionExplicitTest(
         positive_atom_idx = idxXe,
         negative_atom_idx = idxAr,
@@ -142,7 +142,7 @@ while sim_time < 10:
         distance_calc.update_global_mask(mask)
 
         force_field.update_distance_calc(distance_calc)
-        #dipole_function.update_distance_calc(distance_calc)
+        dipole_function.update(distance_calc)
 
     k1v = force_field.force(r) / mass_x3
     k1r = v
@@ -167,13 +167,11 @@ while sim_time < 10:
     trajectory["potential_energy"].append(potential_energy)
     trajectory["kinetic_energy"].append(kinetic_energy)
 
-    """
     dipole_vec_tensor = dipole_function(r)
 
     total_dipole_vec = np.sum(dipole_vec_tensor, axis = 0)
     total_dipole = np.sqrt(total_dipole_vec @ total_dipole_vec)
     trajectory["total dipole"].append(total_dipole)
-    """
 
     sim_time += h
     i += 1
@@ -194,7 +192,7 @@ while sim_time < 10:
 
         print("\t + kinetic_energy",kinetic_energy)
         print("\t + potential_energy",potential_energy)
-        #print("\t + total dipole",total_dipole)
+        print("\t + total dipole",total_dipole)
 
         print("Runtime: ", time.time() - start)
 

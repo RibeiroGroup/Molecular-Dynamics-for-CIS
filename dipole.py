@@ -1,8 +1,12 @@
+import argparse
 import numpy as np
 import sympy as sm
 
 from distance import DistanceCalculator
 from utils import PBC_wrapping
+
+# Set run_test to 1 to run test
+run_test = 0
 
 class BaseDipoleFunction:
     def __init__(
@@ -13,25 +17,11 @@ class BaseDipoleFunction:
         assert len(positive_atom_idx) == distance_calc.n_points
         assert len(negative_atom_idx) == distance_calc.n_points
 
-        self.distance_calc = distance_calc
-        #boolean mask for the distance matrix to extract distance from positive to negative atoms
-        r_pn = np.array(np.outer(positive_atom_idx, negative_atom_idx), dtype = bool)
+        #boolean matrix which has element is 1 if the location is r_p - r_n (p:positive, n:negative) and 
+        # 0 otherwise
+        self.r_pn = np.array(np.outer(positive_atom_idx, negative_atom_idx), dtype = bool)
 
-        self.r_pn_mask = r_pn[~distance_calc.identity_mat].reshape(distance_calc.n_points,-1)
-
-        self.r_pn_mask = np.array(
-                np.tile(self.r_pn_mask[:,:,np.newaxis], (1,1,3)),
-                dtype = bool)
-
-        self.r_pn_mask_x3 = np.array(
-                np.tile(self.r_pn_mask[:,:,:,np.newaxis], (1,1,1,3)),
-                dtype = bool)
-
-        #boolean mask for the distance matrix to extract distance from negative to positive atoms
-        r_np = np.outer(negative_atom_idx,positive_atom_idx)
-        r_np = np.array(np.outer(negative_atom_idx, positive_atom_idx), dtype = bool)
-
-        self.dipole_mask = self.distance_calc.generate_custom_mask(r_pn + r_np)
+        self.update(distance_calc)
 
     def __call__(self, R_all, return_tensor = False):
         """
@@ -42,21 +32,21 @@ class BaseDipoleFunction:
         r_-)
         """
         
-        dipole_vec_tensor = self.distance_calc.apply_function(
-                R_all, self.dipole_func, output_shape = 3,
-                custom_mask = self.dipole_mask
-                )
+        dipole_vec_array = self.distance_calc.apply_function(
+                R_all, self.dipole_func, custom_mask = self.r_pn_mask_x3)
 
         if return_tensor:
-            dipole_vec_tensor *= -1
-            dipole_vec_tensor[self.r_pn_mask] *= -1
+            dipole_tensor = self.distance_calc.construct_matrix(
+                    dipole_vec_array, output_shape = 3, symmetry = 0,
+                    custom_mask = self.r_pn_mask_x3, remove_diagonal = False
+                    )
 
-            return dipole_vec_tensor
+            dipole_tensor += np.transpose(dipole_tensor, (1,0,2))
+
+            return dipole_tensor
 
         else:
-            dipole_vec = dipole_vec_tensor[self.r_pn_mask].reshape(-1,3)
-
-            return dipole_vec
+            return dipole_vec_array
 
     def gradient(self, R_all):
         """
@@ -68,18 +58,32 @@ class BaseDipoleFunction:
             |_ dmu_x/dr_z dmu_y/dr_z dmu_z/dr_z _|
         with mu = mu(r_i, r_j), e.g. dipole vector between i-th and j-th atoms
         """
-        gradient = self.distance_calc.apply_function(
-                R_all, self.gradient_func, output_shape = (3,3),
-                custom_mask = self.dipole_mask)
+        gradient_array = self.distance_calc.apply_function(
+                R_all, self.gradient_func, custom_mask = self.r_pn_mask_x3)
 
-        gradient *= -1
-        gradient[self.r_pn_mask_x3] *= -1
+        gradient_tensor = self.distance_calc.construct_matrix(
+                gradient_array, output_shape = (3,3),
+                custom_mask = self.r_pn_mask_x3x3, symmetry = 0, 
+                remove_diagonal = False)
 
-        return gradient
+        gradient_tensor -= np.transpose(gradient_tensor, (1,0,2,3))
 
-    def update_distance_calc(self,distance_calc):
+        return gradient_tensor
+
+    def update(self,distance_calc):
 
         self.distance_calc = distance_calc
+
+        r_pn_mask = self.distance_calc.generate_custom_mask(
+                self.r_pn, only_neighbor_mask = True)
+
+        self.r_pn_mask_x3 = np.array(
+                np.tile(r_pn_mask[:,:,np.newaxis], (1,1,3)),
+                dtype = bool)
+
+        self.r_pn_mask_x3x3 = np.array(
+                np.tile(self.r_pn_mask_x3[:,:,:,np.newaxis], (1,1,1,3)),
+                dtype = bool)
 
 class SimpleDipoleFunction(BaseDipoleFunction):
     def __init__(self, distance_calc, positive_atom_idx, negative_atom_idx, mu0, a, d0):
@@ -128,7 +132,7 @@ class DipoleFunctionExplicitTest:
         self.L = L
 
     def __call__(self,R):
-        dipole_vec = np.zeros((len(R),len(R)-1,3))
+        dipole_vec = np.zeros((len(R),len(R),3))
         for i, ri in enumerate(R):
             for j, rj in enumerate(R):
                 if i == j: continue
@@ -136,10 +140,9 @@ class DipoleFunctionExplicitTest:
                     sign = 1
                 elif self.positive_atom_idx[j] and self.negative_atom_idx[i]:
                     sign = -1
-                    #continue
                 else:
                     continue
-                if j > i: j -= 1
+                #if j > i: j -= 1
 
                 rij = PBC_wrapping(ri - rj, self.L)
                 d = np.sqrt(rij @ rij)
@@ -153,7 +156,7 @@ class DipoleFunctionExplicitTest:
         return dipole_vec
 
     def gradient(self, R):
-        H = np.zeros((len(R), len(R)-1 , 3 , 3) )
+        H = np.zeros((len(R), len(R) , 3 , 3) )
 
         for i, ri in enumerate(R):
             for j, rj in enumerate(R):
@@ -164,10 +167,9 @@ class DipoleFunctionExplicitTest:
                     sign = -1
                 else:
                     continue
-                if j > i: j -= 1
+                #if j > i: j -= 1
 
                 rij = PBC_wrapping(ri - rj, self.L)
-                print(rij)
                 d = np.sqrt(rij @ rij)
 
                 exp_ad = np.exp(-self.a * (d - self.d0)) 
@@ -183,67 +185,122 @@ class DipoleFunctionExplicitTest:
                         H[i,j,k,l] *= sign
         return H
 
-########################
-######### TEST #########
-########################
-###### BOX LENGTH ######
-########################
+if run_test:
+    try:
+        from neighborlist import neighbor_list_mask
+        neighbor_list_module_availability = True
+    except:
+        print("Neighborlist module cannot be found. Testing without neighborlist.")
 
-L = 8
+    ########################
+    ######### TEST #########
+    ########################
+    ###### BOX LENGTH ######
+    ########################
 
-##########################
-###### ATOMIC INPUT ######
-##########################
+    L = 200
+    cell_width = 20
 
-# number of atoms
-N_Ar = 1# int(L/4)
-N_Xe = 1# int(L/4)
-N = N_Ar + N_Xe
+    ##########################
+    ###### ATOMIC INPUT ######
+    ##########################
 
-# randomized initial coordinates
+    # number of atoms
+    N_Ar = int(L/2)
+    N_Xe = int(L/2)
+    N = N_Ar + N_Xe
 
-#R_all = np.random.uniform(-L/2, L/2, (N, 3))
-r_xe = np.array([0,0,0])
-r_ar = np.array([2,1,3])
-R_all = np.vstack([r_ar, r_xe])
+    # randomized initial coordinates
 
-# indices of atoms in the R_all and V_all
-idxAr = np.hstack(
-    [np.ones(N_Ar), np.zeros(N_Xe)]
-)
+    R_all = np.random.uniform(-L/2, L/2, (N, 3))
 
-idxXe = np.hstack(
-    [np.zeros(N_Ar), np.ones(N_Xe)]
-)
+    # indices of atoms in the R_all and V_all
+    idxAr = np.hstack(
+        [np.ones(N_Ar), np.zeros(N_Xe)]
+    )
 
-##########################################################################
-###### INITIATE UTILITY CLASSES (PLEASE UPDATE THEM DURING LOOPING) ######  
-##########################################################################
+    idxXe = np.hstack(
+        [np.zeros(N_Ar), np.ones(N_Xe)]
+    )
 
-distance_calc = DistanceCalculator(
-        n_points = len(R_all), 
-        neighbor_mask = None,
-        box_length = L
-        )
+    ############################################
+    ##### Test without neighbor cell list. #####
+    ############################################
 
-dipole_function = SimpleDipoleFunction(
-        distance_calc, 
-        mu0=0.0284 , a=1.22522, d0=7.10,
-        positive_atom_idx = idxXe,
-        negative_atom_idx = idxAr
-        )
+    print("##### Test without neighbor cell list. #####")
 
-print(dipole_function.r_pn_mask_x3)
+    distance_calc = DistanceCalculator(
+            n_points = len(R_all), 
+            neighbor_mask = None,
+            box_length = L
+            )
 
-dipole_function_ = DipoleFunctionExplicitTest(
-        mu0=0.0284 , a=1.22522, d0=7.10,
-        positive_atom_idx = idxXe,
-        negative_atom_idx = idxAr, L = L
-        )
+    dipole_function = SimpleDipoleFunction(
+            distance_calc, 
+            mu0=0.0284 , a=1.22522, d0=7.10,
+            positive_atom_idx = idxXe,
+            negative_atom_idx = idxAr
+            )
 
-H = dipole_function.gradient(R_all)
-H_ = dipole_function_.gradient(R_all)
+    dipole_function_test = DipoleFunctionExplicitTest(
+            mu0=0.0284 , a=1.22522, d0=7.10,
+            positive_atom_idx = idxXe,
+            negative_atom_idx = idxAr, L = L
+            )
 
-print(H)
-print("#####")
-print(H_)
+    dipole_vec_mat = dipole_function(R_all, return_tensor = True)
+    dipole_vec_mat_ = dipole_function_test(R_all)
+
+    print("+ Difference w/ explicit test for dipole vector: ", 
+            np.sum(abs(dipole_vec_mat - dipole_vec_mat_)))
+
+    total_dipole_vec = dipole_function(R_all, return_tensor = False)
+    total_dipole_vec = np.sum(total_dipole_vec,axis = 0)
+    total_dipole_vec_ = np.sum(np.sum(dipole_vec_mat_,axis = 0),axis = 0) / 2
+ 
+    print("+ Difference w/ explicit test for total dipole vector: ", 
+            np.sum(abs(total_dipole_vec - total_dipole_vec_)))
+
+    H = dipole_function.gradient(R_all)
+    H_ = dipole_function_test.gradient(R_all)
+
+    print("+ Difference w/ explicit test for dipole gradient: ", 
+            np.sum(abs(H - H_)))
+
+    #########################################
+    ##### Test with neighbor cell list. #####
+    #########################################
+    print("##### Test with neighbor cell list. #####")
+
+    distance_calc = DistanceCalculator(
+            n_points = len(R_all), 
+            neighbor_mask = neighbor_list_mask(R_all, L, cell_width),
+            box_length = L
+            )
+
+    dipole_function = SimpleDipoleFunction(
+            distance_calc, 
+            mu0=0.0284 , a=1.22522, d0=7.10,
+            positive_atom_idx = idxXe,
+            negative_atom_idx = idxAr
+            )
+
+    dipole_vec_mat = dipole_function(R_all, return_tensor = True)
+    dipole_vec_mat_ = dipole_function_test(R_all)
+
+    print("+ Difference w/ explicit test for dipole vector: ", 
+            np.sum(abs(dipole_vec_mat - dipole_vec_mat_)))
+
+    total_dipole_vec = dipole_function(R_all, return_tensor = False)
+    total_dipole_vec = np.sum(total_dipole_vec,axis = 0)
+    total_dipole_vec_ = np.sum(np.sum(dipole_vec_mat_,axis = 0),axis = 0) / 2
+ 
+    print("+ Difference w/ explicit test for total dipole vector: ", 
+            np.sum(abs(total_dipole_vec - total_dipole_vec_)))
+
+    H = dipole_function.gradient(R_all)
+    H_ = dipole_function_test.gradient(R_all)
+
+    print("+ Difference w/ explicit test for dipole gradient: ", 
+            np.sum(abs(H - H_)))
+

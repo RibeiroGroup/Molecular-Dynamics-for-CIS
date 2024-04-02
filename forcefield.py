@@ -8,13 +8,7 @@ import constants
 from utils import PBC_wrapping, timeit
 from distance import DistanceCalculator, explicit_test
 
-parser = argparse.ArgumentParser(
-    prog = "distance.py",
-    description = "Python module for calculating pairwise distance.")
-
-parser.add_argument("-t","--runtest",default=False)
-
-args = parser.parse_args()
+run_test = True
 
 class BasePotential:
     """
@@ -49,7 +43,7 @@ class BasePotential:
 
         if return_matrix: 
             potential_matrix = self.distance_calc.construct_matrix(
-                potential_array, output_shape = 1, symmetry = -1)
+                potential_array, output_shape = 1, symmetry = 1)
             return potential_matrix
 
         return np.sum(potential_array)
@@ -159,14 +153,79 @@ def explicit_test_LJ(R, epsilon ,sigma, L):
 
     return potential_, force_
 
-if args.runtest:
-    
+if run_test:
+    try:
+        from neighborlist import neighbor_list_mask
+        neighbor_list_module_availability = True
+    except:
+        print("Neighborlist module cannot be found. Testing without neighborlist.")
 
+    ########################
+    ######### TEST #########
+    ########################
+    ###### BOX LENGTH ######
+    ########################
 
+    L = 10
+    cell_width = 20
 
+    ##########################
+    ###### ATOMIC INPUT ######
+    ##########################
 
+    # number of atoms
+    N_Ar = int(L/2)
+    N_Xe = int(L/2)
+    N = N_Ar + N_Xe
 
+    # randomized initial coordinates
 
+    R_all = np.random.uniform(-L/2, L/2, (N, 3))
 
+    # indices of atoms in the R_all and V_all
+    idxAr = np.hstack(
+        [np.ones(N_Ar), np.zeros(N_Xe)]
+    )
+
+    idxXe = np.hstack(
+        [np.zeros(N_Ar), np.ones(N_Xe)]
+    )
+
+    ######################################
+    ###### FORCE-RELATED PARAMETERS ######
+    ######################################
+
+    epsilon_Ar_Ar = 0.996 * 1.59360e-3
+    epsilon_Ar_Xe = 1.377 * 1.59360e-3
+    epsilon_Xe_Xe = 1.904 * 1.59360e-3
+
+    sigma_Ar_Ar = 3.41 * (1e-10 / 5.29177e-11)
+    sigma_Ar_Xe = 3.735* (1e-10 / 5.29177e-11)
+    sigma_Xe_Xe = 4.06 * (1e-10 / 5.29177e-11)
+
+    epsilon_mat = (np.outer(idxAr,idxAr) * epsilon_Ar_Ar \
+        + np.outer(idxAr, idxXe) * epsilon_Ar_Xe \
+        + np.outer(idxXe, idxAr) * epsilon_Ar_Xe \
+        + np.outer(idxXe, idxXe) * epsilon_Xe_Xe )
+
+    sigma_mat = (np.outer(idxAr,idxAr) * sigma_Ar_Ar \
+        + np.outer(idxAr, idxXe) * sigma_Ar_Xe \
+        + np.outer(idxXe, idxAr) * sigma_Ar_Xe \
+        + np.outer(idxXe, idxXe) * sigma_Xe_Xe) 
+
+    ############################################
+    ##### Test without neighbor cell list. #####
+    ############################################
+
+    distance_calc = DistanceCalculator(n_points = N, box_length = L)
+    forcefield = LennardJonesPotential(epsilon_mat, sigma_mat, distance_calc)
+
+    potential = forcefield.potential(R_all, return_matrix = True)
+    force = forcefield.force(R_all, return_matrix = True)
+
+    potential_,force_ = explicit_test_LJ(R_all, epsilon_mat, sigma_mat, L)
+
+    print(np.sum(abs(potential - potential_)))
+    print(np.sum(abs(force - force)))
 
 

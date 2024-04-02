@@ -7,7 +7,7 @@ with open("result_plot/trajectory_temp.pkl","rb") as handle:
     trajectory = pickle.load(handle)
 
 kinetic_energy = np.array(trajectory["kinetic_energy"])
-potential_energy = np.array(trajectory["potential_energy"])/2
+potential_energy = np.array(trajectory["potential_energy"])
 hamiltonian = kinetic_energy + potential_energy
 
 plot_range = slice(0, len(trajectory["time"]))

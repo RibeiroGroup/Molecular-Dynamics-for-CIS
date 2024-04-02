@@ -3,13 +3,7 @@ import numpy as np
 
 from utils import PBC_wrapping
 
-parser = argparse.ArgumentParser(
-    prog = "distance.py",
-    description = "Python module for calculating pairwise distance.")
-
-parser.add_argument("-t","--runtest",default=False)
-
-args = parser.parse_args()
+run_test = False
 
 class DistanceCalculator:
     """
@@ -158,7 +152,7 @@ class DistanceCalculator:
 
     def construct_matrix(
             self, array, output_shape, custom_mask = None, 
-            symmetry = -1
+            symmetry = -1, remove_diagonal = True
         ):
         """
         Args:
@@ -177,10 +171,12 @@ class DistanceCalculator:
 
             some_tensor[mask_x3] = array.ravel()
 
-            some_tensor += np.transpose(some_tensor, (1,0,2)) * symmetry
+            if symmetry:
+                some_tensor += np.transpose(some_tensor, (1,0,2)) * symmetry
 
-            some_tensor = some_tensor[~self.identity_mat_x3].reshape(
-                self.n_points, self.n_points-1,3)
+            if remove_diagonal:
+                some_tensor = some_tensor[~self.identity_mat_x3].reshape(
+                    self.n_points, self.n_points-1,3)
 
             return some_tensor
 
@@ -195,27 +191,35 @@ class DistanceCalculator:
 
             some_tensor[mask] = array.ravel()
 
-            some_tensor += some_tensor.T
+            if symmetry:
+                some_tensor += some_tensor.T * symmetry
 
-            some_tensor = some_tensor[~self.identity_mat].reshape(self.n_points, self.n_points-1)
+            if remove_diagonal:
+                some_tensor = some_tensor[~self.identity_mat].reshape(
+                        self.n_points, self.n_points-1)
 
             return some_tensor
 
         elif output_shape == (3,3):
 
+            if custom_mask is None: raise Exception("Mask is required!")
+            else: mask_x3x3 = custom_mask
+
             some_bigger_tensor = np.zeros((self.n_points, self.n_points, 3, 3))
 
-            some_bigger_tensor[mask_x3x3] = some_tensor.ravel()
+            some_bigger_tensor[mask_x3x3] = array.ravel()
 
-            some_bigger_tensor -= np.transpose(some_bigger_tensor, (1,0,2,3))
+            if symmetry:
+                some_bigger_tensor -= np.transpose(some_bigger_tensor, (1,0,2,3))
 
-            some_bigger_tensor = some_bigger_tensor[~self.identity_mat_x3x3].reshape(
-                self.n_points, self.n_points-1,3,3)
+            if remove_diagonal:
+                some_bigger_tensor = some_bigger_tensor[~self.identity_mat_x3x3].reshape(
+                    self.n_points, self.n_points-1,3,3)
 
             return some_bigger_tensor
 
         else:
-            raise Exception("DistanceCalculator.apply_function only accept output shape 1,3,(3,3)")
+            raise Exception("DistanceCalculator.apply_function only accept output shape 1,3, and (3,3)")
 
     def get_all_distance_vector_tensor(self,R):
         """
@@ -271,7 +275,7 @@ def explicit_test(R , L = None):
 
     return all_distance_matrix, all_distance_vec_tensor
             
-if args.runtest:
+if run_test:
 
     try:
         from neighborlist import neighbor_list_mask
