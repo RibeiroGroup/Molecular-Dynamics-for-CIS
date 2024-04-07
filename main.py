@@ -2,9 +2,6 @@ import pickle
 import time
 import numpy as np
 
-from scipy.constants import physical_constants
-from scipy.constants import epsilon_0, speed_of_light, proton_mass, neutron_mass, electron_mass
-
 from utils import PBC_wrapping
 
 from distance import DistanceCalculator, explicit_test
@@ -15,6 +12,9 @@ from dipole import SimpleDipoleFunction, DipoleFunctionExplicitTest
 
 from forcefield_old import LennardJonesPotential as LennardJonesPotentialOld, \
     construct_param_matrix
+
+from parameter import epsilon_Ar_Ar, epsilon_Xe_Xe, epsilon_Ar_Xe, sigma_Ar_Ar, sigma_Xe_Xe, \
+    sigma_Ar_Xe, M_Ar, M_Xe, mu0_1. d0_1. a_1
 
 np.random.seed(319)
 
@@ -55,14 +55,6 @@ idxXe = np.hstack(
 ###### FORCE-RELATED PARAMETERS ######
 ######################################
 
-epsilon_Ar_Ar = 0.996 * 1.59360e-3
-epsilon_Ar_Xe = 1.377 * 1.59360e-3
-epsilon_Xe_Xe = 1.904 * 1.59360e-3
-
-sigma_Ar_Ar = 3.41 * (1e-10 / 5.29177e-11)
-sigma_Ar_Xe = 3.735* (1e-10 / 5.29177e-11)
-sigma_Xe_Xe = 4.06 * (1e-10 / 5.29177e-11)
-
 epsilon_mat = (np.outer(idxAr,idxAr) * epsilon_Ar_Ar \
     + np.outer(idxAr, idxXe) * epsilon_Ar_Xe \
     + np.outer(idxXe, idxAr) * epsilon_Ar_Xe \
@@ -72,12 +64,6 @@ sigma_mat = (np.outer(idxAr,idxAr) * sigma_Ar_Ar \
     + np.outer(idxAr, idxXe) * sigma_Ar_Xe \
     + np.outer(idxXe, idxAr) * sigma_Ar_Xe \
     + np.outer(idxXe, idxXe) * sigma_Xe_Xe) 
-
-M_Ar = (18 * proton_mass + (40 - 18) * neutron_mass) / electron_mass
-M_Xe = (54 * proton_mass + (131 - 54) * neutron_mass)/ electron_mass 
-
-M_Xe = M_Xe / M_Ar
-M_Ar = 1
 
 mass = M_Ar * idxAr + M_Xe * idxXe
 mass_x3 = np.tile(mass[:,np.newaxis], (1,3))
@@ -98,21 +84,10 @@ force_field = LennardJonesPotential(
 
 dipole_function = SimpleDipoleFunction(
         distance_calc, 
-        mu0=0.0124 , a=1.5121, d0=7.10,
+        mu0=mu0_1, a=a1, d0=d0_1,
         positive_atom_idx = idxXe,
         negative_atom_idx = idxAr
         )
-"""
-dipole_function2 = DipoleFunctionExplicitTest(
-        positive_atom_idx = idxXe,
-        negative_atom_idx = idxAr,
-        mu0=0.0124 , a=1.5121, d0=7.10, L=L
-        )
-
-dipole_tensor = dipole_function(R_all, return_tensor = True)
-
-dipole_tensor_ = dipole_function2(R_all)
-"""
 
 ###################################
 ###### SIMULATION START HERE ######

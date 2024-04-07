@@ -48,14 +48,15 @@ class BaseDipoleFunction:
         else:
             return dipole_vec_array
 
-    def gradient(self, R_all):
+    def gradient(self, R_all, return_all = False):
         """
         Return gradient of the dipole function w.r.t. position r = r_+.
-        The matrix will have the shape N x (N - 1) x 3 x 3 where the 
+        The matrix will have the shape N x N x 3 x 3 where the 
         3 x 3 tensor at i, j -th element will be
             |~ dmu_x/dr_x dmu_y/dr_x dmu_z/dr_x ~|
             |  dmu_x/dr_y dmu_y/dr_y dmu_z/dr_y  |
-            |_ dmu_x/dr_z dmu_y/dr_z dmu_z/dr_z _|
+            |_ dmu_x/dr_z dmu_y/dr_z dmu_z/dr_z _|; 
+            OR (D_r mu)_(ij) = dmu_j / dr_i 
         with mu = mu(r_i, r_j), e.g. dipole vector between i-th and j-th atoms
         """
         gradient_array = self.distance_calc.apply_function(
@@ -68,6 +69,10 @@ class BaseDipoleFunction:
 
         gradient_tensor -= np.transpose(gradient_tensor, (1,0,2,3))
 
+        if return_all:
+            return gradient_tensor
+
+        gradient_tensor = np.sum(gradient_tensor, axis = 1)
         return gradient_tensor
 
     def update(self,distance_calc):
@@ -86,6 +91,9 @@ class BaseDipoleFunction:
                 dtype = bool)
 
 class SimpleDipoleFunction(BaseDipoleFunction):
+    """
+    Class for Dipole Function evaluation based on work by Grigoriev et al.
+    """
     def __init__(self, distance_calc, positive_atom_idx, negative_atom_idx, mu0, a, d0):
 
         super().__init__(distance_calc, positive_atom_idx, negative_atom_idx)
@@ -298,7 +306,7 @@ if run_test:
     print("+ Difference w/ explicit test for total dipole vector: ", 
             np.sum(abs(total_dipole_vec - total_dipole_vec_)))
 
-    H = dipole_function.gradient(R_all)
+    H = dipole_function.gradient(R_all,return_all = True)
     H_ = dipole_function_test.gradient(R_all)
 
     print("+ Difference w/ explicit test for dipole gradient: ", 
