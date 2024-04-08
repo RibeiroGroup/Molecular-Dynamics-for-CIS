@@ -124,76 +124,9 @@ class SimpleDipoleFunction(BaseDipoleFunction):
 
         return gradient
 
-class DipoleFunctionExplicitTest:
-    """
-    Note: This class is for testing and verifying the above function only
-    """
-    def __init__(self, positive_atom_idx, negative_atom_idx, mu0, a, d0, L):
- 
-        self.mu0 = mu0
-        self.a = a
-        self.d0 = d0
-        
-        self.positive_atom_idx = positive_atom_idx
-        self.negative_atom_idx = negative_atom_idx
-
-        self.L = L
-
-    def __call__(self,R):
-        dipole_vec = np.zeros((len(R),len(R),3))
-        for i, ri in enumerate(R):
-            for j, rj in enumerate(R):
-                if i == j: continue
-                if self.positive_atom_idx[i] and self.negative_atom_idx[j]:
-                    sign = 1
-                elif self.positive_atom_idx[j] and self.negative_atom_idx[i]:
-                    sign = -1
-                else:
-                    continue
-                #if j > i: j -= 1
-
-                rij = PBC_wrapping(ri - rj, self.L)
-                d = np.sqrt(rij @ rij)
-
-                dipole = self.mu0 * np.exp(-self.a * (d - self.d0)) 
-
-                dipole *= rij
-                dipole *= sign
-                dipole_vec[i,j,:] = dipole
-
-        return dipole_vec
-
-    def gradient(self, R):
-        H = np.zeros((len(R), len(R) , 3 , 3) )
-
-        for i, ri in enumerate(R):
-            for j, rj in enumerate(R):
-                if i == j: continue
-                if self.positive_atom_idx[i] and self.negative_atom_idx[j]:
-                    sign = +1
-                elif self.positive_atom_idx[j] and self.negative_atom_idx[i]:
-                    sign = -1
-                else:
-                    continue
-                #if j > i: j -= 1
-
-                rij = PBC_wrapping(ri - rj, self.L)
-                d = np.sqrt(rij @ rij)
-
-                exp_ad = np.exp(-self.a * (d - self.d0)) 
-
-                for k in range(3):
-                    for l in range(3):
-                        H[i,j,k,l] = - self.a * self.mu0 * rij[k] * rij[l] * exp_ad / d**2
-                        H[i,j,k,l] -= self.mu0 * rij[k] * rij[l] * exp_ad / d**3
-
-                        if k == l:
-                            H[i,j,k,l] += self.mu0 * exp_ad / d
-
-                        H[i,j,k,l] *= sign
-        return H
 
 if run_test:
+    from test.dipole import ExplicitTestDipoleFunction
     try:
         from neighborlist import neighbor_list_mask
         neighbor_list_module_availability = True
@@ -206,16 +139,16 @@ if run_test:
     ###### BOX LENGTH ######
     ########################
 
-    L = 200
-    cell_width = 20
+    L = 8
+    cell_width = 4
 
     ##########################
     ###### ATOMIC INPUT ######
     ##########################
 
     # number of atoms
-    N_Ar = int(L/2)
-    N_Xe = int(L/2)
+    N_Ar = int(L/4)
+    N_Xe = int(L/4)
     N = N_Ar + N_Xe
 
     # randomized initial coordinates
@@ -250,7 +183,7 @@ if run_test:
             negative_atom_idx = idxAr
             )
 
-    dipole_function_test = DipoleFunctionExplicitTest(
+    dipole_function_test = ExplicitTestDipoleFunction(
             mu0=0.0284 , a=1.22522, d0=7.10,
             positive_atom_idx = idxXe,
             negative_atom_idx = idxAr, L = L
@@ -269,8 +202,8 @@ if run_test:
     print("+ Difference w/ explicit test for total dipole vector: ", 
             np.sum(abs(total_dipole_vec - total_dipole_vec_)))
 
-    H = dipole_function.gradient(R_all)
-    H_ = dipole_function_test.gradient(R_all)
+    H = dipole_function.gradient(R_all,return_all=True)
+    H_ = dipole_function_test.gradient(R_all,return_all=True)
 
     print("+ Difference w/ explicit test for dipole gradient: ", 
             np.sum(abs(H - H_)))
@@ -307,7 +240,7 @@ if run_test:
             np.sum(abs(total_dipole_vec - total_dipole_vec_)))
 
     H = dipole_function.gradient(R_all,return_all = True)
-    H_ = dipole_function_test.gradient(R_all)
+    H_ = dipole_function_test.gradient(R_all,return_all=True)
 
     print("+ Difference w/ explicit test for dipole gradient: ", 
             np.sum(abs(H - H_)))

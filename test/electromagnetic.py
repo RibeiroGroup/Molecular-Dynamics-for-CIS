@@ -104,17 +104,31 @@ class ExplicitTestVectorPotential:
         C_dot = np.array(C_dot)
         return C_dot
 
-    def transv_force(self,r, v, gradD):
+    def transv_force(self,r, v, dipole_func):
+        """
+        args:
+        + r
+        + v	
+        + dipole_func (class ExplicitTestDipoleFunction)
+		"""
         all_k_vec = self.k_vector[:,0,:]
         epsilon = self.k_vector[:,1:,:]
 
         C = self.C
-        C_dot = self.dot_C(r, v, gradD)
 
         ma_list = []
         force1_list = []
         force2_list = []
         force3_list = []
+
+        gradD = []
+        gradD_ = dipole_func.gradient(r,change_of_basis=None)
+
+        for l, k_vec in enumerate(all_k_vec):
+            epsilon_k = k_vec / self.k_val[l]
+            change_of_basis_mat = np.vstack([epsilon_k, epsilon[l]])
+            gD = dipole_func.gradient(r,change_of_basis_mat)
+            gradD.append(gD)
 
         for j, rj in enumerate(r):
             _ma_ = np.array([0+0j,0+0j,0+0j])
@@ -125,8 +139,6 @@ class ExplicitTestVectorPotential:
             for l, k_vec in enumerate(all_k_vec):
                 epsilon_k = k_vec / self.k_val[l]
 
-                mu_grad = gradD[j]
-
                 # k part
                 vk  = epsilon_k     @ v[j].T # projection of v on k_vec
                 vk1 = epsilon[l][0] @ v[j].T # projection of v on epsilon_k1
@@ -135,6 +147,10 @@ class ExplicitTestVectorPotential:
 
                 # C[0] = 0;  C[1] = C_{k1}; C[2] = C_{k2}
                 k = self.k_val[l]
+
+                mu_grad = gradD[l][j]
+                C_dot = self.dot_C(r, v, gradD_)
+                
 
                 for m in [1,2]:
                     for n in [1,2]:
@@ -150,6 +166,7 @@ class ExplicitTestVectorPotential:
                 # epsilon part
                 for i in [1,2]:
                     for m in [1,2]:
+
                         force2 +=       (C_dot[l][m-1] * np.exp(1j * k_vec @ rj) + \
                             np.conjugate(C_dot[l][m-1] * np.exp(1j * k_vec @ rj)) )\
                             * mu_grad[i][m] * epsilon[l][i-1]

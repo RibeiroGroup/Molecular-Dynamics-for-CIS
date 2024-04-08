@@ -126,7 +126,9 @@ class VectorPotential:
         Computing the transverse force exerting on the charged atoms by the field.
         The output have the shape (N x 3) 
         """
+   
         gradA = self.gradient(R)
+
         dAdt = self.time_diff(R, R_dot, C_dot=C_dot, gradD=gradD)
 
         # S_l S_j (dA_j/dr_i) (dmu_j/dr_l) rdot_l
@@ -139,7 +141,7 @@ class VectorPotential:
         # S_j (dA_j/dt) (dmu_j/dr_i)
         # (D_r mu)_(ij) = dmu_j / dr_i
 
-        force2 = np.einsum("nj,nij->ni",dAdt, gradD)
+        force2 = np.einsum("nj,nji->ni",dAdt, gradD)
 
         # S_l S_j (dA_j/dr_l) (dmu_j/dr_i) rdot_l
         # (gradA)_(jl) = dA_j/dr_l
@@ -161,10 +163,15 @@ if run_test == True:
     from distance import DistanceCalculator
     from parameter import mu0_1, a1, d0_1
     from test.electromagnetic import ExplicitTestVectorPotential
+    from test.dipole import ExplicitTestDipoleFunction
 
     np.random.seed(2)
 
-    k_vector = np.array([[[1.0,0.0,0.0], [0.0,1.0,0.0], [0.0,0.0,1.0]]])
+    k_vector = np.array([
+        #[[1.0,0.0,0.0], [0.0,1.0,0.0], [0.0,0.0,1.0]],
+        #[[0.0,1.0,0.0], [1.0,0.0,0.0], [0.0,0.0,1.0]]
+        [[1.0,1.0,0.0], [1.0* 2**-0.5,-1.0* 2**-0.5,0.0] , [0.0,0.0,1.0]]
+        ])
     # np.random.uniform(-5,5,(10,3)) 
     #k_vector = np.array([
     #    orthogonalize(kvec) for kvec in k_vector
@@ -172,8 +179,8 @@ if run_test == True:
 
     amplitudes = np.random.rand(len(k_vector),2) + np.random.rand(len(k_vector),2) * 1j
 
-    L = 40
-    N_atoms = 20
+    L = 20
+    N_atoms = 10
     R = np.random.uniform(-L/2,L/2,size = (N_atoms, 3))
     V = np.random.uniform(-L/2,L/2,size = (N_atoms, 3))
     ArIdx = np.hstack([np.ones(int(N_atoms/2)),np.zeros(int(N_atoms/2))])
@@ -191,6 +198,7 @@ if run_test == True:
 
     distance_calc = DistanceCalculator(n_points=N_atoms,box_length=L)
     dipole_func = SimpleDipoleFunction(distance_calc, ArIdx, XeIdx, mu0=mu0_1, a=a1,d0=d0_1)
+    dipole_func_ = ExplicitTestDipoleFunction(ArIdx, XeIdx, mu0=mu0_1, a=a1,d0=d0_1,L=L)
 
     gradD = dipole_func.gradient(R)
 
@@ -200,19 +208,28 @@ if run_test == True:
     print("+++ Difference between VectorPotential class and ExpliciTest for time derivative of A +++")
     print(np.sum(abs(C_dot - C_dot_)))
 
+    print("Transverse force computation test:")
+
     """
-    f1,f2,f3 = AField.transv_force(R,V, gradD=gradD,C_dot = C_dot)
-    f1_, f2_, f3_ = AFieldTest.transv_force(R,V, gradD=gradD)
+    f1,f2,f3 = AField.transv_force(R,V, gradD=gradD)
+    f1_, f2_, f3_ = AFieldTest.transv_force(R,V, dipole_func_)
 
     foo1 = f1 - f1_
     foo2 = f2 - f2_
     foo3 = f3 - f3_
 
-    print(f3)
-    print(f3_)
+    print(np.sum(foo1))
+    print(np.sum(foo2))
+    print(np.sum(foo3))
+
+    print(f1,f1_)
+    print("##############")
+    print(f2,f2_)
+    print("##############")
+    print(f3,f3_)
     """
     force = AField.transv_force(R,V, gradD=gradD,C_dot = C_dot)
-    force_  = AFieldTest.transv_force(R,V, gradD=gradD)
+    force_  = AFieldTest.transv_force(R,V, dipole_func_)
     print(force - force_)
 
         
