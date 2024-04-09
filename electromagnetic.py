@@ -4,10 +4,10 @@ import numpy.linalg as la
 from utils import PBC_wrapping, orthogonalize
 import constants
 
-run_test = True
+run_test = False
 
 class VectorPotential:
-    def __init__(self, k_vector, amplitudes):
+    def __init__(self, k_vector, amplitude):
         """
         Class for computing potential vector A of the field, its amplitude derivative,
         and transverse force on (charged) atoms exert by the field.
@@ -27,14 +27,24 @@ class VectorPotential:
                 orthogonalize(kvec) for kvec in k_vector
                 ]) # each k_vector should have shape N_mode x 3 x 3
 
-        assert amplitudes.shape == (self.N_modes, 2)
+        assert amplitude.shape == (self.N_modes, 2)
 
-        self.C = amplitudes
+        self.update_amplitude(amplitude=amplitude)
 
         k_vec = self.k_vector[:,0,:]
 
         self.k_val = np.sqrt(np.einsum("kj,kj->k",k_vec,k_vec))
         self.omega = np.array(self.k_val * constants.c, dtype=np.complex128)
+
+    def update_amplitude(self,amplitude = None, deltaC = None):
+
+        assert amplitude is not None or deltaC is not None
+        assert amplitude is None or deltaC is None
+
+        if amplitude is not None:
+            self.C = amplitude
+        elif deltaC is not None:
+            self.C += deltaC
 
     def __call__(self, R, C = None):
         k_vec = self.k_vector[:,0,:]
@@ -158,7 +168,21 @@ class VectorPotential:
         #return force1, force2, force3
         return force
 
+    def hamiltonian(self, return_sum_only = False):
+        k_vector = self.k_vector[:,0,:]
+
+        k_sum = np.einsum("ki,ki->k",k_vector,k_vector)
+        c_sum = np.einsum("ki,ki->k",self.C,np.conjugate(self.C))
+
+        H = (2*np.pi)**-1 * k_sum * c_sum
+
+        if return_sum_only:
+            return np.sum(H)
+
+        return H
+
 if run_test == True:
+    import time
     from dipole import SimpleDipoleFunction
     from distance import DistanceCalculator
     from parameter import mu0_1, a1, d0_1
@@ -167,20 +191,20 @@ if run_test == True:
 
     np.random.seed(2)
 
-    k_vector = np.array([
-        #[[1.0,0.0,0.0], [0.0,1.0,0.0], [0.0,0.0,1.0]],
-        #[[0.0,1.0,0.0], [1.0,0.0,0.0], [0.0,0.0,1.0]]
-        [[1.0,1.0,0.0], [1.0* 2**-0.5,-1.0* 2**-0.5,0.0] , [0.0,0.0,1.0]]
-        ])
-    # np.random.uniform(-5,5,(10,3)) 
     #k_vector = np.array([
-    #    orthogonalize(kvec) for kvec in k_vector
-    #    ]) 
+    #    [[1.0,0.0,0.0], [0.0,1.0,0.0], [0.0,0.0,1.0]],
+    #    [[0.0,1.0,0.0], [1.0,0.0,0.0], [0.0,0.0,1.0]],
+    #    [[1.0,1.0,0.0], [1.0* 2**-0.5,-1.0* 2**-0.5,0.0] , [0.0,0.0,1.0]]
+    #    ])
+    k_vector = np.random.uniform(-5,5,(10,3)) 
+    k_vector = np.array([
+        orthogonalize(kvec) for kvec in k_vector
+        ]) 
 
     amplitudes = np.random.rand(len(k_vector),2) + np.random.rand(len(k_vector),2) * 1j
 
-    L = 20
-    N_atoms = 10
+    L = 100
+    N_atoms = 100
     R = np.random.uniform(-L/2,L/2,size = (N_atoms, 3))
     V = np.random.uniform(-L/2,L/2,size = (N_atoms, 3))
     ArIdx = np.hstack([np.ones(int(N_atoms/2)),np.zeros(int(N_atoms/2))])
@@ -208,28 +232,16 @@ if run_test == True:
     print("+++ Difference between VectorPotential class and ExpliciTest for time derivative of A +++")
     print(np.sum(abs(C_dot - C_dot_)))
 
-    print("Transverse force computation test:")
+    print("+++ Transverse force computation test:")
 
-    """
-    f1,f2,f3 = AField.transv_force(R,V, gradD=gradD)
-    f1_, f2_, f3_ = AFieldTest.transv_force(R,V, dipole_func_)
-
-    foo1 = f1 - f1_
-    foo2 = f2 - f2_
-    foo3 = f3 - f3_
-
-    print(np.sum(foo1))
-    print(np.sum(foo2))
-    print(np.sum(foo3))
-
-    print(f1,f1_)
-    print("##############")
-    print(f2,f2_)
-    print("##############")
-    print(f3,f3_)
-    """
+    start = time.time()
     force = AField.transv_force(R,V, gradD=gradD,C_dot = C_dot)
+    print("Runtime(s): ",time.time() - start)
+
+    start = time.time()
     force_  = AFieldTest.transv_force(R,V, dipole_func_)
-    print(force - force_)
+    print("Explicit computation runtime(s): ",time.time() - start)
+
+    print("Sum of abs difference: ",np.sum(abs(force - force_)))
 
         

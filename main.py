@@ -2,19 +2,18 @@ import pickle
 import time
 import numpy as np
 
-from utils import PBC_wrapping
+from utils import PBC_wrapping, orthogonalize
 
 from distance import DistanceCalculator, explicit_test
 from neighborlist import neighbor_list_mask
 
 from forcefield import LennardJonesPotential, explicit_test_LJ
-from dipole import SimpleDipoleFunction, DipoleFunctionExplicitTest
-
-from forcefield_old import LennardJonesPotential as LennardJonesPotentialOld, \
-    construct_param_matrix
+from dipole import SimpleDipoleFunction
 
 from parameter import epsilon_Ar_Ar, epsilon_Xe_Xe, epsilon_Ar_Xe, sigma_Ar_Ar, sigma_Xe_Xe, \
-    sigma_Ar_Xe, M_Ar, M_Xe, mu0_1. d0_1. a_1
+    sigma_Ar_Xe, M_Ar, M_Xe, mu0_1, d0_1, a1
+
+from electromagnetic import VectorPotential
 
 np.random.seed(319)
 
@@ -22,8 +21,8 @@ np.random.seed(319)
 ###### BOX LENGTH ######
 ########################
 
-L = 256
-cell_width = 32
+L = 30
+cell_width = 10
 
 ##########################
 ###### ATOMIC INPUT ######
@@ -68,6 +67,41 @@ sigma_mat = (np.outer(idxAr,idxAr) * sigma_Ar_Ar \
 mass = M_Ar * idxAr + M_Xe * idxXe
 mass_x3 = np.tile(mass[:,np.newaxis], (1,3))
 
+#########################
+###### FIELD INPUT ######
+#########################
+
+n_modes = 5
+k_vector = np.random.randint(low = -5, high = 5, size = (n_modes, 3))
+
+k_vector = np.array([
+    orthogonalize(kvec) for kvec in k_vector
+    ]) 
+
+amplitudes = np.random.rand(len(k_vector),2) + np.random.rand(len(k_vector),2) * 1j
+
+vector_potential = VectorPotential(k_vector, amplitudes)
+
+##########################################
+###### INITIAL VARIABLES AND OTHERS ######
+##########################################
+
+n_steps = 50000
+h = 1e-4
+r = R_all + 1j * np.zeros(R_all.shape)
+v = V_all + 1j * np.zeros(V_all.shape)
+
+trajectory = {
+    "potential_energy" : [],
+    "kinetic_energy" : [],
+    "total dipole" : [],
+    "sum of all dipole" : [],
+    "time" : [], "step" : [],
+}
+
+sim_time = 0
+i = 0
+
 ##########################################################################
 ###### INITIATE UTILITY CLASSES (PLEASE UPDATE THEM DURING LOOPING) ######  
 ##########################################################################
@@ -93,22 +127,6 @@ dipole_function = SimpleDipoleFunction(
 ###### SIMULATION START HERE ######
 ###################################
 
-n_steps = 50000
-h = 1e-4
-r = R_all
-v = V_all
-
-trajectory = {
-    "potential_energy" : [],
-    "kinetic_energy" : [],
-    "total dipole" : [],
-    "sum of all dipole" : [],
-    "time" : [], "step" : [],
-}
-
-sim_time = 0
-i = 0
-
 start = time.time()
 while sim_time < 10:
 
@@ -119,25 +137,60 @@ while sim_time < 10:
         force_field.update_distance_calc(distance_calc)
         dipole_function.update(distance_calc)
 
-    k1v = force_field.force(r) / mass_x3
+    gradD = dipole_function.gradient(r)
+    k1c = vector_potential.dot_C(r,v,gradD)
+    k1v = (force_field.force(r) + vector_potential.transv_force(r,v,gradD=gradD,C_dot=k1c) \
+            ) / mass_x3
     k1r = v
 
-    k2v = force_field.force(r + k1r * h/2) / mass_x3
-    k2r = v + k1v * h/2
+    gradD = dipole_function.gradient(r + k1r*h/2)
+    k2c = vector_potential.dot_C(r + k1r*h/2, v + k1v*h/2, gradD)
+    k2v = (force_field.force(r + k1r*h/2)  \
+            + vector_potential.transv_force(r + k1r*h/2, v + k1v*h/2, gradD=gradD, C_dot=k2c) \
+            ) / mass_x3
+    k2r = v + k1v*h/2
 
-    k3v = force_field.force(r + k2r * h/2) / mass_x3
-    k3r = v + k2v * h/2
+    gradD = dipole_function.gradient(r + k2r*h/2)
+    k3c = vector_potential.dot_C(r + k2r*h/2, v + k2v*h/2, gradD)
+    k3v = (force_field.force(r + k2r*h/2) \
+            + vector_potential.transv_force(r + k2r*h/2, v + k2v*h/2, gradD=gradD, C_dot=k3c) \
+            ) / mass_x3
+    k3r = v + k2v*h/2
 
-    k4v = force_field.force(r + k3r * h) / mass_x3
+    gradD = dipole_function.gradient(r + k3r*h)
+    k4c = vector_potential.dot_C(r + k3r*h, v + k3v*h, gradD)
+    k4v = (force_field.force(r + k3r * h)\
+            + vector_potential.transv_force(r + k3r*h, v + k3v*h, gradD=gradD, C_dot=k4c) \
+            ) / mass_x3
     k4r = v + k3v * h
+    
+    ##############
+    ### UPDATE ###
+    ##############
 
-    v += (k1v + 2*k2v + 2*k3v + k4v) * h/6
-    r += (k1r + 2*k2r + 2*k3r + k4r) * h/6
+    vector_potential.update_amplitude(
+            deltaC = (k1c + (2+0j)*k2c + (2+0j)*k3c + k4c) * h/(6+0j))
+
+    v += (1*k1v + 2*k2v + 2*k3v + 1*k4v) * h/6
+    r += (1*k1r + 2*k2r + 2*k3r + 1*k4r) * h/6
+
     r = PBC_wrapping(r,L)
 
+    ########################
+    ### CALCULATE ENERGY ###
+    ########################
+
     kinetic_energy = 0.5 * np.sum(np.einsum("ij,ij->i",v,v) * mass) 
+
     potential_energy = force_field.potential(r)
     potential_energy = np.sum(potential_energy)
+
+    H_em = vector_potential.hamiltonian()
+    H_em_total = np.sum(H_em)
+
+    ####################
+    ### SAVING STUFF ###
+    ####################
 
     trajectory["potential_energy"].append(potential_energy)
     trajectory["kinetic_energy"].append(kinetic_energy)
@@ -163,7 +216,7 @@ while sim_time < 10:
 
     if i % 100 == 0:
         print("-- Iteration #", i,  " Simulated time: ",sim_time, "--")
-        print("Total energy", kinetic_energy + potential_energy)
+        print("Total energy", kinetic_energy + potential_energy + H_em_total)
 
         print("\t + kinetic_energy",kinetic_energy)
         print("\t + potential_energy",potential_energy)
