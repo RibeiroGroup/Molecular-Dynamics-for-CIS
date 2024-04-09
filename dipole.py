@@ -133,36 +133,28 @@ if run_test:
     except:
         print("Neighborlist module cannot be found. Testing without neighborlist.")
 
+    import input_dat
     ########################
     ######### TEST #########
     ########################
     ###### BOX LENGTH ######
     ########################
 
-    L = 8
-    cell_width = 4
+    L = 40
+    cell_width = 20
 
     ##########################
     ###### ATOMIC INPUT ######
     ##########################
 
-    # number of atoms
-    N_Ar = int(L/4)
-    N_Xe = int(L/4)
-    N = N_Ar + N_Xe
+    R_all = np.vstack([input_dat.r_ar, input_dat.r_xe])
+    V = np.vstack([input_dat.v_ar, input_dat.v_xe])
 
-    # randomized initial coordinates
-
-    R_all = np.random.uniform(-L/2, L/2, (N, 3))
+    N_atoms = R_all.shape[0]
 
     # indices of atoms in the R_all and V_all
-    idxAr = np.hstack(
-        [np.ones(N_Ar), np.zeros(N_Xe)]
-    )
-
-    idxXe = np.hstack(
-        [np.zeros(N_Ar), np.ones(N_Xe)]
-    )
+    idxAr = np.hstack([np.ones(int(N_atoms/2)),np.zeros(int(N_atoms/2))])
+    idxXe = np.hstack([np.zeros(int(N_atoms/2)),np.ones(int(N_atoms/2))])
 
     ############################################
     ##### Test without neighbor cell list. #####
@@ -178,13 +170,13 @@ if run_test:
 
     dipole_function = SimpleDipoleFunction(
             distance_calc, 
-            mu0=0.0284 , a=1.22522, d0=7.10,
+            mu0=0.0124 , a=1.5121, d0=7.10,
             positive_atom_idx = idxXe,
             negative_atom_idx = idxAr
             )
 
     dipole_function_test = ExplicitTestDipoleFunction(
-            mu0=0.0284 , a=1.22522, d0=7.10,
+            mu0=0.0124 , a=1.5121, d0=7.10,
             positive_atom_idx = idxXe,
             negative_atom_idx = idxAr, L = L
             )
@@ -202,8 +194,8 @@ if run_test:
     print("+ Difference w/ explicit test for total dipole vector: ", 
             np.sum(abs(total_dipole_vec - total_dipole_vec_)))
 
-    H = dipole_function.gradient(R_all,return_all=True)
-    H_ = dipole_function_test.gradient(R_all,return_all=True)
+    H = dipole_function.gradient(R_all,return_all=False)
+    H_ = dipole_function_test.gradient(R_all,return_all=False)
 
     print("+ Difference w/ explicit test for dipole gradient: ", 
             np.sum(abs(H - H_)))
@@ -221,7 +213,7 @@ if run_test:
 
     dipole_function = SimpleDipoleFunction(
             distance_calc, 
-            mu0=0.0284 , a=1.22522, d0=7.10,
+            mu0=0.0124 , a=1.5121, d0=7.10,
             positive_atom_idx = idxXe,
             negative_atom_idx = idxAr
             )
@@ -244,4 +236,30 @@ if run_test:
 
     print("+ Difference w/ explicit test for dipole gradient: ", 
             np.sum(abs(H - H_)))
+
+    #########################################################################
+    #########################################################################
+    #########################################################################
+
+    R_all = np.array([[0,0,0],[2,1,3]])
+
+    # indices of atoms in the R_all and V_all
+    idxAr = np.array([0,1])
+    idxXe = np.array([1,0])
+    
+    distance_calc = DistanceCalculator(
+            n_points = 2, neighbor_mask = None,
+            box_length = None
+            )
+
+    dipole_function = SimpleDipoleFunction(
+            distance_calc, 
+            mu0=0.0284 , a=1.22522, d0=7.10,
+            positive_atom_idx = idxXe,
+            negative_atom_idx = idxAr
+            )
+
+    print(dipole_function.gradient(R_all,return_all=True))
+
+
 

@@ -68,17 +68,18 @@ class ExplicitTestDipoleFunction:
 
                 rij = mat @ rij
 
-                d = np.sqrt(rij @ rij)
+                d2 = np.sum(rij**2)
+                d = np.sqrt(d2)
 
-                exp_ad = np.exp(-self.a * (d - self.d0)) 
+                exp_ad = self.mu0 * np.exp(-self.a * (d - self.d0)) 
 
                 for k in range(3):
                     for l in range(3):
-                        H[i,j,k,l] = - self.a * self.mu0 * rij[k] * rij[l] * exp_ad / d**2
-                        H[i,j,k,l] -= self.mu0 * rij[k] * rij[l] * exp_ad / d**3
+                        H[i,j,k,l] = - self.a * rij[k] * rij[l] * exp_ad / d2
+                        H[i,j,k,l] -= rij[k] * rij[l] * exp_ad / (d2 * d)
 
                         if k == l:
-                            H[i,j,k,l] += self.mu0 * exp_ad / d
+                            H[i,j,k,l] += exp_ad / d
 
                         H[i,j,k,l] *= sign
         if return_all:

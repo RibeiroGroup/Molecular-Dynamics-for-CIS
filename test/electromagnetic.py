@@ -90,8 +90,13 @@ class ExplicitTestVectorPotential:
             jk = 0
 
             for i, ri in enumerate(r):
-                jk += np.exp(-1j * k_vec @ ri) * gradD[i].T @ r_dot[i]
+                for l,rl in enumerate(r):
+                    jk += np.exp(-1j * k_vec @ ri) * gradD[i,l].T @ r_dot[i]
 
+                    if np.sum(gradD[i,l]) > 1:
+                        print(i,l)
+                        print(gradD[i,l])
+            print(jk)
             #jk = (np.eye(3) - np.outer(k_vec, k_vec) / (self.k_val[j]**2)) @ jk
 
             proj_jk_transv = np.array([
@@ -122,7 +127,7 @@ class ExplicitTestVectorPotential:
         force3_list = []
 
         gradD = []
-        gradD_ = dipole_func.gradient(r,change_of_basis=None)
+        gradD_ = dipole_func.gradient(r,change_of_basis=None,return_all=True)
 
         for l, k_vec in enumerate(all_k_vec):
             epsilon_k = k_vec / self.k_val[l]
@@ -150,7 +155,6 @@ class ExplicitTestVectorPotential:
 
                 mu_grad = gradD[l][j]
                 C_dot = self.dot_C(r, v, gradD_)
-                
 
                 for m in [1,2]:
                     for n in [1,2]:

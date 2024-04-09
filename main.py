@@ -21,7 +21,7 @@ np.random.seed(319)
 ###### BOX LENGTH ######
 ########################
 
-L = 30
+L = 20
 cell_width = 10
 
 ##########################
@@ -29,8 +29,8 @@ cell_width = 10
 ##########################
 
 # number of atoms
-N_Ar = int(L/2)
-N_Xe = int(L/2)
+N_Ar = int(L/4)
+N_Xe = int(L/4)
 N = N_Ar + N_Xe
 
 # randomized initial coordinates
@@ -71,16 +71,16 @@ mass_x3 = np.tile(mass[:,np.newaxis], (1,3))
 ###### FIELD INPUT ######
 #########################
 
-n_modes = 5
+n_modes = 1
 k_vector = np.random.randint(low = -5, high = 5, size = (n_modes, 3))
 
 k_vector = np.array([
     orthogonalize(kvec) for kvec in k_vector
     ]) 
 
-amplitudes = np.random.rand(len(k_vector),2) + np.random.rand(len(k_vector),2) * 1j
+C = (np.random.rand(len(k_vector),2) + np.random.rand(len(k_vector),2) * 1j) * 1e5
 
-vector_potential = VectorPotential(k_vector, amplitudes)
+vector_potential = VectorPotential(k_vector, amplitude = C)
 
 ##########################################
 ###### INITIAL VARIABLES AND OTHERS ######
@@ -138,27 +138,28 @@ while sim_time < 10:
         dipole_function.update(distance_calc)
 
     gradD = dipole_function.gradient(r)
-    k1c = vector_potential.dot_C(r,v,gradD)
-    k1v = (force_field.force(r) + vector_potential.transv_force(r,v,gradD=gradD,C_dot=k1c) \
+    k1c = vector_potential.dot_C(r,v,gradD,C)
+    k1v = (force_field.force(r) \
+            + vector_potential.transv_force(r,v,gradD=gradD,C_dot=C) \
             ) / mass_x3
     k1r = v
 
     gradD = dipole_function.gradient(r + k1r*h/2)
-    k2c = vector_potential.dot_C(r + k1r*h/2, v + k1v*h/2, gradD)
+    k2c = vector_potential.dot_C(r + k1r*h/2, v + k1v*h/2, gradD, C=C + k1c*h/2)
     k2v = (force_field.force(r + k1r*h/2)  \
             + vector_potential.transv_force(r + k1r*h/2, v + k1v*h/2, gradD=gradD, C_dot=k2c) \
             ) / mass_x3
     k2r = v + k1v*h/2
 
     gradD = dipole_function.gradient(r + k2r*h/2)
-    k3c = vector_potential.dot_C(r + k2r*h/2, v + k2v*h/2, gradD)
+    k3c = vector_potential.dot_C(r + k2r*h/2, v + k2v*h/2, gradD,C=C + k2c*h/2)
     k3v = (force_field.force(r + k2r*h/2) \
             + vector_potential.transv_force(r + k2r*h/2, v + k2v*h/2, gradD=gradD, C_dot=k3c) \
             ) / mass_x3
     k3r = v + k2v*h/2
 
     gradD = dipole_function.gradient(r + k3r*h)
-    k4c = vector_potential.dot_C(r + k3r*h, v + k3v*h, gradD)
+    k4c = vector_potential.dot_C(r + k3r*h, v + k3v*h, gradD,C=C + k3c*h/2)
     k4v = (force_field.force(r + k3r * h)\
             + vector_potential.transv_force(r + k3r*h, v + k3v*h, gradD=gradD, C_dot=k4c) \
             ) / mass_x3
@@ -168,11 +169,11 @@ while sim_time < 10:
     ### UPDATE ###
     ##############
 
-    vector_potential.update_amplitude(
-            deltaC = (k1c + (2+0j)*k2c + (2+0j)*k3c + k4c) * h/(6+0j))
-
+    C += (k1c + 2*k2c + 2*k3c + k4c) * h/6
     v += (1*k1v + 2*k2v + 2*k3v + 1*k4v) * h/6
     r += (1*k1r + 2*k2r + 2*k3r + 1*k4r) * h/6
+
+    vector_potential.update_amplitude(amplitude = C)
 
     r = PBC_wrapping(r,L)
 
@@ -206,13 +207,13 @@ while sim_time < 10:
     trajectory["time"].append(sim_time)
 
     if potential_energy < 1:
-        h = 1e-3
+       h = 1e-4
     elif potential_energy < 10:
-        h = 1e-4
-    elif potential_energy < 100:
         h = 1e-5
-    else:
+    elif potential_energy < 100:
         h = 1e-6
+    else:
+        h = 1e-7
 
     if i % 100 == 0:
         print("-- Iteration #", i,  " Simulated time: ",sim_time, "--")
@@ -220,6 +221,7 @@ while sim_time < 10:
 
         print("\t + kinetic_energy",kinetic_energy)
         print("\t + potential_energy",potential_energy)
+        print("\t + field Hamiltonian",H_em_total)
         print("\t + total dipole",total_dipole)
 
         print("Runtime: ", time.time() - start)

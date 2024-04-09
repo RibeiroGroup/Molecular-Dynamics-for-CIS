@@ -4,7 +4,7 @@ import numpy.linalg as la
 from utils import PBC_wrapping, orthogonalize
 import constants
 
-run_test = False
+run_test = 1
 
 class VectorPotential:
     def __init__(self, k_vector, amplitude):
@@ -97,7 +97,7 @@ class VectorPotential:
 
         return gradA_R
 
-    def dot_C(self, R, R_dot, gradD):
+    def dot_C(self, R, R_dot, gradD, C=None):
         """
         Args:
         + R (np.ndarray of shape N x 3):
@@ -110,6 +110,8 @@ class VectorPotential:
         omega = np.tile(self.omega[:,np.newaxis],(1,2))
         k_val = np.tile(self.k_val[:,np.newaxis],(1,2))
 
+        C = C if C is not None else self.C
+
         grad_mu_r_dot = np.einsum("nij,ni->nj", gradD, R_dot)
 
         exp_ikr = np.exp(np.einsum("ki,ni->kn",-1j * k_vec,R))
@@ -119,7 +121,7 @@ class VectorPotential:
         C_dot = np.einsum("kij,kj->ki",pol_vec,grad_mu_eikr)
 
         C_dot *= (2 * np.pi * 1j / k_val)
-        C_dot -= 1j * omega * self.C
+        C_dot -= 1j * omega * C
 
         return C_dot
 
@@ -188,27 +190,26 @@ if run_test == True:
     from parameter import mu0_1, a1, d0_1
     from test.electromagnetic import ExplicitTestVectorPotential
     from test.dipole import ExplicitTestDipoleFunction
+    import input_dat
 
     np.random.seed(2)
 
+    #k_vector = np.random.uniform(-5,5,(10,3)) 
     #k_vector = np.array([
-    #    [[1.0,0.0,0.0], [0.0,1.0,0.0], [0.0,0.0,1.0]],
-    #    [[0.0,1.0,0.0], [1.0,0.0,0.0], [0.0,0.0,1.0]],
-    #    [[1.0,1.0,0.0], [1.0* 2**-0.5,-1.0* 2**-0.5,0.0] , [0.0,0.0,1.0]]
-    #    ])
-    k_vector = np.random.uniform(-5,5,(10,3)) 
-    k_vector = np.array([
-        orthogonalize(kvec) for kvec in k_vector
-        ]) 
+    #    orthogonalize(kvec) for kvec in k_vector
+    #    ]) 
+    k_vector = input_dat.k_vec
 
-    amplitudes = np.random.rand(len(k_vector),2) + np.random.rand(len(k_vector),2) * 1j
+    amplitudes = input_dat.C#np.random.rand(len(k_vector),2) + np.random.rand(len(k_vector),2) * 1j
 
-    L = 100
-    N_atoms = 100
-    R = np.random.uniform(-L/2,L/2,size = (N_atoms, 3))
-    V = np.random.uniform(-L/2,L/2,size = (N_atoms, 3))
-    ArIdx = np.hstack([np.ones(int(N_atoms/2)),np.zeros(int(N_atoms/2))])
-    XeIdx = np.hstack([np.zeros(int(N_atoms/2)),np.ones(int(N_atoms/2))])
+    L = 20
+    R = np.vstack([input_dat.r_xe,input_dat.r_ar])
+    V = np.vstack([input_dat.v_xe,input_dat.v_ar])
+
+    N_atoms = R.shape[0]
+
+    XeIdx = np.hstack([np.ones(int(N_atoms/2)),np.zeros(int(N_atoms/2))])
+    ArIdx = np.hstack([np.zeros(int(N_atoms/2)),np.ones(int(N_atoms/2))])
 
     AField = VectorPotential(k_vector, amplitudes)
     
@@ -222,20 +223,26 @@ if run_test == True:
 
     distance_calc = DistanceCalculator(n_points=N_atoms,box_length=L)
     dipole_func = SimpleDipoleFunction(distance_calc, ArIdx, XeIdx, mu0=mu0_1, a=a1,d0=d0_1)
+
     dipole_func_ = ExplicitTestDipoleFunction(ArIdx, XeIdx, mu0=mu0_1, a=a1,d0=d0_1,L=L)
 
-    gradD = dipole_func.gradient(R)
+    gradD = dipole_func.gradient(R, return_all = True)
+    gradD_sum = np.sum(gradD, axis = 1)
 
-    C_dot = AField.dot_C(R, V, gradD)
+    C_dot = AField.dot_C(R, V, gradD_sum)
     C_dot_ = AFieldTest.dot_C(R,V,gradD)
 
     print("+++ Difference between VectorPotential class and ExpliciTest for time derivative of A +++")
+    print(gradD[18,2])
     print(np.sum(abs(C_dot - C_dot_)))
+    print(AField.C)
+    print(C_dot)
 
     print("+++ Transverse force computation test:")
 
     start = time.time()
-    force = AField.transv_force(R,V, gradD=gradD,C_dot = C_dot)
+    force = AField.transv_force(R,V, gradD=gradD_sum, C_dot = C_dot)
+    print(force)
     print("Runtime(s): ",time.time() - start)
 
     start = time.time()
