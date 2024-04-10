@@ -8,7 +8,7 @@ import constants
 from utils import PBC_wrapping, timeit
 from distance import DistanceCalculator, explicit_test
 
-run_test = True
+run_test = 0
 
 class BasePotential:
     """
@@ -159,6 +159,7 @@ if run_test:
         neighbor_list_module_availability = True
     except:
         print("Neighborlist module cannot be found. Testing without neighborlist.")
+    import input_dat
 
     ########################
     ######### TEST #########
@@ -166,30 +167,21 @@ if run_test:
     ###### BOX LENGTH ######
     ########################
 
-    L = 10
+    L = input_dat.L
     cell_width = 20
 
     ##########################
     ###### ATOMIC INPUT ######
     ##########################
 
-    # number of atoms
-    N_Ar = int(L/2)
-    N_Xe = int(L/2)
-    N = N_Ar + N_Xe
+    R_all = np.vstack([input_dat.r_xe,input_dat.r_ar])
 
-    # randomized initial coordinates
+    V = np.vstack([input_dat.v_xe,input_dat.v_ar])
 
-    R_all = np.random.uniform(-L/2, L/2, (N, 3))
+    N = R_all.shape[0]
 
-    # indices of atoms in the R_all and V_all
-    idxAr = np.hstack(
-        [np.ones(N_Ar), np.zeros(N_Xe)]
-    )
-
-    idxXe = np.hstack(
-        [np.zeros(N_Ar), np.ones(N_Xe)]
-    )
+    idxXe = np.hstack([np.ones(int(N/2)),np.zeros(int(N/2))])
+    idxAr = np.hstack([np.zeros(int(N/2)),np.ones(int(N/2))])
 
     ######################################
     ###### FORCE-RELATED PARAMETERS ######
@@ -226,6 +218,9 @@ if run_test:
     potential_,force_ = explicit_test_LJ(R_all, epsilon_mat, sigma_mat, L)
 
     print(np.sum(abs(potential - potential_)))
-    print(np.sum(abs(force - force)))
+    print(np.sum(abs(force - force_)))
+
+    print(forcefield.force(R_all))
+    print(forcefield.potential(R_all))
 
 

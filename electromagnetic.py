@@ -4,7 +4,7 @@ import numpy.linalg as la
 from utils import PBC_wrapping, orthogonalize
 import constants
 
-run_test = 1
+run_test = 0
 
 class VectorPotential:
     def __init__(self, k_vector, amplitude):
@@ -69,7 +69,7 @@ class VectorPotential:
 
         return A_R
 
-    def gradient(self, R):
+    def gradient(self, R, C=None):
         """
         |Ax.kx   Ax.ky   Ax.kz|    |dAx/dx   dAx/dy   dAx/dz|
         |Ay.kx   Ay.ky   Az.kz| == |dAy/dx   dAy/dy   dAz/dz|; (gradA)_(ij) = dA_i/dr_j
@@ -77,6 +77,8 @@ class VectorPotential:
         """
         k_vec = self.k_vector[:,0,:]
         pol_vec = self.k_vector[:,1:,:]
+
+        C = C if C is not None else self.C
         
         # free field mode function and c.c., a.k.a. exp(ikr)
         f_R = 1j *  np.exp(
@@ -87,7 +89,7 @@ class VectorPotential:
 
         #Multiply C and epsilon_k (pol_vec), the outcome shape is N_modes x 3
         # (sum over dim 2, which is the number of polarized vector)
-        C_epsilon_k = np.einsum("kj,kji->ki",self.C,pol_vec)
+        C_epsilon_k = np.einsum("kj,kji->ki",C,pol_vec)
 
         k_o_C_epsilon_k = np.einsum("kj,ki->kij",k_vec,C_epsilon_k)
 
@@ -97,7 +99,7 @@ class VectorPotential:
 
         return gradA_R
 
-    def dot_C(self, R, R_dot, gradD, C=None):
+    def dot_C(self, R, R_dot, C, gradD):
         """
         Args:
         + R (np.ndarray of shape N x 3):
@@ -125,23 +127,19 @@ class VectorPotential:
 
         return C_dot
 
-    def time_diff(self, R, R_dot, gradD=None, C_dot=None):
-        assert C_dot is not None or gradD is not None
-
-        if C_dot is None:
-            C_dot = self.dot_C(R, R_dot, gradD)
-
+    def time_diff(self, R, R_dot, C, gradD):
+        C_dot = self.dot_C(R,R_dot,C=C,gradD=gradD)
         return  self.__call__(R, C_dot)
 
-    def transv_force(self, R, R_dot, gradD, C_dot = None):
+    def transv_force(self, R, R_dot, C, gradD):
         """
         Computing the transverse force exerting on the charged atoms by the field.
         The output have the shape (N x 3) 
         """
    
-        gradA = self.gradient(R)
+        gradA = self.gradient(R, C = C)
 
-        dAdt = self.time_diff(R, R_dot, C_dot=C_dot, gradD=gradD)
+        dAdt = self.time_diff(R, R_dot, C=C, gradD=gradD)
 
         # S_l S_j (dA_j/dr_i) (dmu_j/dr_l) rdot_l
         # (gradA)_(ji) = dA_j/dr_i
@@ -168,7 +166,7 @@ class VectorPotential:
         force = force1 - force2 - force3
 
         #return force1, force2, force3
-        return force
+        return np.real(force)
 
     def hamiltonian(self, return_sum_only = False):
         k_vector = self.k_vector[:,0,:]
@@ -193,7 +191,6 @@ if run_test == True:
     import input_dat
 
     np.random.seed(2)
-
     #k_vector = np.random.uniform(-5,5,(10,3)) 
     #k_vector = np.array([
     #    orthogonalize(kvec) for kvec in k_vector
@@ -202,8 +199,9 @@ if run_test == True:
 
     amplitudes = input_dat.C#np.random.rand(len(k_vector),2) + np.random.rand(len(k_vector),2) * 1j
 
-    L = 20
+    L = input_dat.L
     R = np.vstack([input_dat.r_xe,input_dat.r_ar])
+
     V = np.vstack([input_dat.v_xe,input_dat.v_ar])
 
     N_atoms = R.shape[0]
@@ -222,27 +220,32 @@ if run_test == True:
     print(np.sum(abs(AFieldTest.gradient(R) - AField.gradient(R))))
 
     distance_calc = DistanceCalculator(n_points=N_atoms,box_length=L)
-    dipole_func = SimpleDipoleFunction(distance_calc, ArIdx, XeIdx, mu0=mu0_1, a=a1,d0=d0_1)
+    dipole_func = SimpleDipoleFunction(distance_calc, XeIdx, ArIdx, mu0=mu0_1, a=a1,d0=d0_1)
 
-    dipole_func_ = ExplicitTestDipoleFunction(ArIdx, XeIdx, mu0=mu0_1, a=a1,d0=d0_1,L=L)
+    dipole_func_ = ExplicitTestDipoleFunction(XeIdx ,ArIdx, mu0=mu0_1, a=a1,d0=d0_1,L=L)
 
     gradD = dipole_func.gradient(R, return_all = True)
     gradD_sum = np.sum(gradD, axis = 1)
 
+    print(gradD[0,15])
+
     C_dot = AField.dot_C(R, V, gradD_sum)
     C_dot_ = AFieldTest.dot_C(R,V,gradD)
+    print(C_dot_)
 
     print("+++ Difference between VectorPotential class and ExpliciTest for time derivative of A +++")
-    print(gradD[18,2])
     print(np.sum(abs(C_dot - C_dot_)))
-    print(AField.C)
-    print(C_dot)
+
+    print("+++ Field Hamiltonian computation")
+    Hem = AField.hamiltonian()
+    Hem_ = AFieldTest.compute_Hem()
+
+    print(Hem)
 
     print("+++ Transverse force computation test:")
 
     start = time.time()
     force = AField.transv_force(R,V, gradD=gradD_sum, C_dot = C_dot)
-    print(force)
     print("Runtime(s): ",time.time() - start)
 
     start = time.time()
@@ -250,5 +253,6 @@ if run_test == True:
     print("Explicit computation runtime(s): ",time.time() - start)
 
     print("Sum of abs difference: ",np.sum(abs(force - force_)))
+    print(force)
 
         

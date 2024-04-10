@@ -91,12 +91,19 @@ class ExplicitTestVectorPotential:
 
             for i, ri in enumerate(r):
                 for l,rl in enumerate(r):
-                    jk += np.exp(-1j * k_vec @ ri) * gradD[i,l].T @ r_dot[i]
+                    foo = np.exp(-1j * k_vec @ ri) * gradD[i,l].T @ r_dot[i]
+                    jk += foo
 
-                    if np.sum(gradD[i,l]) > 1:
+                    if np.sum(abs(gradD[i,l])) > 1e-2:
+                        """
                         print(i,l)
+                        print(k_vec)
                         print(gradD[i,l])
-            print(jk)
+                        print(rl)
+                        print(r_dot[l])
+                        print(foo)
+                        """
+
             #jk = (np.eye(3) - np.outer(k_vec, k_vec) / (self.k_val[j]**2)) @ jk
 
             proj_jk_transv = np.array([
@@ -189,3 +196,15 @@ class ExplicitTestVectorPotential:
 
         return np.array(ma_list)
         #return np.array(force1_list), np.array(force2_list), np.array(force3_list)
+
+    def compute_Hem(self):
+        k_vec = self.k_vector[:,0,:]
+        H_em = []
+        C = self.C
+
+        for i, Ci in enumerate(C):
+
+            H_em.append((2 * np.pi)**-1 * (k_vec[i] @ k_vec[i].T) \
+                * (Ci @ np.conjugate(Ci).T) )
+
+        return np.array(H_em)
