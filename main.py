@@ -86,7 +86,8 @@ k_vector = input_dat.k_vec #np.array([
     #orthogonalize(kvec) for kvec in k_vector
     #]) 
 
-C = input_dat.C# (np.random.rand(len(k_vector),2) + np.random.rand(len(k_vector),2) * 1j) * 1e5
+#C = input_dat.C
+C = (np.random.rand(len(k_vector),2) + np.random.rand(len(k_vector),2) * 1j) * 1e3
 
 vector_potential = VectorPotential(k_vector, amplitude = C)
 
@@ -99,7 +100,7 @@ h = 1e-5
 r = R_all
 v = V_all
 
-energy = {
+energy_data = {
     "potential_energy" : [],
     "kinetic_energy" : [],
     "total dipole" : [],
@@ -108,6 +109,13 @@ energy = {
 }
 
 sim_time = 0
+
+data_save_point = 0
+data_save_interval = 1e-3
+
+check_point = 0.0
+chkp_interval = 0.1
+
 i = 0
 
 ##########################################################################
@@ -235,31 +243,33 @@ while sim_time < 10:
     ### SAVING STUFF ###
     ####################
 
-    trajectory["potential_energy"].append(potential_energy)
-    trajectory["kinetic_energy"].append(kinetic_energy)
-    trajectory["EM_energy"].append(H_em_total)
+    energy_data["potential_energy"].append(potential_energy)
+    energy_data["kinetic_energy"].append(kinetic_energy)
+    energy_data["EM_energy"].append(H_em_total)
 
     dipole_vec_tensor = dipole_function(r)
 
     total_dipole_vec = np.sum(dipole_vec_tensor, axis = 0)
+
     total_dipole = np.sqrt(total_dipole_vec @ total_dipole_vec)
-    trajectory["total dipole"].append(total_dipole)
+    energy_data["total dipole"].append(total_dipole)
 
     sim_time += h
     i += 1
-    trajectory["time"].append(sim_time)
+    energy_data["time"].append(sim_time)
 
-    if potential_energy < 10:
-        h = 1e-4
-    elif potential_energy < 100:
+    if potential_energy < 10:# and total_dipole < 100:
         h = 1e-5
-    elif potential_energy < 1000:
+    elif potential_energy < 100: # and total_dipole < 1000:
         h = 1e-6
-    else:
+    elif potential_energy < 1000:# and total_dipole < 10000:
         h = 1e-7
+    else:
+        h = 1e-8
 
-    if i % 100 == 0:
-        print("-- Iteration #", i,  " Simulated time: ",sim_time, "--")
+    if sim_time > data_save_point:
+        data_save_point += data_save_interval 
+        print("-- Data saving... -- Iteration #", i,  " Simulated time: ",sim_time, "--")
         print("Total energy", kinetic_energy + potential_energy + H_em_total)
 
         print("\t + kinetic_energy",kinetic_energy)
@@ -269,9 +279,10 @@ while sim_time < 10:
 
         print("Runtime: ", time.time() - start)
 
-    if i % 1000 == 0:
+    if sim_time > check_point:
+        check_point += chkp_interval
         with open("result_plot/trajectory_temp.pkl","wb") as handle:
-            pickle.dump(trajectory,handle)
+            pickle.dump(energy_data,handle)
 
         print("Autosave!")
 
@@ -279,5 +290,5 @@ print("############ JOB COMPLETE ############")
 print("Total runtime: ", time.time() - start)
 
 with open("result_plot/trajectory_temp.pkl","wb") as handle:
-    pickle.dump(trajectory,handle)
+    pickle.dump(energy_data,handle)
 
