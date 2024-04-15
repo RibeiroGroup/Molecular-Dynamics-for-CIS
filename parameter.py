@@ -16,8 +16,6 @@ M_Xe = (54 * proton_mass + (131 - 54) * neutron_mass)/ electron_mass
 
 # parameters for Grigorieve dipole function
 mu0_1 = 0.0124
-#mu0_1 *= constants.c #( stat Coulomb)
-
 a1 = 1.5121
 d0_1 = 7.10
 
