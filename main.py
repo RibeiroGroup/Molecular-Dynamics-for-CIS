@@ -10,10 +10,12 @@ from neighborlist import neighbor_list_mask
 from forcefield import LennardJonesPotential, explicit_test_LJ
 from dipole import SimpleDipoleFunction
 
-from parameter import epsilon_Ar_Ar, epsilon_Xe_Xe, epsilon_Ar_Xe, sigma_Ar_Ar, sigma_Xe_Xe, \
-    sigma_Ar_Xe, M_Ar, M_Xe, mu0_1, d0_1, a1
+#from reduced_parameter import sigma_ as len_unit, epsilon_ as energy_unit, time_unit, M, epsilon_0
 
-from electromagnetic import VectorPotential
+from parameter import epsilon_Ar_Ar, epsilon_Xe_Xe, epsilon_Ar_Xe, sigma_Ar_Ar, sigma_Xe_Xe, \
+    sigma_Ar_Xe, M_Ar, M_Xe, mu0, d0, a
+
+from electromagnetic_si import VectorPotential
 
 import input_dat
 
@@ -21,30 +23,32 @@ import input_dat
 ########################
 ########################
 
-free_em_field = False
-np.random.seed(319)
+free_em_field = 1
+np.random.seed(1546)
 
 ########################
 ###### BOX LENGTH ######
 ########################
 
-L = 60
-cell_width = 20
+L = 4
+cell_width = 2
 
 ##########################
 ###### ATOMIC INPUT ######
 ##########################
 
 # number of atoms
-N_Ar = int(L/3)
-N_Xe = int(L/3)
+N_Ar = 1# int(L*3.4 / 2)
+N_Xe = 1# int(L*3.4 / 2)
 N = N_Ar + N_Xe
 
 # randomized initial coordinates
-R_all = np.random.uniform(-L/2, L/2, (N, 3))
+#R_all = np.random.uniform(-L/2, L/2, (N, 3))
+R_all = np.array([[1.0,1.0,1.0],[-1.0,-1.0,-1.0]])
 
 # randomized initial velocity
-V_all =np.random.uniform(-1e1, 1e1, (N,3))
+#V_all =np.random.uniform(-2e1, 2e1, (N,3))
+V_all = np.array([[-1.0,-1.0,-1.0],[1.0,1.0,1.0]])
 
 # indices of atoms in the R_all and V_all
 idxXe = np.hstack(
@@ -69,9 +73,6 @@ sigma_mat = (np.outer(idxAr,idxAr) * sigma_Ar_Ar \
     + np.outer(idxXe, idxAr) * sigma_Ar_Xe \
     + np.outer(idxXe, idxXe) * sigma_Xe_Xe) 
 
-M_Xe /= M_Ar
-M_Ar = 1
-
 mass = M_Ar * idxAr + M_Xe * idxXe
 mass_x3 = np.tile(mass[:,np.newaxis], (1,3))
 
@@ -79,16 +80,17 @@ mass_x3 = np.tile(mass[:,np.newaxis], (1,3))
 ###### FIELD INPUT ######
 #########################
 
-n_modes = 10
-k_vector = np.random.randint(low = -5, high = 5, size = (n_modes, 3))
+n_modes = 1
+k_vector = np.array([[1.0,0.0,0.0]])# np.random.randint(low = -1, high = 1, size = (n_modes, 3))
+k_vector *= (2 * np.pi / L)
 
 k_vector = np.array([
     orthogonalize(kvec) for kvec in k_vector
     ]) 
 
-C = (np.random.rand(len(k_vector),2) + np.random.rand(len(k_vector),2) * 1j) * 50
-
-vector_potential = VectorPotential(k_vector, amplitude = C)
+C = (np.random.rand(len(k_vector),2) + np.random.rand(len(k_vector),2) * 1j)* 1e1 \
+        #/ (L**3) \
+        
 
 ##########################################
 ###### INITIAL VARIABLES AND OTHERS ######
@@ -110,17 +112,16 @@ energy_data = {
 sim_time = 0
 
 data_save_point = 0
-data_save_interval = 1e-3
+data_save_interval = 1e-4
 
 check_point = 0.0
-chkp_interval = 0.1
+chkp_interval = 0.01
 
 i = 0
 
 ##########################################################################
 ###### INITIATE UTILITY CLASSES (PLEASE UPDATE THEM DURING LOOPING) ######  
 ##########################################################################
-
 
 distance_calc = DistanceCalculator(
         n_points = len(R_all), 
@@ -134,10 +135,14 @@ force_field = LennardJonesPotential(
 
 dipole_function = SimpleDipoleFunction(
         distance_calc, 
-        mu0=mu0_1, a=a1, d0=d0_1,
+        mu0=mu0, a=a, d0=d0,
         positive_atom_idx = idxXe,
         negative_atom_idx = idxAr
         )
+
+vector_potential = VectorPotential(
+        k_vector, amplitude = C, 
+        V = L ** 3, epsilon_0 = 1)
 
 ###################################
 ###### SIMULATION START HERE ######
@@ -145,7 +150,9 @@ dipole_function = SimpleDipoleFunction(
 
 start = time.time()
 
-while sim_time < 10:
+prev_energy = 1
+
+while sim_time < 50:
 
     if i % 10 == 0: 
         mask = neighbor_list_mask(r, L, cell_width)
@@ -212,14 +219,14 @@ while sim_time < 10:
     r = PBC_wrapping(r,L)
 
     if free_em_field:
-        C += (1*k1c + 2*k2c + 2*k3c + 1*k4c) * h/6
-        vector_potential.update_amplitude(amplitude = C)
+        deltaC = (1*k1c + 2*k2c + 2*k3c + 1*k4c) * h/6
+        vector_potential.update_amplitude(deltaC = deltaC)
 
     ##########################################
     ### CALCULATING AND SAVING OBSERVABLES ###
     ##########################################
 
-    kinetic_energy = 0.5 * np.sum(np.einsum("ij,ij->i",v,v) * mass) 
+    kinetic_energy = 0.5 * np.sum(np.einsum("ij,ij->i",v,v) * mass)
     energy_data["kinetic_energy"].append(kinetic_energy)
 
     potential_energy = force_field.potential(r)
@@ -244,23 +251,26 @@ while sim_time < 10:
     total_dipole = np.sqrt(total_dipole_vec @ total_dipole_vec)
     energy_data["total dipole"].append(total_dipole)
 
-    sim_time += h
+    sim_time += (h)
     i += 1
     energy_data["time"].append(sim_time)
 
     if potential_energy < 10:# and total_dipole < 100:
-        h = 1e-5
+        h = 1e-3
     elif potential_energy < 100: # and total_dipole < 1000:
-        h = 1e-6
-    elif potential_energy < 1000:# and total_dipole < 10000:
-        h = 1e-7
+        h = 1e-4
+    elif potential_energy < 1000:
+        h = 1e-5
     else:
-        h = 1e-8
+        h = 1e-6
+
+    total_energy = kinetic_energy + potential_energy + H_em_total
 
     if sim_time > data_save_point:
         data_save_point += data_save_interval 
         print("-- Data saving... -- Iteration #", i,  " Simulated time: ",sim_time, "--")
-        print("Total energy", kinetic_energy + potential_energy + H_em_total)
+        print("Total energy (reduced unit)", total_energy)
+        #print("Total energy (kj/mol)", total_energy * energy_unit)
 
         print("\t + kinetic_energy",kinetic_energy)
         print("\t + potential_energy",potential_energy)
@@ -277,7 +287,7 @@ while sim_time < 10:
         with open("result_plot/trajectory_temp.pkl","wb") as handle:
             pickle.dump(energy_data,handle)
 
-        print("Autosave!")
+        #print("Autosave!")
 
 print("############ JOB COMPLETE ############")
 print("Total runtime: ", time.time() - start)

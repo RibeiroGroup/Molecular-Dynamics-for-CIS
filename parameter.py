@@ -15,7 +15,7 @@ M_Ar = (18 * proton_mass + (40 - 18) * neutron_mass) / electron_mass
 M_Xe = (54 * proton_mass + (131 - 54) * neutron_mass)/ electron_mass 
 
 # parameters for Grigorieve dipole function
-mu0_1 = 0.0124
-a1 = 1.5121
-d0_1 = 7.10
+mu0 = 0.0124
+a = 1.5121
+d0 = 7.10
 

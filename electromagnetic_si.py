@@ -1,3 +1,5 @@
+from copy import deepcopy
+
 import numpy as np
 import numpy.linalg as la
 
@@ -7,7 +9,7 @@ import constants
 run_test = 0
 
 class VectorPotential:
-    def __init__(self, k_vector, amplitude):
+    def __init__(self, k_vector, amplitude, V, epsilon_0):
         """
         Class for computing potential vector A of the field, its amplitude derivative,
         and transverse force on (charged) atoms exert by the field.
@@ -36,6 +38,9 @@ class VectorPotential:
         self.k_val = np.sqrt(np.einsum("kj,kj->k",k_vec,k_vec))
         self.omega = np.array(self.k_val * constants.c, dtype=np.complex128)
 
+        self.V = V
+        self.epsilon_0 = epsilon_0
+
     def update_amplitude(self,amplitude = None, deltaC = None):
 
         assert amplitude is not None or deltaC is not None
@@ -50,7 +55,7 @@ class VectorPotential:
         k_vec = self.k_vector[:,0,:]
         pol_vec = self.k_vector[:,1:,:]
 
-        if C is None: C = self.C
+        if C is None: C = deepcopy(self.C)
         
         # free field mode function and c.c., a.k.a. exp(ikr)
         f_R = np.exp(
@@ -78,7 +83,7 @@ class VectorPotential:
         k_vec = self.k_vector[:,0,:]
         pol_vec = self.k_vector[:,1:,:]
 
-        C = C if C is not None else self.C
+        C = C if C is not None else deepcopy(self.C)
         
         # free field mode function and c.c., a.k.a. exp(ikr)
         f_R = 1j *  np.exp(
@@ -122,7 +127,7 @@ class VectorPotential:
 
         C_dot = np.einsum("kij,kj->ki",pol_vec,grad_mu_eikr)
 
-        C_dot *= 1j / (2 * omega)
+        C_dot *= (1j) / (2 * omega * self.V * self.epsilon_0)
         C_dot -= 1j * omega * C
 
         return C_dot
@@ -172,7 +177,7 @@ class VectorPotential:
         k_sum = np.einsum("ki,ki->k",k_vector,k_vector)
         c_sum = np.einsum("ki,ki->k",self.C,np.conjugate(self.C))
 
-        H = 2 * constants.c**2 * k_sum * c_sum
+        H = 2 * constants.c**2 * k_sum * c_sum * self.V * self.epsilon_0
 
         if return_sum_only:
             return np.sum(H)

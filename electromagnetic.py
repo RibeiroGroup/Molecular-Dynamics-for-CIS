@@ -2,7 +2,7 @@ import numpy as np
 import numpy.linalg as la
 
 from utils import PBC_wrapping, orthogonalize
-import constants
+import constants as constants
 
 run_test = 0
 
