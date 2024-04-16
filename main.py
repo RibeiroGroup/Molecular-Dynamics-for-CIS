@@ -15,7 +15,7 @@ from dipole import SimpleDipoleFunction
 from parameter import epsilon_Ar_Ar, epsilon_Xe_Xe, epsilon_Ar_Xe, sigma_Ar_Ar, sigma_Xe_Xe, \
     sigma_Ar_Xe, M_Ar, M_Xe, mu0, d0, a
 
-from electromagnetic_si import VectorPotential
+from electromagnetic import VectorPotential
 
 import input_dat
 
@@ -141,8 +141,9 @@ dipole_function = SimpleDipoleFunction(
         )
 
 vector_potential = VectorPotential(
-        k_vector, amplitude = C, 
-        V = L ** 3, epsilon_0 = 1)
+        k_vector, amplitude = C,
+        #V = L ** 3, epsilon_0 = 1
+        )
 
 ###################################
 ###### SIMULATION START HERE ######
