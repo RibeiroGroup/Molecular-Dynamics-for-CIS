@@ -56,8 +56,6 @@ a = 1.5121 * sigma / bohr_rad
 
 d0 = 7.10 * bohr_rad / sigma
 
-d = 10
-
 #####################################
 ### Calculating reduced constants ###
 #####################################

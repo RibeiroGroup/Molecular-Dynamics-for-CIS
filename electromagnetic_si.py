@@ -4,12 +4,11 @@ import numpy as np
 import numpy.linalg as la
 
 from utils import PBC_wrapping, orthogonalize
-import constants
 
 run_test = 0
 
 class VectorPotential:
-    def __init__(self, k_vector, amplitude, V, epsilon_0):
+    def __init__(self, k_vector, amplitude, V, epsilon_0, speed_of_light):
         """
         Class for computing potential vector A of the field, its amplitude derivative,
         and transverse force on (charged) atoms exert by the field.
@@ -18,6 +17,10 @@ class VectorPotential:
             where the 1st dim -> mode, 2nd dim -> k vector, 1st & 2nd 
             polarization vector and the last dim is vector length (coordinate)
         """
+
+        self.V = V
+        self.epsilon_0 = epsilon_0
+        self.c_constants = speed_of_light
 
         self.N_modes = len(k_vector)
 
@@ -36,10 +39,7 @@ class VectorPotential:
         k_vec = self.k_vector[:,0,:]
 
         self.k_val = np.sqrt(np.einsum("kj,kj->k",k_vec,k_vec))
-        self.omega = np.array(self.k_val * constants.c, dtype=np.complex128)
-
-        self.V = V
-        self.epsilon_0 = epsilon_0
+        self.omega = np.array(self.k_val * self.c_constants, dtype=np.complex128)
 
     def update_amplitude(self,amplitude = None, deltaC = None):
 
@@ -177,7 +177,7 @@ class VectorPotential:
         k_sum = np.einsum("ki,ki->k",k_vector,k_vector)
         c_sum = np.einsum("ki,ki->k",self.C,np.conjugate(self.C))
 
-        H = 2 * constants.c**2 * k_sum * c_sum * self.V * self.epsilon_0
+        H = 2 * self.c_constants**2 * k_sum * c_sum * self.epsilon_0 * self.V 
 
         if return_sum_only:
             return np.sum(H)

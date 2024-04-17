@@ -7,7 +7,7 @@ import constants as constants
 run_test = 0
 
 class VectorPotential:
-    def __init__(self, k_vector, amplitude):
+    def __init__(self, k_vector, amplitude, V):
         """
         Class for computing potential vector A of the field, its amplitude derivative,
         and transverse force on (charged) atoms exert by the field.
@@ -16,6 +16,7 @@ class VectorPotential:
             where the 1st dim -> mode, 2nd dim -> k vector, 1st & 2nd 
             polarization vector and the last dim is vector length (coordinate)
         """
+        self.V = V
 
         self.N_modes = len(k_vector)
 
@@ -79,7 +80,7 @@ class VectorPotential:
         pol_vec = self.k_vector[:,1:,:]
 
         C = C if C is not None else self.C
-        
+
         # free field mode function and c.c., a.k.a. exp(ikr)
         f_R = 1j *  np.exp(
             1j * np.einsum("kj,nj->kn",k_vec,R))
@@ -122,7 +123,7 @@ class VectorPotential:
 
         C_dot = np.einsum("kij,kj->ki",pol_vec,grad_mu_eikr)
 
-        C_dot *= (2 * np.pi * 1j / k_val)
+        C_dot *= 2 * np.pi * 1j / ( k_val * self.V )
         C_dot -= 1j * omega * C
 
         return C_dot
@@ -174,7 +175,7 @@ class VectorPotential:
         k_sum = np.einsum("ki,ki->k",k_vector,k_vector)
         c_sum = np.einsum("ki,ki->k",self.C,np.conjugate(self.C))
 
-        H = (2*np.pi)**-1 * k_sum * c_sum
+        H = (2*np.pi)**-1 * self.V * k_sum * c_sum
 
         if return_sum_only:
             return np.sum(H)

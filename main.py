@@ -10,7 +10,8 @@ from neighborlist import neighbor_list_mask
 from forcefield import LennardJonesPotential, explicit_test_LJ
 from dipole import SimpleDipoleFunction
 
-#from reduced_parameter import sigma_ as len_unit, epsilon_ as energy_unit, time_unit, M, epsilon_0
+#from reduced_parameter import sigma_ as len_unit, epsilon_ as energy_unit, time_unit, \
+#    M, epsilon_0, c as c_constants
 
 from parameter import epsilon_Ar_Ar, epsilon_Xe_Xe, epsilon_Ar_Xe, sigma_Ar_Ar, sigma_Xe_Xe, \
     sigma_Ar_Xe, M_Ar, M_Xe, mu0, d0, a
@@ -18,28 +19,30 @@ from parameter import epsilon_Ar_Ar, epsilon_Xe_Xe, epsilon_Ar_Xe, sigma_Ar_Ar, 
 from electromagnetic import VectorPotential
 
 import input_dat
+import constants
 
 ########################
 ########################
 ########################
 
 free_em_field = 1
-np.random.seed(1546)
+np.random.seed(20)
 
 ########################
 ###### BOX LENGTH ######
 ########################
 
-L = 4
-cell_width = 2
+L = 1000
+V = L ** 3
+cell_width = 10
 
 ##########################
 ###### ATOMIC INPUT ######
 ##########################
 
 # number of atoms
-N_Ar = 1# int(L*3.4 / 2)
-N_Xe = 1# int(L*3.4 / 2)
+N_Ar = 1#int(L / 2)
+N_Xe = 1#int(L / 2)
 N = N_Ar + N_Xe
 
 # randomized initial coordinates
@@ -47,7 +50,7 @@ N = N_Ar + N_Xe
 R_all = np.array([[1.0,1.0,1.0],[-1.0,-1.0,-1.0]])
 
 # randomized initial velocity
-#V_all =np.random.uniform(-2e1, 2e1, (N,3))
+#V_all =np.random.uniform(-1e0, 1e0, (N,3))
 V_all = np.array([[-1.0,-1.0,-1.0],[1.0,1.0,1.0]])
 
 # indices of atoms in the R_all and V_all
@@ -81,17 +84,17 @@ mass_x3 = np.tile(mass[:,np.newaxis], (1,3))
 #########################
 
 n_modes = 1
-k_vector = np.array([[1.0,0.0,0.0]])# np.random.randint(low = -1, high = 1, size = (n_modes, 3))
+k_vector = np.array([[0,1,0],[1,0,0],[0,0,1]])
+k_vector = np.array(k_vector, dtype= np.float64)
 k_vector *= (2 * np.pi / L)
 
 k_vector = np.array([
     orthogonalize(kvec) for kvec in k_vector
     ]) 
 
-C = (np.random.rand(len(k_vector),2) + np.random.rand(len(k_vector),2) * 1j)* 1e1 \
-        #/ (L**3) \
+C = (np.random.rand(len(k_vector),2) + np.random.rand(len(k_vector),2) * 1j)* 5e-1 \
+        * V**-0.5
         
-
 ##########################################
 ###### INITIAL VARIABLES AND OTHERS ######
 ##########################################
@@ -112,10 +115,10 @@ energy_data = {
 sim_time = 0
 
 data_save_point = 0
-data_save_interval = 1e-4
+data_save_interval = 1e-2
 
 check_point = 0.0
-chkp_interval = 0.01
+chkp_interval = 0.1
 
 i = 0
 
@@ -135,14 +138,21 @@ force_field = LennardJonesPotential(
 
 dipole_function = SimpleDipoleFunction(
         distance_calc, 
-        mu0=mu0, a=a, d0=d0,
+        mu0=mu0,
+        a=a, d0=d0,
         positive_atom_idx = idxXe,
         negative_atom_idx = idxAr
         )
 
 vector_potential = VectorPotential(
+<<<<<<< HEAD
         k_vector, amplitude = C,
         #V = L ** 3, epsilon_0 = 1
+=======
+        k_vector, amplitude = C, 
+        V = V, 
+        epsilon_0 = 1, speed_of_light = constants.c
+>>>>>>> d1861d7 (Apr 17th 2024)
         )
 
 ###################################
@@ -153,7 +163,7 @@ start = time.time()
 
 prev_energy = 1
 
-while sim_time < 50:
+while sim_time < 2.0:
 
     if i % 10 == 0: 
         mask = neighbor_list_mask(r, L, cell_width)
@@ -256,11 +266,11 @@ while sim_time < 50:
     i += 1
     energy_data["time"].append(sim_time)
 
-    if potential_energy < 10:# and total_dipole < 100:
-        h = 1e-3
-    elif potential_energy < 100: # and total_dipole < 1000:
+    if potential_energy < 100:# and total_dipole < 100:
         h = 1e-4
-    elif potential_energy < 1000:
+    elif potential_energy < 1000: # and total_dipole < 1000:
+        h = 1e-4
+    elif potential_energy < 10000:
         h = 1e-5
     else:
         h = 1e-6
