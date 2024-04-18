@@ -27,7 +27,7 @@ import constants
 ########################
 
 free_em_field = 1
-np.random.seed(19)
+np.random.seed(20)
 
 ########################
 ###### BOX LENGTH ######
@@ -51,7 +51,7 @@ R_all = np.random.uniform(-L/2, L/2, (N, 3))
 #R_all = np.array([[1.0,1.0,1.0],[-1.0,-1.0,-1.0]])
 
 # randomized initial velocity
-V_all =np.random.uniform(-1e0, 1e0, (N,3)) * 5.0
+V_all =np.random.uniform(-1e1, 1e1, (N,3))
 #V_all = np.array([[-1.0,-1.0,-1.0],[1.0,1.0,1.0]]) * 0.5
 
 # indices of atoms in the R_all and V_all
@@ -116,20 +116,14 @@ def generate_empty_record():
         "EM_energy" : [],
         "time" : [], "step" : [],
     }
+    return energy_data
 
-    trajectory_data = {
-        "position" : [],
-        "velocity" :[],
-        "field amplitude":[]
-            }
-    return energy_data, trajectory_data
-
-energy_data, _ = generate_empty_record()
+energy_data = generate_empty_record()
 
 sim_time = 0
 
 data_save_point = 0
-data_save_interval = 1e-1
+data_save_interval = 1e-2
 
 check_point = 0.0
 chkp_interval = 1.0
