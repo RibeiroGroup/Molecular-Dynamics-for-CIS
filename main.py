@@ -27,7 +27,10 @@ import constants
 ########################
 
 free_em_field = 1
-np.random.seed(19)
+np.random.seed(37)
+
+M_Xe /= M_Ar
+M_Ar = 1
 
 ########################
 ###### BOX LENGTH ######
@@ -42,8 +45,8 @@ cell_width = 20
 ##########################
 
 # number of atoms
-N_Ar = int(L / 2)
-N_Xe = int(L / 2)
+N_Ar = int(L / 4)
+N_Xe = int(L / 4)
 N = N_Ar + N_Xe
 
 # randomized initial coordinates
@@ -51,7 +54,7 @@ R_all = np.random.uniform(-L/2, L/2, (N, 3))
 #R_all = np.array([[1.0,1.0,1.0],[-1.0,-1.0,-1.0]])
 
 # randomized initial velocity
-V_all =np.random.uniform(-1e0, 1e0, (N,3)) * 5.0
+V_all =np.random.uniform(-1e1, 1e1, (N,3))
 #V_all = np.array([[-1.0,-1.0,-1.0],[1.0,1.0,1.0]]) * 0.5
 
 # indices of atoms in the R_all and V_all
@@ -84,11 +87,18 @@ mass_x3 = np.tile(mass[:,np.newaxis], (1,3))
 ###### FIELD INPUT ######
 #########################
 
-n_modes = 10
+n_modes = 5
 
-k_vector = np.random.randint(low = -5, high = 5, size = (n_modes,3))
+#k_vector = np.random.randint(low = -3, high = 3, size = (n_modes,3))
+#k_vector += np.tile(np.array([[1,0,0]]),(n_modes,1))
+k_vector = np.vstack([
+        np.array([[1,0,0],[0,1,0],[0,0,1]]),
+        np.array([[1,0,0],[0,1,0],[0,0,1]]) * 2,
+        np.array([[1,0,0],[0,1,0],[0,0,1]]) * 3,
+        np.array([[1,0,0],[0,1,0],[0,0,1]]) * 4,
+        np.array([[1,0,0],[0,1,0],[0,0,1]]) * 5,
+        ])
 
-k_vector += np.tile(np.array([[1,0,0]]),(n_modes,1))
 k_vector = np.array(k_vector, dtype= np.float64) 
 
 k_vector *= (2 * np.pi / L)
@@ -97,7 +107,7 @@ k_vector = np.array([
     orthogonalize(kvec) for kvec in k_vector
     ]) 
 
-C = (np.random.rand(len(k_vector),2) + np.random.rand(len(k_vector),2) * 1j)* 1 \
+C = (np.random.rand(len(k_vector),2) + np.random.rand(len(k_vector),2) * 1j)* 1e-1 \
         * V**-0.5
         
 ##########################################
@@ -152,7 +162,7 @@ force_field = LennardJonesPotential(
 
 dipole_function = SimpleDipoleFunction(
         distance_calc, 
-        mu0=mu0 * 100,
+        mu0=mu0*100,
         a=a, d0=d0,
         positive_atom_idx = idxXe,
         negative_atom_idx = idxAr
@@ -161,7 +171,8 @@ dipole_function = SimpleDipoleFunction(
 vector_potential = VectorPotential(
         k_vector, amplitude = C,
         V = V, 
-        epsilon_0 = 1, speed_of_light = constants.c
+        epsilon_0 = 1 * M_Ar, 
+        speed_of_light = constants.c * np.sqrt(M_Ar)
         )
 
 ###################################
@@ -172,7 +183,7 @@ start = time.time()
 
 prev_energy = 1
 
-while sim_time < 100.0:
+while sim_time < 1000.0:
 
     if i % 10 == 0: 
         mask = neighbor_list_mask(r, L, cell_width)
@@ -248,12 +259,24 @@ while sim_time < 100.0:
     potential_energy = force_field.potential(r)
     potential_energy = np.sum(potential_energy)
 
-    if potential_energy < 1000:# and total_dipole < 100:
+    #########################################
+    ### TOTAL DIPOLE and POTENTIAL ENERGY ###
+    #########################################
+
+    dipole_vec_tensor = dipole_function(r)
+
+    total_dipole_vec = np.sum(dipole_vec_tensor, axis = 0)
+
+    total_dipole = np.sqrt(total_dipole_vec @ total_dipole_vec)
+
+    if potential_energy < 100 and total_dipole < 100:
         h = 1e-4
-    elif potential_energy < 10000: # and total_dipole < 1000:
+    elif potential_energy < 1000 and total_dipole < 1000:
         h = 1e-5
-    else:
+    elif potential_energy < 10000 and total_dipole < 10000:
         h = 1e-6
+    else:
+        h = 1e-7
 
     ###################
     ### SAVING DATA ###
@@ -264,15 +287,6 @@ while sim_time < 100.0:
 
         energy_data["time"].append(sim_time)
 
-        ##############
-        ### DIPOLE ###
-        ##############
-
-        dipole_vec_tensor = dipole_function(r)
-
-        total_dipole_vec = np.sum(dipole_vec_tensor, axis = 0)
-
-        total_dipole = np.sqrt(total_dipole_vec @ total_dipole_vec)
         energy_data["total dipole"].append(total_dipole)
 
         ##########################################
