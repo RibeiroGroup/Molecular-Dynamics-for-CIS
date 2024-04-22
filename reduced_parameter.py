@@ -12,22 +12,23 @@ test = 1
 sigma_ = 3.41       #unit: Angstrom
 epsilon_ = 0.996    #unit: kJ/mol
 M_ = 39.948         #unit: a.u. or g/mol
-k_e = 1 / (4 * np.pi * scicon.epsilon_0)
 
 ##########
 ### SI ###
 ##########
 
-sigma   = sigma_    * 1e-10             #convert to m
-epsilon = epsilon_  * 1e3  /Avogadro    #convert to J
-M       = M_        * 1e-3 /Avogadro    #convert to kg
+sigma   = sigma_    * 1e-8                   #convert to cm
+epsilon = epsilon_  * 1e3 * 1e7  /Avogadro   #convert to erg
+M       = M_ / Avogadro                      #convert to g
 
 ###############################
 ### ASSOCIATED REDUCED UNIT ###
 ###############################
 
-dipole_unit = np.sqrt(4 * np.pi * scicon.epsilon_0 * epsilon * sigma**3)
 time_unit = np.sqrt(M * sigma**2/epsilon)
+
+velocity_unit = sigma / time_unit
+dipole_unit = M**(1/2) * sigma**(5/2) * time_unit**-1 #statC . cm
 
 ########################################
 ### Calculating reduced LJ parameter ###
@@ -50,7 +51,9 @@ M_Xe = 131.293 / M_
 
 bohr_rad, _, _ = physical_constants["Bohr radius"]
 
-mu0 = (0.0124 * e_charge * 1e-10) / dipole_unit
+mu0 = (0.0124 * e_charge * bohr_rad * 10 * 3e10) / ( dipole_unit)
+
+bohr_rad *= 1e2
 
 a = 1.5121 * sigma / bohr_rad
 
@@ -60,26 +63,24 @@ d0 = 7.10 * bohr_rad / sigma
 ### Calculating reduced constants ###
 #####################################
 
-epsilon_0 = scicon.epsilon_0 * k_e
-c = 3e8 * np.sqrt(M / epsilon)
-
+c = 3e10 / (sigma / time_unit)
 
 if test:
-    print("Epsilon (kJ/mol)", epsilon_)
+    print("Epsilon (erg)", epsilon)
     print("Reduced epsilon (Ar-Ar, Ar-Xe, Xe-Xe):", 
             epsilon_Ar_Ar,";", epsilon_Ar_Xe,";", epsilon_Xe_Xe)
 
     print("######################")
-    print("Sigma (Angstrom)", sigma_)
+    print("Length multiple - Sigma (cm)", sigma)
     print("Reduced sigma (Ar-Ar, Ar-Xe, Xe-Xe):", 
             sigma_Ar_Ar,";", sigma_Ar_Xe,";", sigma_Xe_Xe)
 
     print("######################")
-    print("Mass (kg/mol)",M_)
+    print("Mass multiples (g)",M)
     print("Reduced Mass (Ar, Xe):", M_Ar,";",M_Xe)
 
     print("######################")
-    print("Dipole unit multiple (C . m)", dipole_unit)
+    print("Dipole unit multiple (statC . cm)", dipole_unit)
     print("Reduced dipole parameter:")
     print("mu0 = ",mu0)
     print("a = ",a)
@@ -87,8 +88,8 @@ if test:
 
     print("######################")
     print("Time", time_unit)
+    print("Velocity multiple (cm/s)", velocity_unit)
 
     print("######################")
-    print("epsilon_0: ", epsilon_0)
     print("c: ", c)
 

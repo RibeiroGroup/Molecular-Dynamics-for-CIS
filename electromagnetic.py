@@ -2,12 +2,12 @@ import numpy as np
 import numpy.linalg as la
 
 from utils import PBC_wrapping, orthogonalize
-import constants as constants
+#import constants as constants
 
 run_test = 0
 
 class VectorPotential:
-    def __init__(self, k_vector, amplitude, V):
+    def __init__(self, k_vector, amplitude, V, speed_of_light):# = self.v_light):
         """
         Class for computing potential vector A of the field, its amplitude derivative,
         and transverse force on (charged) atoms exert by the field.
@@ -16,6 +16,8 @@ class VectorPotential:
             where the 1st dim -> mode, 2nd dim -> k vector, 1st & 2nd 
             polarization vector and the last dim is vector length (coordinate)
         """
+        self.v_light = speed_of_light
+
         self.V = V
 
         self.N_modes = len(k_vector)
@@ -35,7 +37,7 @@ class VectorPotential:
         k_vec = self.k_vector[:,0,:]
 
         self.k_val = np.sqrt(np.einsum("kj,kj->k",k_vec,k_vec))
-        self.omega = np.array(self.k_val * constants.c, dtype=np.complex128)
+        self.omega = np.array(self.k_val * self.v_light, dtype=np.complex128)
 
     def update_amplitude(self,amplitude = None, deltaC = None):
 
@@ -161,9 +163,9 @@ class VectorPotential:
         force3 = np.einsum("njl,nl->nj",gradA,R_dot)
         force3 = np.einsum("nj,nij->ni",force3,gradD)
 
-        force1 /= constants.c
-        force2 /= constants.c
-        force3 /= constants.c
+        force1 /= self.v_light
+        force2 /= self.v_light
+        force3 /= self.v_light
         force = force1 - force2 - force3
 
         #return force1, force2, force3

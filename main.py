@@ -11,13 +11,13 @@ from neighborlist import neighbor_list_mask
 from forcefield import LennardJonesPotential, explicit_test_LJ
 from dipole import SimpleDipoleFunction
 
-#from reduced_parameter import sigma_ as len_unit, epsilon_ as energy_unit, time_unit, \
-#    M, epsilon_0, c as c_constants
+from reduced_parameter import sigma_ as len_unit, epsilon_ as energy_unit, time_unit, \
+    M, c as v_light
 
-from parameter import epsilon_Ar_Ar, epsilon_Xe_Xe, epsilon_Ar_Xe, sigma_Ar_Ar, sigma_Xe_Xe, \
+from reduced_parameter import epsilon_Ar_Ar, epsilon_Xe_Xe, epsilon_Ar_Xe, sigma_Ar_Ar, sigma_Xe_Xe, \
     sigma_Ar_Xe, M_Ar, M_Xe, mu0, d0, a
 
-from electromagnetic_si import VectorPotential
+from electromagnetic import VectorPotential
 
 import input_dat
 import constants
@@ -29,14 +29,11 @@ import constants
 free_em_field = 1
 np.random.seed(37)
 
-M_Xe /= M_Ar
-M_Ar = 1
-
 ########################
 ###### BOX LENGTH ######
 ########################
 
-L = 100
+L = 1e3
 V = L ** 3
 cell_width = 20
 
@@ -45,17 +42,17 @@ cell_width = 20
 ##########################
 
 # number of atoms
-N_Ar = int(L / 4)
-N_Xe = int(L / 4)
+N_Ar = 1# int(L / 4)
+N_Xe = 1# int(L / 4)
 N = N_Ar + N_Xe
 
 # randomized initial coordinates
-R_all = np.random.uniform(-L/2, L/2, (N, 3))
-#R_all = np.array([[1.0,1.0,1.0],[-1.0,-1.0,-1.0]])
+#R_all = np.random.uniform(-L/2, L/2, (N, 3))
+R_all = np.array([[1.0,1.0,1.0],[-1.0,-1.0,-1.0]]) * 0.3
 
 # randomized initial velocity
-V_all =np.random.uniform(-1e1, 1e1, (N,3))
-#V_all = np.array([[-1.0,-1.0,-1.0],[1.0,1.0,1.0]]) * 0.5
+#V_all =np.random.uniform(-1e1, 1e1, (N,3))
+V_all = np.array([[-1.0,-1.0,-1.0],[1.0,1.0,1.0]]) * 100
 
 # indices of atoms in the R_all and V_all
 idxXe = np.hstack(
@@ -107,14 +104,14 @@ k_vector = np.array([
     orthogonalize(kvec) for kvec in k_vector
     ]) 
 
-C = (np.random.rand(len(k_vector),2) + np.random.rand(len(k_vector),2) * 1j)* 1e-1 \
+C = (np.random.rand(len(k_vector),2) + np.random.rand(len(k_vector),2) * 1j)* 1e1 \
         * V**-0.5
         
 ##########################################
 ###### INITIAL VARIABLES AND OTHERS ######
 ##########################################
 
-h = 1e-5
+h = 1e-10
 r = R_all
 v = V_all
 
@@ -139,10 +136,10 @@ energy_data, _ = generate_empty_record()
 sim_time = 0
 
 data_save_point = 0
-data_save_interval = 1e-1
+data_save_interval = 1e-6
 
 check_point = 0.0
-chkp_interval = 1.0
+chkp_interval = 1e-4
 
 i = 0
 
@@ -171,8 +168,8 @@ dipole_function = SimpleDipoleFunction(
 vector_potential = VectorPotential(
         k_vector, amplitude = C,
         V = V, 
-        epsilon_0 = 1 * M_Ar, 
-        speed_of_light = constants.c * np.sqrt(M_Ar)
+        #epsilon_0 = 1 * M_Ar, 
+        speed_of_light = v_light
         )
 
 ###################################
@@ -269,14 +266,12 @@ while sim_time < 1000.0:
 
     total_dipole = np.sqrt(total_dipole_vec @ total_dipole_vec)
 
-    if potential_energy < 100 and total_dipole < 100:
-        h = 1e-4
-    elif potential_energy < 1000 and total_dipole < 1000:
-        h = 1e-5
-    elif potential_energy < 10000 and total_dipole < 10000:
-        h = 1e-6
-    else:
+    if potential_energy < 1000:# and total_dipole < 10000:
         h = 1e-7
+    elif potential_energy < 10000:# and total_dipole < 100000:
+        h = 1e-8
+    else:
+        h = 1e-9
 
     ###################
     ### SAVING DATA ###
