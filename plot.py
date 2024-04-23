@@ -17,7 +17,7 @@ total_rad_energy = np.sum(rad_energy,axis = 1)
 hamiltonian = kinetic_energy + potential_energy + total_rad_energy
 
 t = np.array(trajectory["time"])
-#t = t[t < 3.0]
+t = t[t < 0.006]
 
 plot_range = slice(0, len(t))
 

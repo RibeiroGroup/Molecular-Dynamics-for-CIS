@@ -33,8 +33,8 @@ np.random.seed(37)
 ###### BOX LENGTH ######
 ########################
 
-L = 1e3
-V = L ** 3
+L = 1e4
+V = 1#L ** 3
 cell_width = 20
 
 ##########################
@@ -42,17 +42,18 @@ cell_width = 20
 ##########################
 
 # number of atoms
-N_Ar = 1# int(L / 4)
-N_Xe = 1# int(L / 4)
+N_Ar = int(L / 50)
+N_Xe = int(L / 50)
 N = N_Ar + N_Xe
+print(N)
 
 # randomized initial coordinates
-#R_all = np.random.uniform(-L/2, L/2, (N, 3))
-R_all = np.array([[1.0,1.0,1.0],[-1.0,-1.0,-1.0]]) * 0.3
+R_all = np.random.uniform(-L/2, L/2, (N, 3))
+#R_all = np.array([[1.0,1.0,1.0],[-1.0,-1.0,-1.0]]) * 0.3
 
 # randomized initial velocity
-#V_all =np.random.uniform(-1e1, 1e1, (N,3))
-V_all = np.array([[-1.0,-1.0,-1.0],[1.0,1.0,1.0]]) * 100
+V_all =np.random.uniform(-1e1, 1e1, (N,3))
+#V_all = np.array([[-1.0,-1.0,-1.0],[1.0,1.0,1.0]]) * 10
 
 # indices of atoms in the R_all and V_all
 idxXe = np.hstack(
@@ -90,10 +91,22 @@ n_modes = 5
 #k_vector += np.tile(np.array([[1,0,0]]),(n_modes,1))
 k_vector = np.vstack([
         np.array([[1,0,0],[0,1,0],[0,0,1]]),
+        np.array([[1,1,0],[0,1,1],[1,0,1]]),
         np.array([[1,0,0],[0,1,0],[0,0,1]]) * 2,
+        np.array([[1,1,0],[0,1,1],[1,0,1]]) * 2,
         np.array([[1,0,0],[0,1,0],[0,0,1]]) * 3,
+        np.array([[1,1,0],[0,1,1],[1,0,1]]) * 3,
         np.array([[1,0,0],[0,1,0],[0,0,1]]) * 4,
+        np.array([[1,1,0],[0,1,1],[1,0,1]]) * 4,
         np.array([[1,0,0],[0,1,0],[0,0,1]]) * 5,
+        np.array([[1,1,0],[0,1,1],[1,0,1]]) * 5,
+        np.array([[1,0,0],[0,1,0],[0,0,1]]) * 6,
+        np.array([[1,1,0],[0,1,1],[1,0,1]]) * 6,
+        np.array([[1,0,0],[0,1,0],[0,0,1]]) * 7,
+        np.array([[1,1,0],[0,1,1],[1,0,1]]) * 7,
+        np.array([[1,0,0],[0,1,0],[0,0,1]]) * 8,
+        np.array([[1,0,0],[0,1,0],[0,0,1]]) * 9,
+        np.array([[1,0,0],[0,1,0],[0,0,1]]) * 10,
         ])
 
 k_vector = np.array(k_vector, dtype= np.float64) 
@@ -136,10 +149,10 @@ energy_data, _ = generate_empty_record()
 sim_time = 0
 
 data_save_point = 0
-data_save_interval = 1e-6
+data_save_interval = 1e-5
 
 check_point = 0.0
-chkp_interval = 1e-4
+chkp_interval = 1e-3
 
 i = 0
 
@@ -159,7 +172,7 @@ force_field = LennardJonesPotential(
 
 dipole_function = SimpleDipoleFunction(
         distance_calc, 
-        mu0=mu0*100,
+        mu0=mu0,
         a=a, d0=d0,
         positive_atom_idx = idxXe,
         negative_atom_idx = idxAr
@@ -180,9 +193,15 @@ start = time.time()
 
 prev_energy = 1
 
-while sim_time < 1000.0:
+max_h = 1e-8
 
-    if i % 10 == 0: 
+foo = int(cell_width / (max_h * 10))
+print(foo)
+
+while sim_time < 0.1:
+   
+    if i % foo == 0: 
+
         mask = neighbor_list_mask(r, L, cell_width)
         distance_calc.update_global_mask(mask)
 
@@ -266,12 +285,15 @@ while sim_time < 1000.0:
 
     total_dipole = np.sqrt(total_dipole_vec @ total_dipole_vec)
 
+    """
     if potential_energy < 1000:# and total_dipole < 10000:
-        h = 1e-7
-    elif potential_energy < 10000:# and total_dipole < 100000:
         h = 1e-8
-    else:
+    elif potential_energy < 10000:# and total_dipole < 100000:
         h = 1e-9
+    else:
+        h = 1e-10
+    """
+    h = 1e-8
 
     ###################
     ### SAVING DATA ###
@@ -314,8 +336,8 @@ while sim_time < 1000.0:
         print("\t + potential_energy",potential_energy)
 
         if free_em_field:
-            print("\t + field Hamiltonian")
-            [print("\t + \t", i) for i in H_em]
+            #print("\t + field Hamiltonian")
+            #[print("\t + \t", i) for i in H_em]
             print("\t + total field Hamiltonian",H_em_total)
 
         print("\t + total dipole",total_dipole)
