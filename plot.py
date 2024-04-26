@@ -17,7 +17,7 @@ total_rad_energy = np.sum(rad_energy,axis = 1)
 hamiltonian = kinetic_energy + potential_energy + total_rad_energy
 
 t = np.array(trajectory["time"])
-t = t[t < 0.006]
+#t = t[t < 0.006]
 
 plot_range = slice(0, len(t))
 
@@ -49,6 +49,9 @@ fig.savefig("result_plot/hamiltonians.jpeg", bbox_inches="tight",dpi=600)
 fig, ax = plt.subplots(5,3,figsize = (20,12))
 
 for i in range(rad_energy.shape[1]):
-    ax[i%5,floor(i/5)].plot(t, rad_energy[plot_range,i])
+    try:
+        ax[i%5,floor(i/5)].plot(t, rad_energy[plot_range,i])
+    except:
+        break
 
 fig.savefig("result_plot/em.jpeg",bbox_inches ="tight", dpi = 600)

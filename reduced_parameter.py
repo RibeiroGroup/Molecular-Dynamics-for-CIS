@@ -13,9 +13,9 @@ sigma_ = 3.41       #unit: Angstrom
 epsilon_ = 0.996    #unit: kJ/mol
 M_ = 39.948         #unit: a.u. or g/mol
 
-##########
-### SI ###
-##########
+###########
+### CGS ###
+###########
 
 sigma   = sigma_    * 1e-8                   #convert to cm
 epsilon = epsilon_  * 1e3 * 1e7  /Avogadro   #convert to erg

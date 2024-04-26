@@ -17,6 +17,8 @@ from reduced_parameter import sigma_ as len_unit, epsilon_ as energy_unit, time_
 from reduced_parameter import epsilon_Ar_Ar, epsilon_Xe_Xe, epsilon_Ar_Xe, sigma_Ar_Ar, sigma_Xe_Xe, \
     sigma_Ar_Xe, M_Ar, M_Xe, mu0, d0, a
 
+import constants
+
 from electromagnetic import VectorPotential
 
 import input_dat
@@ -27,32 +29,31 @@ import constants
 ########################
 
 free_em_field = 1
-np.random.seed(37)
+np.random.seed(39)
 
 ########################
 ###### BOX LENGTH ######
 ########################
 
-L = 1e4
-V = 1#L ** 3
-cell_width = 20
+L = 20
+V = L ** 3
+cell_width = 4
 
 ##########################
 ###### ATOMIC INPUT ######
 ##########################
 
 # number of atoms
-N_Ar = int(L / 50)
-N_Xe = int(L / 50)
+N_Ar = int(L * 2)
+N_Xe = int(L * 2)
 N = N_Ar + N_Xe
-print(N)
 
 # randomized initial coordinates
 R_all = np.random.uniform(-L/2, L/2, (N, 3))
 #R_all = np.array([[1.0,1.0,1.0],[-1.0,-1.0,-1.0]]) * 0.3
 
 # randomized initial velocity
-V_all =np.random.uniform(-1e1, 1e1, (N,3))
+V_all =np.random.uniform(-1e3, 1e3, (N,3))
 #V_all = np.array([[-1.0,-1.0,-1.0],[1.0,1.0,1.0]]) * 10
 
 # indices of atoms in the R_all and V_all
@@ -92,21 +93,14 @@ n_modes = 5
 k_vector = np.vstack([
         np.array([[1,0,0],[0,1,0],[0,0,1]]),
         np.array([[1,1,0],[0,1,1],[1,0,1]]),
+        np.array([[1,1,1]]),
         np.array([[1,0,0],[0,1,0],[0,0,1]]) * 2,
         np.array([[1,1,0],[0,1,1],[1,0,1]]) * 2,
-        np.array([[1,0,0],[0,1,0],[0,0,1]]) * 3,
-        np.array([[1,1,0],[0,1,1],[1,0,1]]) * 3,
-        np.array([[1,0,0],[0,1,0],[0,0,1]]) * 4,
-        np.array([[1,1,0],[0,1,1],[1,0,1]]) * 4,
-        np.array([[1,0,0],[0,1,0],[0,0,1]]) * 5,
-        np.array([[1,1,0],[0,1,1],[1,0,1]]) * 5,
-        np.array([[1,0,0],[0,1,0],[0,0,1]]) * 6,
-        np.array([[1,1,0],[0,1,1],[1,0,1]]) * 6,
-        np.array([[1,0,0],[0,1,0],[0,0,1]]) * 7,
-        np.array([[1,1,0],[0,1,1],[1,0,1]]) * 7,
-        np.array([[1,0,0],[0,1,0],[0,0,1]]) * 8,
-        np.array([[1,0,0],[0,1,0],[0,0,1]]) * 9,
-        np.array([[1,0,0],[0,1,0],[0,0,1]]) * 10,
+        np.array([[1,1,1],[1,-1,1],[1,1,-1]]) * 2,
+        np.array([[1,2,0],[0,1,2],[1,0,2]]),
+        np.array([[2,1,0],[0,2,1],[2,0,1]]),
+        np.array([[2,1,1],[1,2,1],[1,1,2]]),
+        np.array([[2,2,1],[1,2,2],[2,1,2]]),
         ])
 
 k_vector = np.array(k_vector, dtype= np.float64) 
@@ -117,7 +111,7 @@ k_vector = np.array([
     orthogonalize(kvec) for kvec in k_vector
     ]) 
 
-C = (np.random.rand(len(k_vector),2) + np.random.rand(len(k_vector),2) * 1j)* 1e1 \
+C = (np.random.rand(len(k_vector),2) + np.random.rand(len(k_vector),2) * 1j)* 0e0 \
         * V**-0.5
         
 ##########################################
@@ -182,7 +176,7 @@ vector_potential = VectorPotential(
         k_vector, amplitude = C,
         V = V, 
         #epsilon_0 = 1 * M_Ar, 
-        speed_of_light = v_light
+        speed_of_light = v_light,
         )
 
 ###################################
@@ -195,10 +189,10 @@ prev_energy = 1
 
 max_h = 1e-8
 
-foo = int(cell_width / (max_h * 10))
+foo = int(cell_width / (max_h * 1e5))
 print(foo)
 
-while sim_time < 0.1:
+while sim_time < 1000:
    
     if i % foo == 0: 
 
@@ -285,6 +279,7 @@ while sim_time < 0.1:
 
     total_dipole = np.sqrt(total_dipole_vec @ total_dipole_vec)
 
+    h = max_h
     """
     if potential_energy < 1000:# and total_dipole < 10000:
         h = 1e-8
@@ -293,7 +288,6 @@ while sim_time < 0.1:
     else:
         h = 1e-10
     """
-    h = 1e-8
 
     ###################
     ### SAVING DATA ###
