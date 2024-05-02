@@ -4,7 +4,7 @@ import numpy.linalg as la
 from utils import PBC_wrapping, orthogonalize
 #import constants as constants
 
-run_test = 1
+run_test = 0
 
 class VectorPotential:
     def __init__(self, k_vector, amplitude, V, speed_of_light):# = self.v_light):
@@ -102,7 +102,7 @@ class VectorPotential:
 
         return gradA_R
 
-    def dot_C(self, R, R_dot, gradD, C = None):
+    def dot_C(self, R, R_dot, C, gradD):
         """
         Args:
         + R (np.ndarray of shape N x 3):
@@ -188,11 +188,10 @@ if run_test == True:
     import time
     from dipole import SimpleDipoleFunction
     from distance import DistanceCalculator
-    from parameter import mu0, a, d0
+    from parameter import mu0_1, a1, d0_1
     from test.electromagnetic import ExplicitTestVectorPotential
     from test.dipole import ExplicitTestDipoleFunction
     import input_dat
-    from constants import c as speed_of_light
 
     np.random.seed(2)
     #k_vector = np.random.uniform(-5,5,(10,3)) 
@@ -213,7 +212,7 @@ if run_test == True:
     XeIdx = np.hstack([np.ones(int(N_atoms/2)),np.zeros(int(N_atoms/2))])
     ArIdx = np.hstack([np.zeros(int(N_atoms/2)),np.ones(int(N_atoms/2))])
 
-    AField = VectorPotential(k_vector, amplitudes, speed_of_light = speed_of_light, V = 1)
+    AField = VectorPotential(k_vector, amplitudes)
     
     AFieldTest = ExplicitTestVectorPotential(k_vector, amplitudes)
 
@@ -224,9 +223,9 @@ if run_test == True:
     print(np.sum(abs(AFieldTest.gradient(R) - AField.gradient(R))))
 
     distance_calc = DistanceCalculator(n_points=N_atoms,box_length=L)
-    dipole_func = SimpleDipoleFunction(distance_calc, XeIdx, ArIdx, mu0=mu0, a=a,d0=d0)
+    dipole_func = SimpleDipoleFunction(distance_calc, XeIdx, ArIdx, mu0=mu0_1, a=a1,d0=d0_1)
 
-    dipole_func_ = ExplicitTestDipoleFunction(XeIdx ,ArIdx, mu0=mu0, a=a,d0=d0,L=L)
+    dipole_func_ = ExplicitTestDipoleFunction(XeIdx ,ArIdx, mu0=mu0_1, a=a1,d0=d0_1,L=L)
 
     gradD = dipole_func.gradient(R, return_all = True)
     gradD_sum = np.sum(gradD, axis = 1)
@@ -249,7 +248,7 @@ if run_test == True:
     print("+++ Transverse force computation test:")
 
     start = time.time()
-    force = AField.transv_force(R,V, gradD=gradD_sum, C = AField.C)
+    force = AField.transv_force(R,V, gradD=gradD_sum, C_dot = C_dot)
     print("Runtime(s): ",time.time() - start)
 
     start = time.time()
@@ -257,5 +256,6 @@ if run_test == True:
     print("Explicit computation runtime(s): ",time.time() - start)
 
     print("Sum of abs difference: ",np.sum(abs(force - force_)))
+    print(force)
 
         

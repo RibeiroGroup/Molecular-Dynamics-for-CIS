@@ -192,6 +192,25 @@ max_h = 1e-8
 foo = int(cell_width / (max_h * 1e5))
 print(foo)
 
+###########################
+### INITIAL CALCULATION ###
+###########################
+
+if free_em_field:
+    gradD = dipole_function.gradient(r)
+    emf = vector_potential.transv_force(r,v,gradD=gradD,C=C)
+else: 
+    emf = 0
+
+ff = force_field.force(r) 
+a =  (ff + emf) / mass_x3
+
+r_new = r + v*h + (1/2)*a*h**2
+
+########################
+### LOOP CALCULATION ###
+########################
+
 while sim_time < 1000:
    
     if i % foo == 0: 
@@ -203,61 +222,20 @@ while sim_time < 1000:
         force_field.update_distance_calc(distance_calc)
         dipole_function.update(distance_calc)
 
-    ############
-    ### RK 1 ###
-    ############
+    #######################################
+    ### VELOCITY VERLET UPDATE OF ATOMS ###
+    #######################################
+
     if free_em_field:
         gradD = dipole_function.gradient(r)
-        k1c = vector_potential.dot_C(r,v,gradD=gradD,C=C)
+        #k1c = vector_potential.dot_C(r,v,gradD=gradD,C=C)
         emf = vector_potential.transv_force(r,v,gradD=gradD,C=C)
-    else: emf = 0
+    else: 
+        emf = 0
 
     ff = force_field.force(r) 
-    k1v =  (ff + emf) / mass_x3
-    k1r = v
+    a_new =  (ff + emf) / mass_x3
 
-    ############
-    ### RK 2 ###
-    ############
-    if free_em_field:
-        gradD = dipole_function.gradient(r + k1r*h/2)
-        k2c = vector_potential.dot_C(r + k1r*h/2, v + k1v*h/2,gradD=gradD, C=C+k1c*h/2)
-        emf = vector_potential.transv_force(r+k1r*h/2, v+k1v*h/2, gradD=gradD,C=C+k1c*h/2)
-
-    ff = force_field.force(r + k1r*h/2)
-    k2v = (ff + emf) / mass_x3
-    k2r = v + k1v*h/2
-
-    ############
-    ### RK 3 ###
-    ############
-    if free_em_field:
-        gradD = dipole_function.gradient(r + k2r*h/2)
-        k3c = vector_potential.dot_C(r+k2r*h/2, v+k2v*h/2,gradD=gradD,C=C+k2c*h/2)
-        emf = vector_potential.transv_force(r + k2r*h/2, v + k2v*h/2,gradD=gradD,C=C+k2c*h/2)
-
-    ff = force_field.force(r + k2r*h/2) 
-    k3v = (ff + emf) / mass_x3
-    k3r = v + k2v*h/2
-
-    ############
-    ### RK 4 ###
-    ############
-    if free_em_field:
-        gradD = dipole_function.gradient(r + k3r*h)
-        k4c = vector_potential.dot_C(r+k3r*h,v+k3v*h,gradD=gradD,C=C+k3c*h)
-        emf = vector_potential.transv_force(r + k3r*h, v + k3v*h, gradD=gradD,C=C+k3c*h)
-
-    ff =  force_field.force(r + k3r * h)
-    k4v = (ff + emf) / mass_x3
-    k4r = v + k3v * h
-    
-    ##############
-    ### UPDATE ###
-    ##############
-
-    v += (1*k1v + 2*k2v + 2*k3v + 1*k4v) * h/6
-    r += (1*k1r + 2*k2r + 2*k3r + 1*k4r) * h/6
     r = PBC_wrapping(r,L)
 
     if free_em_field:
