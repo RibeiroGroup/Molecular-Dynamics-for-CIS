@@ -28,7 +28,7 @@ import constants
 ########################
 ########################
 
-free_em_field = 1
+free_em_field = 0
 np.random.seed(39)
 
 ########################
@@ -179,9 +179,15 @@ vector_potential = VectorPotential(
         speed_of_light = v_light,
         )
 
-###################################
-###### SIMULATION START HERE ######
-###################################
+########################
+### UTILITY FUNCTION ###
+########################
+
+########################################################
+        ###################################
+############### SIMULATION START HERE ##################
+        ###################################
+########################################################
 
 start = time.time()
 
@@ -207,6 +213,23 @@ a =  (ff + emf) / mass_x3
 
 r_new = r + v*h + (1/2)*a*h**2
 
+if free_em_field:
+    gradD_new = dipole_function.gradient(r_new)
+    emf = vector_potential.transv_force(r_new,v,gradD=gradD_new,C=C)
+else: 
+    emf = 0
+
+ff = force_field.force(r_new) 
+a_new =  (ff + emf) / mass_x3
+
+v_new = v + (a + a_new) * h/2
+
+if free_em_field:
+    C = vector_potential.mid_point_update(
+            R=r, R_new=r_new, R_dot=v, R_dot_new=v_new,
+            gradD=gradD, gradD_new=gradD_new, C=C, h=h
+            )
+
 ########################
 ### LOOP CALCULATION ###
 ########################
@@ -227,20 +250,21 @@ while sim_time < 1000:
     #######################################
 
     if free_em_field:
-        gradD = dipole_function.gradient(r)
-        #k1c = vector_potential.dot_C(r,v,gradD=gradD,C=C)
-        emf = vector_potential.transv_force(r,v,gradD=gradD,C=C)
+        gradD = dipole_function.gradient(r_new)
+        emf = vector_potential.transv_force(
+                r_new,v_new,gradD=gradD,C=C)
     else: 
         emf = 0
 
-    ff = force_field.force(r) 
+    ff = force_field.force(r_new) 
     a_new =  (ff + emf) / mass_x3
+
+    v_mid = v + 
 
     r = PBC_wrapping(r,L)
 
     if free_em_field:
-        deltaC = (1*k1c + 2*k2c + 2*k3c + 1*k4c) * h/6
-        vector_potential.update_amplitude(deltaC = deltaC)
+        vector_potential.update_amplitude(C = C)
 
     sim_time += (h)
     i += 1

@@ -102,7 +102,7 @@ class VectorPotential:
 
         return gradA_R
 
-    def dot_C(self, R, R_dot, gradD, C = None):
+    def Jk_perp(self, R, R_dot, gradD):
         """
         Args:
         + R (np.ndarray of shape N x 3):
@@ -115,22 +115,49 @@ class VectorPotential:
         omega = np.tile(self.omega[:,np.newaxis],(1,2))
         k_val = np.tile(self.k_val[:,np.newaxis],(1,2))
 
-        C = C if C is not None else self.C
-
         grad_mu_r_dot = np.einsum("nij,ni->nj", gradD, R_dot)
 
         exp_ikr = np.exp(np.einsum("ki,ni->kn",-1j * k_vec,R))
 
         grad_mu_eikr = np.einsum("nj,kn->kj",grad_mu_r_dot,exp_ikr)
 
-        C_dot = np.einsum("kij,kj->ki",pol_vec,grad_mu_eikr)
+        Jk_perp = np.einsum("kij,kj->ki",pol_vec,grad_mu_eikr)
 
-        C_dot *= 2 * np.pi * 1j / ( k_val * self.V )
+        return Jk_perp
+
+    def dot_C(self, R, R_dot, gradD, C = None):
+        omega = np.tile(self.omega[:,np.newaxis],(1,2))
+        k_val = np.tile(self.k_val[:,np.newaxis],(1,2))
+
+        C = C if C is not None else self.C
+
+        C_dot = 2 * np.pi * 1j / ( k_val * self.V ) \
+                * self.Jk_perp(R, R_dot, gradD)
+
         C_dot -= 1j * omega * C
 
         return C_dot
 
+    def mid_point_update(self, 
+            R, R_new, R_dot, R_dot_new, gradD, gradD_new,
+            h, C = None, inplace = True):
+
+        omega = np.tile(self.omega[:,np.newaxis],(1,2))
+
+        J = self.Jk_perp(R, R_dot, gradD)
+        J_new = self.Jk_perp(R_new, R_dot_new, gradD_new)
+
+        C_new = (h * np.pi * 1j / self.k) * (J_new + J)
+        C_new += C
+        C_new -= (h/2) * 1j * omega * C
+        C_new /= (1 + 1j * omega * h/2)
+        
+        if inplace: self.C = C_new
+
+        return C_new
+
     def time_diff(self, R, R_dot, C, gradD):
+
         C_dot = self.dot_C(R,R_dot,C=C,gradD=gradD)
         return  self.__call__(R, C_dot)
 

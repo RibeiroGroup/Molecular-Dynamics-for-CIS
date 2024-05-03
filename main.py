@@ -3,7 +3,7 @@ import pickle
 import time
 import numpy as np
 
-from utils import PBC_wrapping, orthogonalize
+from utils import PBC_wrapping, orthogonalize, EM_mode_generate
 
 from distance import DistanceCalculator, explicit_test
 from neighborlist import neighbor_list_mask
@@ -35,26 +35,28 @@ np.random.seed(39)
 ###### BOX LENGTH ######
 ########################
 
-L = 20
+L = 5000
 V = L ** 3
 cell_width = 4
+
+mu0 *= 1e3
 
 ##########################
 ###### ATOMIC INPUT ######
 ##########################
 
 # number of atoms
-N_Ar = int(L * 2)
-N_Xe = int(L * 2)
+N_Ar = 1# int(L * 2)
+N_Xe = 1# int(L * 2)
 N = N_Ar + N_Xe
 
 # randomized initial coordinates
-R_all = np.random.uniform(-L/2, L/2, (N, 3))
-#R_all = np.array([[1.0,1.0,1.0],[-1.0,-1.0,-1.0]]) * 0.3
+#R_all = np.random.uniform(-L/2, L/2, (N, 3))
+R_all = np.array([[1.0,1.0,1.0],[-1.0,-1.0,-1.0]]) * 0.5
 
 # randomized initial velocity
-V_all =np.random.uniform(-1e3, 1e3, (N,3))
-#V_all = np.array([[-1.0,-1.0,-1.0],[1.0,1.0,1.0]]) * 10
+#V_all =np.random.uniform(-1e3, 1e3, (N,3))
+V_all = np.array([[-1.0,-1.0,-1.0],[1.0,1.0,1.0]]) * 1000
 
 # indices of atoms in the R_all and V_all
 idxXe = np.hstack(
@@ -90,18 +92,8 @@ n_modes = 5
 
 #k_vector = np.random.randint(low = -3, high = 3, size = (n_modes,3))
 #k_vector += np.tile(np.array([[1,0,0]]),(n_modes,1))
-k_vector = np.vstack([
-        np.array([[1,0,0],[0,1,0],[0,0,1]]),
-        np.array([[1,1,0],[0,1,1],[1,0,1]]),
-        np.array([[1,1,1]]),
-        np.array([[1,0,0],[0,1,0],[0,0,1]]) * 2,
-        np.array([[1,1,0],[0,1,1],[1,0,1]]) * 2,
-        np.array([[1,1,1],[1,-1,1],[1,1,-1]]) * 2,
-        np.array([[1,2,0],[0,1,2],[1,0,2]]),
-        np.array([[2,1,0],[0,2,1],[2,0,1]]),
-        np.array([[2,1,1],[1,2,1],[1,1,2]]),
-        np.array([[2,2,1],[1,2,2],[2,1,2]]),
-        ])
+k_vector = EM_mode_generate(20)
+print(len(k_vector))
 
 k_vector = np.array(k_vector, dtype= np.float64) 
 
@@ -143,10 +135,10 @@ energy_data, _ = generate_empty_record()
 sim_time = 0
 
 data_save_point = 0
-data_save_interval = 1e-5
+data_save_interval = 1e-6
 
 check_point = 0.0
-chkp_interval = 1e-3
+chkp_interval = 1e-4
 
 i = 0
 
@@ -192,7 +184,7 @@ max_h = 1e-8
 foo = int(cell_width / (max_h * 1e5))
 print(foo)
 
-while sim_time < 1000:
+while sim_time < 0.001:
    
     if i % foo == 0: 
 

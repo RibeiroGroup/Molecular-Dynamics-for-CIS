@@ -1,6 +1,7 @@
 import time
 import numpy as np
 import numpy.linalg as la
+from itertools import combinations, combinations_with_replacement, permutations
 
 def timeit(func):
     def inner(*args, **kwargs):
@@ -50,3 +51,25 @@ def orthogonalize(vec, eps=1e-15):
         else:
             V[i] /= la.norm(V[i])
     return V.T
+
+def EM_mode_generate(max_n, min_n = 0):
+
+    all_combs = combinations_with_replacement(
+            list(range(min_n,max_n)), 3
+            )
+
+    modes_list = []
+
+    for comb in all_combs:
+        comb = list(comb)
+        if np.sum(comb) < 1: 
+            continue
+
+        if comb[0] == comb[1] and comb[1] == comb[2]:
+            comb[0] = - comb[0]
+
+        perm = set(permutations(comb))
+        for mode in perm:
+            modes_list.append(mode)
+
+    return np.array(modes_list)
