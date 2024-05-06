@@ -4,7 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.fft import fft
 
-with open("result_plot/trajectory_temp.pkl","rb") as handle:
+with open("result_plot/hamiltonian_temp.pkl","rb") as handle:
     trajectory = pickle.load(handle)
 
 kinetic_energy = np.array(trajectory["kinetic_energy"])

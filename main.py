@@ -35,7 +35,7 @@ np.random.seed(39)
 ###### BOX LENGTH ######
 ########################
 
-L = 5000
+L = 1000
 V = L ** 3
 cell_width = 4
 
@@ -50,13 +50,15 @@ N_Ar = 1# int(L * 2)
 N_Xe = 1# int(L * 2)
 N = N_Ar + N_Xe
 
+y_elevation = 0.1
+
 # randomized initial coordinates
 #R_all = np.random.uniform(-L/2, L/2, (N, 3))
-R_all = np.array([[1.0,1.0,1.0],[-1.0,-1.0,-1.0]]) * 0.5
+R_all = np.array([[0.5,0.0,0.0],[-0.5,y_elevation,0.0]]) 
 
 # randomized initial velocity
 #V_all =np.random.uniform(-1e3, 1e3, (N,3))
-V_all = np.array([[-1.0,-1.0,-1.0],[1.0,1.0,1.0]]) * 1000
+V_all = np.array([[-1.0,-0.0,-0.0],[1.0,0.0,0.0]]) * 1000
 
 # indices of atoms in the R_all and V_all
 idxXe = np.hstack(
@@ -92,7 +94,7 @@ n_modes = 5
 
 #k_vector = np.random.randint(low = -3, high = 3, size = (n_modes,3))
 #k_vector += np.tile(np.array([[1,0,0]]),(n_modes,1))
-k_vector = EM_mode_generate(20)
+k_vector = EM_mode_generate(20, vector_per_kval=3, align_vector = None)# np.array([1,0,0]))
 print(len(k_vector))
 
 k_vector = np.array(k_vector, dtype= np.float64) 
@@ -126,11 +128,12 @@ def generate_empty_record():
     trajectory_data = {
         "position" : [],
         "velocity" :[],
-        "field amplitude":[]
+        "field amplitude":[],
+        "dipole": []
             }
     return energy_data, trajectory_data
 
-energy_data, _ = generate_empty_record()
+energy_data, trajectory_data = generate_empty_record()
 
 sim_time = 0
 
@@ -184,7 +187,7 @@ max_h = 1e-8
 foo = int(cell_width / (max_h * 1e5))
 print(foo)
 
-while sim_time < 0.001:
+while sim_time < 0.01:
    
     if i % foo == 0: 
 
@@ -293,6 +296,10 @@ while sim_time < 0.001:
 
         energy_data["total dipole"].append(total_dipole)
 
+        trajectory_data["dipole"].append(total_dipole_vec)
+        trajectory_data["position"].append(r)
+        trajectory_data["velocity"].append(v)
+
         ##########################################
         ### CALCULATING AND SAVING OBSERVABLES ###
         ##########################################
@@ -306,6 +313,7 @@ while sim_time < 0.001:
             H_em = vector_potential.hamiltonian()
             H_em_total = np.sum(H_em)
             energy_data["EM_energy"].append(H_em)
+            trajectory_data["field amplitude"].append(C)
         else: 
             H_em_total = 0
 
@@ -333,14 +341,19 @@ while sim_time < 0.001:
 
     if sim_time > check_point:
         check_point += chkp_interval
-        with open("result_plot/trajectory_temp.pkl","wb") as handle:
+        with open("result_plot/hamiltonian_temp.pkl","wb") as handle:
             pickle.dump(energy_data,handle)
 
-        #print("Autosave!")
+        with open("result_plot/trajectory_temp.pkl","wb") as handle:
+            pickle.dump(trajectory_data,handle)
+
+        print("Autosave! Do not Ctrl - C.")
 
 print("############ JOB COMPLETE ############")
 print("Total runtime: ", time.time() - start)
 
-with open("result_plot/trajectory_temp.pkl","wb") as handle:
+with open("result_plot/hamiltonian_1.pkl","wb") as handle:
     pickle.dump(energy_data,handle)
 
+with open("result_plot/trajectory_1.pkl","wb") as handle:
+    pickle.dump(trajectory_data,handle)
