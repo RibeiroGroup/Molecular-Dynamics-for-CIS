@@ -40,7 +40,7 @@ def orthogonalize(vec, eps=1e-15):
     n = len(U[0])
     # numpy can readily reference rows using indices, but referencing full rows is a little
     # dirty. So, work with transpose(U)
-    V = U.T
+    V = U
     for i in range(n):
         prev_basis = V[0:i]     # orthonormal basis before V[i]
         coeff_vec = np.dot(prev_basis, V[i].T)  # each entry is np.dot(V[j], V[i]) for all j < i
@@ -50,7 +50,9 @@ def orthogonalize(vec, eps=1e-15):
             V[i][V[i] < eps] = 0.   # set the small entries to 0
         else:
             V[i] /= la.norm(V[i])
-    return V.T
+
+    V[0] = vec
+    return V
 
 def EM_mode_generate(
         max_n, min_n = 0,
@@ -106,5 +108,15 @@ def EM_mode_generate(
     return np.vstack(modes_list)
 
 
+k_vector = EM_mode_generate(3, vector_per_kval=3, align_vector = None)# np.array([1,0,0]))
+print(k_vector)
 
+k_vector = np.array(k_vector, dtype= np.float64) 
 
+k_vector *= (2 * np.pi / 100)
+
+k_vector = np.array([
+    orthogonalize(kvec) for kvec in k_vector
+    ]) 
+
+print(k_vector[:,0,:])

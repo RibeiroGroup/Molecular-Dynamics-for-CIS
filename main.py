@@ -35,7 +35,7 @@ np.random.seed(39)
 ###### BOX LENGTH ######
 ########################
 
-L = 1000
+L = 5000
 V = L ** 3
 cell_width = 4
 
@@ -50,7 +50,7 @@ N_Ar = 1# int(L * 2)
 N_Xe = 1# int(L * 2)
 N = N_Ar + N_Xe
 
-y_elevation = 0.1
+y_elevation = 0.2
 
 # randomized initial coordinates
 #R_all = np.random.uniform(-L/2, L/2, (N, 3))
@@ -94,7 +94,7 @@ n_modes = 5
 
 #k_vector = np.random.randint(low = -3, high = 3, size = (n_modes,3))
 #k_vector += np.tile(np.array([[1,0,0]]),(n_modes,1))
-k_vector = EM_mode_generate(20, vector_per_kval=3, align_vector = None)# np.array([1,0,0]))
+k_vector = EM_mode_generate(30, vector_per_kval=3, align_vector = None)# np.array([1,0,0]))
 print(len(k_vector))
 
 k_vector = np.array(k_vector, dtype= np.float64) 
@@ -116,13 +116,24 @@ h = 1e-10
 r = R_all
 v = V_all
 
-def generate_empty_record():
+def generate_empty_record(
+        mode, dipole_mu0, dipole_a, dipole_d0,
+        simulation_box_size,
+        note = None
+        ):
+
+    initial_data = {
+        "dipole_mu0" : dipole_mu0, "dipole_a" : dipole_a, "dipole_r0" : dipole_d0,
+        "simulation_box_size" : simulation_box_size, "mode" : mode,
+        "Note" : note
+            }
+
     energy_data = {
         "potential_energy" : [],
         "kinetic_energy" : [],
         "total dipole" : [],
         "EM_energy" : [],
-        "time" : [], "step" : [],
+        "time" : []
     }
 
     trajectory_data = {
@@ -131,9 +142,16 @@ def generate_empty_record():
         "field amplitude":[],
         "dipole": []
             }
-    return energy_data, trajectory_data
+    return initial_data, energy_data, trajectory_data
 
-energy_data, trajectory_data = generate_empty_record()
+initial_data, energy_data, trajectory_data = generate_empty_record(
+        mode = k_vector, dipole_mu0 = mu0, dipole_a = a, dipole_d0 = d0,
+        simulation_box_size = V,
+        note = "y-elevation = {}".format(y_elevation)
+        )
+
+with open("result_plot/initial_data.pkl","wb") as handle:
+    pickle.dump(initial_data, handle)
 
 sim_time = 0
 
