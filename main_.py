@@ -28,7 +28,7 @@ import constants
 ########################
 ########################
 
-free_em_field = 1
+free_em_field = 0
 np.random.seed(39)
 
 ########################
@@ -39,7 +39,7 @@ L = 5000
 V = L ** 3
 cell_width = 4
 
-mu0 *= 1e3
+mu0 *= 1e0
 
 ##########################
 ###### ATOMIC INPUT ######
@@ -50,7 +50,7 @@ N_Ar = 1# int(L * 2)
 N_Xe = 1# int(L * 2)
 N = N_Ar + N_Xe
 
-y_elevation = 0.6
+y_elevation = 0.0
 
 # randomized initial coordinates
 #R_all = np.random.uniform(-L/2, L/2, (N, 3))
@@ -58,7 +58,7 @@ R_all = np.array([[0.5,0.0,0.0],[-0.5,y_elevation,0.0]])
 
 # randomized initial velocity
 #V_all =np.random.uniform(-1e3, 1e3, (N,3))
-V_all = np.array([[-1.0,-0.0,-0.0],[1.0,0.0,0.0]]) * 750
+V_all = np.array([[-1.0,-0.0,-0.0],[1.0,0.0,0.0]]) * 1000
 
 # indices of atoms in the R_all and V_all
 idxXe = np.hstack(
@@ -101,11 +101,14 @@ k_vector = np.array(k_vector, dtype= np.float64)
 
 k_vector *= (2 * np.pi / L)
 
+kval = np.sqrt(np.einsum("kj,kj->k",k_vector,k_vector))
+kval = np.tile(kval[:,np.newaxis],(1,2))
+
 k_vector = np.array([
     orthogonalize(kvec) for kvec in k_vector
     ]) 
 
-C = (np.random.rand(len(k_vector),2) + np.random.rand(len(k_vector),2) * 1j)* 0e0 \
+C = (np.ones((len(k_vector),2)) + np.ones((len(k_vector),2)) * 1j)* 0 / kval \
         * V**-0.5
         
 ##########################################
@@ -150,7 +153,7 @@ initial_data, energy_data, trajectory_data = generate_empty_record(
         note = "y-elevation = {}".format(y_elevation)
         )
 
-with open("result_plot/initial_data.pkl","wb") as handle:
+with open("result_plot/absorption/initial_data.pkl","wb") as handle:
     pickle.dump(initial_data, handle)
 
 sim_time = 0
@@ -359,10 +362,10 @@ while sim_time < 1.5e-3:
 
     if sim_time > check_point:
         check_point += chkp_interval
-        with open("result_plot/hamiltonian_temp.pkl","wb") as handle:
+        with open("result_plot/absorption/hamiltonian_temp.pkl","wb") as handle:
             pickle.dump(energy_data,handle)
 
-        with open("result_plot/trajectory_temp.pkl","wb") as handle:
+        with open("result_plot/absorption/trajectory_temp.pkl","wb") as handle:
             pickle.dump(trajectory_data,handle)
 
         print("Autosave! Do not Ctrl - C.")
@@ -370,8 +373,8 @@ while sim_time < 1.5e-3:
 print("############ JOB COMPLETE ############")
 print("Total runtime: ", time.time() - start)
 
-with open("result_plot/hamiltonian_1.pkl","wb") as handle:
+with open("result_plot/absorption/hamiltonian_1.pkl","wb") as handle:
     pickle.dump(energy_data,handle)
 
-with open("result_plot/trajectory_1.pkl","wb") as handle:
+with open("result_plot/absorption/trajectory_1.pkl","wb") as handle:
     pickle.dump(trajectory_data,handle)
