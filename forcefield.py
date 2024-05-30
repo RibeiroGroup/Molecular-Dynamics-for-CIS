@@ -12,10 +12,10 @@ run_test = 0
 
 class BasePotential:
     """
-    Base potential class
+    Base potential class.
     Args:
-    + n_points (int): number of particles in the simulation
-    + L (float): box length for the wrapping effect of the periodic boundary condition
+	+ distance_calc (DistanceCalculator): DistanceCalculator object for calculating
+		pairwise atoms distance.
     """
     def __init__(self, distance_calc):
 
@@ -26,8 +26,22 @@ class BasePotential:
         self.n_points = self.distance_calc.n_points
 
     def update_distance_calc(self,distance_calc):
-
+		"""
+		Update Potential's DistanceCalculator instance
+		Args:
+		+ distance_calc (DistanceCalculator): DistanceCalculator object for calculating
+				pairwise atoms distance.
+		"""
         self.distance_calc = distance_calc
+
+	def update_neighborlist(self, neighborlist_mask):
+		"""
+		Update Potential's DistanceCalculator instance
+		Args:
+		+ distance_calc (DistanceCalculator): DistanceCalculator object for calculating
+				pairwise atoms distance.
+		"""
+        self.distance_calc.update_global_mask(neighborlist_mask)
 
     def potential(self, R, return_matrix = False):
         """
@@ -35,7 +49,8 @@ class BasePotential:
         Args:
         + R (np.array): have shape N x 3 for cartesian coordinates of N particles
         Returns:
-        + float: potential energy summing from all atom-atoms interactions
+		+ return_matrix (bool): this option if set to True will return matrix of all
+			pairwise distances
         """
 
         potential_array = self.distance_calc.apply_function(
@@ -54,7 +69,8 @@ class BasePotential:
         Args:
         + R (np.array): have shape N x 3 for cartesian coordinates of N particles
         Returns:
-        + np.array: 
+		+ return_matrix (bool): this option if set to True will return matrix of all
+			pairwise distances
         """
 
         force_array = self.distance_calc.apply_function(

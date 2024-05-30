@@ -22,12 +22,13 @@ class DistanceCalculator:
         """
         Args:
         + n_points (int)
-        + mask (np.ndarray of shape (N,N) ): recommend for incorporating the neighbor list by using neighbor_list_mask
-            function from neighborlist.py module
+        + neighbor_mask (np.ndarray of shape (N,N) ): include the neighbor-list mask calculating by using 
+			neighbor_list_mask function from neighborlist.py module
         + box_lenth (float): for incorporating the Periodic Boundary condition 
         """
         self.n_points = n_points
 
+		#bool identity matrix 
         self.identity_mat = np.eye(self.n_points, dtype = bool)
 
         self.identity_mat_x3 = np.tile(

@@ -17,8 +17,6 @@ from reduced_parameter import sigma_ as len_unit, epsilon_ as energy_unit, time_
 from reduced_parameter import epsilon_Ar_Ar, epsilon_Xe_Xe, epsilon_Ar_Xe, sigma_Ar_Ar, sigma_Xe_Xe, \
     sigma_Ar_Xe, M_Ar, M_Xe, mu0, d0, a
 
-import constants
-
 from electromagnetic import VectorPotential
 
 import input_dat
@@ -188,7 +186,6 @@ dipole_function = SimpleDipoleFunction(
 vector_potential = VectorPotential(
         k_vector, amplitude = C,
         V = V, 
-        #epsilon_0 = 1 * M_Ar, 
         speed_of_light = v_light,
         )
 
