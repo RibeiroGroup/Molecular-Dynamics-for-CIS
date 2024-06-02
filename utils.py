@@ -43,7 +43,10 @@ def orthogonalize(vec, eps=1e-15):
     V = U
     for i in range(n):
         prev_basis = V[0:i]     # orthonormal basis before V[i]
-        coeff_vec = np.dot(prev_basis, V[i].T)  # each entry is np.dot(V[j], V[i]) for all j < i
+
+		# each entry is np.dot(V[j], V[i]) for all j < i
+        coeff_vec = np.dot(prev_basis, V[i].T)  
+
         # subtract projections of V[i] onto already determined basis V[0:i]
         V[i] -= np.dot(coeff_vec, prev_basis).T
         if la.norm(V[i]) < eps:
