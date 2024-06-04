@@ -3,7 +3,7 @@ import numpy as np
 
 from utils import PBC_wrapping
 
-run_test = False
+run_test = True
 
 class DistanceCalculator:
     """
@@ -18,76 +18,65 @@ class DistanceCalculator:
             to only the upper triangular matrix, and, by assuming that the matrix is symmetric, the lower 
             triangular part of the matrix can be deduced.
     """
-    def __init__(self,n_points, neighbor_mask = None, box_length  = None):
+    def __init__(self,N , box_length  = None):
         """
         Args:
-        + n_points (int)
+        + N (int): number of particles
         + neighbor_mask (np.ndarray of shape (N,N) ): include the neighbor-list mask calculating by using 
 			neighbor_list_mask function from neighborlist.py module
         + box_lenth (float): for incorporating the Periodic Boundary condition 
         """
-        self.n_points = n_points
-
-		#bool identity matrix 
-        self.identity_mat = np.eye(self.n_points, dtype = bool)
-
-        self.identity_mat_x3 = np.tile(
-                self.identity_mat[:,:,np.newaxis],(1,1,3)
-        )
-
-        self.identity_mat_x3x3 = np.tile(
-                self.identity_mat_x3[:,:,:,np.newaxis],(1,1,1,3)
-        )
-
-        self.update_global_mask(neighbor_mask)
+        self.n_points = N
 
         self.L = box_length
 
-    def update_global_mask(self, neighbor_mask = None):
+		# Pre-generate boolean matrix for masking position-matrix
+        # -> accelerating distance calculation
+        self.identity_mat = np.eye(self.n_points, dtype = bool)
 
-        if neighbor_mask is None:
-            self.neighbor_mask = np.ones((self.n_points,self.n_points),dtype=bool)
-            mask = self.neighbor_mask
-
-        else:
-            assert isinstance(neighbor_mask, np.ndarray)
-            assert neighbor_mask.shape == (self.n_points, self.n_points)
-            self.neighbor_mask = neighbor_mask
-            mask = neighbor_mask
-
+        mask = np.ones((self.n_points,self.n_points),dtype=bool)
+        # upper triangular 2d boolean matrix
         self.utriang_mask = np.triu(mask ,k = 1)
 
-        self.utriang_mask_x3 = np.tile(
-                self.utriang_mask[:,:,np.newaxis],(1,1,3))
+    def repeat_x3(self, matrix):
+        """
+        Convert a Nd matrix to a (N+1)d matrix and repeat this Nd matrix along the last
+        axis of the (N+1)d matrix (N =2,3)
+        Args:
+        + matrix (np.array): 2d matrix
+        """
+        if len(matrix.shape) == 2:
+            new_matrix = np.tile(matrix[:,:,np.newaxis],(1,1,3))
 
-    def generate_custom_mask(self, custom_mask, only_neighbor_mask = True):
+        elif len(matrix.shape) == 3:
+            new_matrix = np.tile(matrix[:,:,:,np.newaxis],(1,1,1,3))
 
-        if only_neighbor_mask:
-            mask = self.neighbor_mask* custom_mask
-        else:
-            mask = self.utriang_mask * custom_mask
+        return new_matrix
 
-        return mask
-
-    def get_all_distance_vector_array(self, R, custom_mask=None):
+    def get_all_distance_vector_array(
+            self, R, mask = None, neighborlist=None
+            ):
         """
         Return array of distances with format:
-        [r1 - r2, r1 - r3, r1 - r4 ... r1 - rN
-        r2 - r3, r2 - r4, ... r2 - rN
-        r3 - r4, r3 - r5, ... r3 - rN
-        ...
-        r[N-1] - rN
+            [r1 - r2, r1 - r3, r1 - r4 ... r1 - rN
+            r2 - r3, r2 - r4, ... r2 - rN
+            r3 - r4, r3 - r5, ... r3 - rN
+            ...
+            r[N-1] - rN ]
+        Args:
+        + R (np.array): particle postion whose pair-wise distances are evaluated
+            SIZE:
+        + nieghborlist (np.array): 
         """
 
-        if custom_mask is None:
-            utriang_mask_x3 = self.utriang_mask_x3
-        else:
-            try: 
-                assert custom_mask.shape == (self.n_points, self.n_points, 3)
-            except AssertionError:
-                raise Exception("custom_mask must have shape {} x {} x 3".format(
-                    self.n_points,self.n_points))
-            utriang_mask_x3 = custom_mask
+        assert mask.shape == (self.n_points, self.n_points)
+        utriang_mask_x3 = mask
+
+        if neighborlist:
+            assert neighborlist.shape == (self.n_points, self.n_points)
+            utriang_mask_x3 *= neighborlist
+
+        utriang_mask_x3 = self.repeat_x3(utriang_mask_x3)
 
         R_mat1 = np.tile(
                 R[np.newaxis,:,:], (self.n_points,1,1))
@@ -129,7 +118,7 @@ class DistanceCalculator:
 
         return d_vec
 
-    def apply_function(self, R, func, custom_mask=None):
+    def apply_function(self, R, func, custom_mask=None, neighborlist=None):
         """
         Compute a square matrix that has element rij = func( |rij| , rij)
         e.g. output of function that takes distance btw atom i and atom j (|rij|)
@@ -137,11 +126,12 @@ class DistanceCalculator:
         """
 
         if custom_mask is None:
-            mask_x3 = self.utriang_mask_x3 
+            mask = self.utriang_mask
         else:
-            mask_x3 = custom_mask
+            assert custom_mask.shape == (self.n_points, self.n_points)
+            mask = custom_mask
 
-        distance_vec_array = self.get_all_distance_vector_array(R, mask_x3)
+        distance_vec_array = self.get_all_distance_vector_array(R, mask)
 
         distance_array = np.sqrt(
                 np.einsum("ij,ij->i", distance_vec_array, distance_vec_array)
@@ -164,19 +154,21 @@ class DistanceCalculator:
         if output_shape == 3:
 
             if custom_mask is None:
-                mask_x3 = self.utriang_mask_x3 
+                mask_x3 = self.repeat_x3(self.utriang_mask)
             else:
-                mask_x3 = custom_mask
+                mask_x3 = self.repeat_x3(custom_mask)
 
             some_tensor = np.zeros((self.n_points,self.n_points,3))
 
             some_tensor[mask_x3] = array.ravel()
 
+            identity_mat_x3 = self.repeat_x3(self.identity_mat)
+
             if symmetry:
                 some_tensor += np.transpose(some_tensor, (1,0,2)) * symmetry
 
             if remove_diagonal:
-                some_tensor = some_tensor[~self.identity_mat_x3].reshape(
+                some_tensor = some_tensor[~identity_mat_x3].reshape(
                     self.n_points, self.n_points-1,3)
 
             return some_tensor
@@ -313,11 +305,10 @@ if run_test:
     ############################################
     print("##### Test without neighbor cell list. #####")
 
-    distance_calc = DistanceCalculator(
-        n_points = N, neighbor_mask = None, box_length = L)
+    distance_calc = DistanceCalculator(N = N, box_length = L)
 
     distance_mat = distance_calc.apply_function(R_all, func = lambda d, ar: d)
-    distance_mat = distance_calc.construct_matrix(distance_mat, output_shape = 1)
+    distance_mat = distance_calc.construct_matrix(distance_mat, output_shape = 1, symmetry = 1)
 
     print("+++ Difference between DistanceCalculator class and ExpliciTest for distance matrix +++")
     print(np.sum(distance_mat - true_distance_mat))

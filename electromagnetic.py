@@ -200,6 +200,10 @@ if test:
     k_vec = EM_mode_generate(20)
     print(k_vec.shape)
 
+    """
+    EXAMPLE CALCULATION FOR VECTOR POTENTIAL OF NON-CONFINED FIELD
+    """
+
     n_mode = k_vec.shape[0]
 
     amplitude = np.random.rand(n_mode,2) + 1j * np.random.rand(n_mode,2)
@@ -208,6 +212,10 @@ if test:
 
     kappa = np.array([[1,1]])
     m = np.array([1])
+
+    """
+    EXAMPLE CALCULATION FOR VECTOR POTENTIAL OF CONFINED FIELD
+    """
 
     n_mode = kappa.shape[0]
 
