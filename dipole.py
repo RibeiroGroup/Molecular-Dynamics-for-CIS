@@ -9,9 +9,11 @@ from utils import PBC_wrapping
 run_test = 0
 
 class BaseDipoleFunction:
+    """
+    Base dipole function class for constructing other dipole function
+    """
     def __init__(
-            self, distance_calc, 
-            positive_atom_idx, negative_atom_idx
+            self,positive_atom_idx, negative_atom_idx
             ):
 
         assert len(positive_atom_idx) == distance_calc.n_points
@@ -23,7 +25,7 @@ class BaseDipoleFunction:
 
         self.update(distance_calc)
 
-    def __call__(self, R_all, return_tensor = False):
+    def __call__(self, R_all, distance_calc, return_tensor = False):
         """
         Return dipole vectors in two ways (1) array of all unique dipole vector from positive atom
         (r_+) to negative atom (r_-) (2) N x N matrix where i,j element is dipole vector between 
@@ -32,8 +34,9 @@ class BaseDipoleFunction:
         r_-)
         """
         
-        dipole_vec_array = self.distance_calc.apply_function(
-                R_all, self.dipole_func, custom_mask = self.r_pn_mask_x3)
+        dipole_vec_array = distance_calc.apply_function(
+                R_all, self.dipole_func, custom_mask = self.r_pn_mask_x3
+                )
 
         if return_tensor:
             dipole_tensor = self.distance_calc.construct_matrix(

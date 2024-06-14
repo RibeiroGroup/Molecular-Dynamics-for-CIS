@@ -5,6 +5,12 @@ from utils import PBC_wrapping
 
 run_test = True
 
+"""
+The follow distance calculator class employ mask of array. Mask is the boolean matrix that when apply
+on array A with the same size, e.g. A[mask] would return element of A that correspond to the True 
+element of the mask.
+"""
+
 class DistanceCalculator:
     """
     Utility class for calculating atomic pair-wise distance
@@ -40,8 +46,8 @@ class DistanceCalculator:
 
     def repeat_x3(self, matrix):
         """
-        Convert a Nd matrix to a (N+1)d matrix and repeat this Nd matrix along the last
-        axis of the (N+1)d matrix (N =2,3)
+        Convert a Nd matrix to a (N+1)d matrix by repeating this Nd matrix along the last
+        axis of the (N+1)d matrix (N = 2,3)
         Args:
         + matrix (np.array): 2d matrix
         """
@@ -54,7 +60,7 @@ class DistanceCalculator:
         return new_matrix
 
     def get_all_distance_vector_array(
-            self, R, mask = None, neighborlist=None
+            self, R, mask , neighborlist=None
             ):
         """
         Return array of distances with format:
@@ -65,8 +71,11 @@ class DistanceCalculator:
             r[N-1] - rN ]
         Args:
         + R (np.array): particle postion whose pair-wise distances are evaluated
-            SIZE:
-        + nieghborlist (np.array): 
+            SIZE: N x 3 with N is the number of particle
+        + mask (np.array): custom mask. 
+            SIZE: N x N with N is the number of particles
+        + neighborlist (np.array): neighborlist matrix, if provide, will be
+            multiplied with the mask matrix
         """
 
         assert mask.shape == (self.n_points, self.n_points)
@@ -81,7 +90,7 @@ class DistanceCalculator:
         R_mat1 = np.tile(
                 R[np.newaxis,:,:], (self.n_points,1,1))
         """
-        shape of ra_mat1 should be:
+        shape of R_mat1 should be:
         [r1 r2 r3 r4 ... rN
          r1 r2 r3 r4 ... rN
          r1 r2 r3 r4 ... rN
@@ -90,7 +99,7 @@ class DistanceCalculator:
         """
         R_mat2 = np.transpose(R_mat1, (1,0,2))
         """
-        shape of ra_mat1 should be:
+        shape of R_mat2 should be:
         [r1 r1 r1 r1 ... r1
          r2 r2 r2 r2 ... r2
          r3 r3 r3 r3 ... r3
@@ -118,11 +127,21 @@ class DistanceCalculator:
 
         return d_vec
 
-    def apply_function(self, R, func, custom_mask=None, neighborlist=None):
+    def apply_function(
+            self, R, func, custom_mask=None, neighborlist=None,
+            matrix_reconstruction=True
+            ):
         """
-        Compute a square matrix that has element rij = func( |rij| , rij)
+        Compute a square matrix that has element ij = func( |rij| , rij)
         e.g. output of function that takes distance btw atom i and atom j (|rij|)
         and the distance vector between the two (rij = ri - rj)
+        Args:
+        + R (np.array): position. SIZE: N x 3
+        + func (python function): a function that take two array of size N, N x 3
+            with the first arg is the distance and the second arg is the distance vector
+        + custom_mask (np.array): custom mask. If None, will use a boolean triangle matrix
+            SIZE: N x N
+        + neighborlist (np.array): 
         """
 
         if custom_mask is None:
@@ -139,7 +158,10 @@ class DistanceCalculator:
 
         some_array = func(distance_array, distance_vec_array)
 
-        return some_array
+        if not matrix_reconstruction:
+            return some_array
+
+        return_matrix = np.zeros((self.n_points,self.n_points) + some_array[1:])
 
     def construct_matrix(
             self, array, output_shape, custom_mask = None, 
@@ -308,6 +330,9 @@ if run_test:
     distance_calc = DistanceCalculator(N = N, box_length = L)
 
     distance_mat = distance_calc.apply_function(R_all, func = lambda d, ar: d)
+    print(distance_mat)
+
+    """
     distance_mat = distance_calc.construct_matrix(distance_mat, output_shape = 1, symmetry = 1)
 
     print("+++ Difference between DistanceCalculator class and ExpliciTest for distance matrix +++")
@@ -347,3 +372,4 @@ if run_test:
     print(np.sum(abs(distance_vec - true_distance_vec)))
 
 
+    """
