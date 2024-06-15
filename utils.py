@@ -12,6 +12,12 @@ def timeit(func):
     return inner
 
 def PBC_wrapping(r, L):
+    """
+    Function for wrapping position or distance vector with periodic boundary condition
+    Args:
+    + r (np.array): array of position or vector
+    + L (float): box length
+    """
     if L is None:
         return r
     else:
@@ -111,15 +117,25 @@ def EM_mode_generate(
     return np.vstack(modes_list)
 
 def neighborlist_mask(R_all, L, cell_width):
+    """
+    Class for generating neighborlist mask for accelerating calculation of distance
+    Args:
+    + R_all (np.array): position of all particles/atoms
+    + L (float) dimension of the simulating cubic box
+    + cell_width (float): dimension of cell
+    """
 
+    assert cell_width < L
+
+    #binning the cubic box width to cells width
     L_bin = np.arange(-L/2,L/2+1,cell_width)
+
     #calculate the center of the cell
     cell_center_list = np.array(
             [(L + L_bin[i+1])/2 for i,L in enumerate(L_bin[:-1])]
             )
-    #[print(i,center) for i, center in enumerate(cell_center_list)]
 
-    # Repeating R_all to get an array w dim: (N atoms, 3, num cell center)
+    # Repeating R_all to get an array w dim: (N atoms, 3, len(cell_center_list))
     tiled_R_all = np.tile(R_all[:,:,np.newaxis],(1,1,len(cell_center_list)) )
 
     # Repeating cell_center_list to get an array w dim: (N atoms, 3, num cell center)
