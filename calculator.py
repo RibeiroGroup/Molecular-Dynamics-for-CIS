@@ -1,76 +1,126 @@
 import numpy as np
 from distance import DistanceCalculator, explicit_test
 from utils import PBC_wrapping, timeit
+from forcefield import LJ_force, LJ_potential
 
 test = True
 
-def LJ_potential(sigma, epsilon, distance):
+def generate_dipole_mask(positive_atom_idx, negative_atom_idx):
+    """
+    Generating dipole mask (potentially for Calculator object's dipole method)
+    Output will be a N x N mask with True at ij element if there is dipole between
+    them, e.g. positive and negative atoms, and False otherwise.
+    Args:
+    + positive_atom_idx (np.array): array with SIZE: N (N is number of atoms)
+        and element is either 1/True or 0/False
+    + negative_atom_idx (np.array): array with SIZE: N (N is number of atoms)
+        and element is either 1/True or 0/False
+    """
 
-    V = 4 * epsilon * ( (sigma/distance)**12 - (sigma/distance)**6 )
+    dipole_mask = np.array(
+        np.outer(positive_atom_idx, negative_atom_idx), dtype = bool)
 
-    return V
+    dipole_mask += dipole_mask.transpose()
 
-def LJ_force(sigma, epsilon, distance, distance_vec):
+    return dipole_mask
 
-    f = 4 * epsilon * (
-            12 * (sigma**12 / distance**14) - 6 * (sigma**6 / distance**8)
-            )
-
-    f = np.tile(f[:,np.newaxis],(1,3)) * (distance_vec)
-
-    return f
-
-@timeit
-def explicit_test_LJ(R, epsilon ,sigma, L):
-
-    N = len(R)
-
-    potential = np.zeros((N,N))
-    force = np.zeros((N,N,3))
-
-    for i, ri in enumerate(R):
-        for j, rj in enumerate(R):
-            if i == j: continue
-            
-            ep = epsilon[i,j]
-            sig = sigma[i,j]
-            
-            dvec = ri - rj
-            dvec = PBC_wrapping(dvec,L)
-
-            d = np.sqrt(dvec @ dvec)
-
-            potential[i,j] = 4 * ep * ( (sig/d)**12 - (sig/d)**6 )
-            f = 4 * ep * (
-                12 * (sig**12 / d**14) - 6 * (sig**6 / d**8)
-            )
-
-            force[i,j,:] = f * (dvec)
-
-    return potential, force
 
 class Calculator(DistanceCalculator):
-
-    def __init__(self, N, box_length, epsilon, sigma):
+    """
+    Class for calculating various properties that based on interactomic distance.
+    Args:
+    + N (int): number of atoms
+    + box_length (float): the length of the simulated box
+    Follow is various properties parameters. Need to add/modify parameters if existing function 
+    to be modified or new function to be added. Current function: Lennard-Jones potential
+    and Griegoriev dipole function.
+    - Lennard-Jones potential parameters:
+        + epsilon (np.ndarray): epsilon of Lennard-Jones potential
+            SIZE: N x N
+        + sigma (np.ndarray): sigma of Lennard-Jones potential
+            SIZE: N x N
+    - Argon-Xenon dipole function:
+        + Dipole mask (np.ndarray): a N x N boolean matrix mask with ij-element is True if
+            dipole exist between i-th and j-th atom and zero otherwise
+        + mu0 (float): \mu_0 parameter
+        + a (float): a parameter
+        + d(float): d parameter
+    """
+    def __init__(
+        self, N, box_length, epsilon, sigma, 
+        dipole_mask, mu0, a, d
+        ):
 
         super().__init__(N, box_length)
 
+        assert epsilon.shape == (self.n_points, self.n_points)
         self.epsilon = epsilon
+
+        assert sigma.shape == (self.n_points, self.n_points)
         self.sigma = sigma
 
+        assert dipole_mask.shape == (self.n_points, self.n_points)
+        self.dipole_mask = dipole_mask
+
+        self.mu0 = mu0
+        self.a = a
+        self.d = d
+
     def calculate_distance(self, R, neighborlist = None):
+        """
+        Calculating all relevant distances and distances vector.
+        Note: ALways running this method to update all distances matrix 
+        before calculating dipole or force/ potential.
+        Args:
+        + R (np.array): list of all atoms' positions
+            SIZE: N x N
+        + neighborlist (np.array): neighborlist
+            SIZE: N x N
+        """
 
         self.neighborlist = neighborlist
 
+        # using methods from DistanceCalculator parent class to calculate 
+        # distance matrix
         self.distance_matrix = self.calculate_distance_matrix(
             R, neighborlist)
 
+        # and distance vector matrix
         self.distance_vec_tensor = self.calculate_distance_vector_tensor(
             R, neighborlist)
 
-    @timeit
-    def LennardJones_potential(self, return_force_matrix = False):
+    def potential(self):
+        """
+        Method for calculating Lennard-Jones potential
+        """
 
+        # usual upper triangle boolean matrix
+        mask = self.utriang_mask
+
+        if self.neighborlist is not None:
+             # add in neighborlist mask
+             mask *= self.neighborlist
+
+        # extracting epsilon and sigma in the parameter matrix
+        # that correspond to the mask position
+        epsilon = self.epsilon[mask]
+        sigma = self.sigma[mask]
+
+        # extracting distance in the distance matrix
+        # that correspond to the mask position
+        darray = self.distance_matrix[mask]
+
+        # apply LJ_potential function
+        potential = LJ_potential(sigma, epsilon, darray)
+        # rearrange the result array into matrix form
+        potential = self.matrix_reconstruct(
+            potential, symmetric_padding = 1, mask = mask)
+
+        return potential
+
+    def force(self, return_matrix = False):
+
+        # similar to the potential method
         mask = self.utriang_mask
         mask_x3 = self.repeat_x3(mask)
 
@@ -81,31 +131,54 @@ class Calculator(DistanceCalculator):
         sigma = self.sigma[mask]
 
         darray = self.distance_matrix[mask]
-        dvec_array = self.distance_vec_tensor[mask]
-
-        potential = LJ_potential(sigma, epsilon, darray)
-        potential = self.matrix_reconstruct(
-            potential, symmetric_padding = 1, mask = mask)
+        dvec_array = self.distance_vec_tensor[mask].reshape(-1,3)
 
         force = LJ_force(sigma, epsilon, darray, dvec_array)
         force = self.matrix_reconstruct(
             force, symmetric_padding = -1, 
             mask = mask, utriang_mask_x3 = mask_x3)
 
-        if not return_force_matrix: 
+        if not return_matrix: 
             force = np.sum(force, axis = 1)
 
-        return potential, force
+        return force 
+
+    def dipole(self):
+
+        # similar to the potential method
+        mask = self.utriang_mask * self. dipole_mask
+        mask_x3 = self.repeat_x3(mask)
+
+        if self.neighborlist is not None:
+             mask *= self.neighborlist
+
+        distance = self.distance_matrix[mask]
+        distance_vec = self.distance_vec_tensor[mask_x3].reshape(-1,3)
+
+        dipole = self.mu0 * np.exp(-self.a * (distance - self.d)) 
+
+        dipole = np.tile(
+               dipole[:,np.newaxis], (1,3))
+
+
+        dipole *= distance_vec
+
+        return dipole
+
+    def dipole_grad(self):
+        """!TODO"""
+        pass
 
 if test == True:
     from utils import neighborlist_mask
+    from forcefield import explicit_test_LJ
 
     ########################
     ###### BOX LENGTH ######
     ########################
 
-    L = 1000
-    cell_width = 20
+    L = 200
+    cell_width = 40
 
     ##########################
     ###### ATOMIC INPUT ######
@@ -151,13 +224,19 @@ if test == True:
     ############
     neighborlist = neighborlist_mask(R_all, L, cell_width)
 
+    dipole_mask = generate_dipole_mask(idxXe, idxAr)
+
     calculator = Calculator(
         N, box_length = L, 
-        epsilon = epsilon_mat, sigma=sigma_mat)
+        epsilon = epsilon_mat, sigma=sigma_mat,
+        dipole_mask = dipole_mask,
+        mu0=0.0124 , a=1.5121, d=7.10,
+        )
 
     calculator.calculate_distance(R_all, neighborlist)
 
-    potential,force = calculator.LennardJones_potential(return_force_matrix = True)
+    potential = calculator.potential()
+    force = calculator.force(return_matrix = True)
 
     potential_, force_ = explicit_test_LJ(R_all, epsilon_mat, sigma_mat, L)
 
@@ -165,6 +244,7 @@ if test == True:
     print(np.sum(abs(force - force_)))
 
 
+    dipole = calculator.dipole()
 
 
 
