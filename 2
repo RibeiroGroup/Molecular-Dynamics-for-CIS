@@ -1,0 +1,24 @@
+import numpy as np
+
+from electromagnetic import FreeFieldVectorPotential
+import reduced_parameter as red
+
+"""
+Testing electromagnetic.py
+"""
+
+k_vector = np.array([[0,0,1]])
+amplitude = np.array(
+        [np.random.uniform(size = 2) * 1000 + np.random.uniform(size = 2) * 1000j]
+        )
+
+Afield = FreeFieldVectorPotential(
+        k_vector = k_vector, amplitude = amplitude,
+        V = 1.0, constant_c = red.c
+        )
+
+#simple point charge
+r = np.array([[1.0,1.0,1.0]])
+r_dot = np.array([[1.0,0.0,0.0]])
+q = 1
+

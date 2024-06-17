@@ -1,29 +1,11 @@
 import numpy as np
 from distance import DistanceCalculator, explicit_test
 from utils import PBC_wrapping, timeit
+
 from forcefield import LJ_force, LJ_potential
+from dipole import Grigoriev_dipole, Grigoriev_dipole_grad, generate_dipole_mask
 
-test = True
-
-def generate_dipole_mask(positive_atom_idx, negative_atom_idx):
-    """
-    Generating dipole mask (potentially for Calculator object's dipole method)
-    Output will be a N x N mask with True at ij element if there is dipole between
-    them, e.g. positive and negative atoms, and False otherwise.
-    Args:
-    + positive_atom_idx (np.array): array with SIZE: N (N is number of atoms)
-        and element is either 1/True or 0/False
-    + negative_atom_idx (np.array): array with SIZE: N (N is number of atoms)
-        and element is either 1/True or 0/False
-    """
-
-    dipole_mask = np.array(
-        np.outer(positive_atom_idx, negative_atom_idx), dtype = bool)
-
-    dipole_mask += dipole_mask.transpose()
-
-    return dipole_mask
-
+test = False
 
 class Calculator(DistanceCalculator):
     """
@@ -40,15 +22,17 @@ class Calculator(DistanceCalculator):
         + sigma (np.ndarray): sigma of Lennard-Jones potential
             SIZE: N x N
     - Argon-Xenon dipole function:
-        + Dipole mask (np.ndarray): a N x N boolean matrix mask with ij-element is True if
-            dipole exist between i-th and j-th atom and zero otherwise
-        + mu0 (float): \mu_0 parameter
+        + positive_atom_idx (np.array): array with SIZE: N (N is number of atoms)
+            and element is either 1/True or 0/False
+        + negative_atom_idx (np.array): array with SIZE: N (N is number of atoms)
+            and element is either 1/True or 0/False
+        + mu0 (float): mu_0 parameter
         + a (float): a parameter
         + d(float): d parameter
     """
     def __init__(
         self, N, box_length, epsilon, sigma, 
-        dipole_mask, mu0, a, d
+        positive_atom_idx, negative_atom_idx, mu0, a, d
         ):
 
         super().__init__(N, box_length)
@@ -59,8 +43,8 @@ class Calculator(DistanceCalculator):
         assert sigma.shape == (self.n_points, self.n_points)
         self.sigma = sigma
 
-        assert dipole_mask.shape == (self.n_points, self.n_points)
-        self.dipole_mask = dipole_mask
+        self.dipole_mask = generate_dipole_mask(
+                positive_atom_idx, negative_atom_idx)
 
         self.mu0 = mu0
         self.a = a
@@ -78,8 +62,6 @@ class Calculator(DistanceCalculator):
             SIZE: N x N
         """
 
-        self.neighborlist = neighborlist
-
         # using methods from DistanceCalculator parent class to calculate 
         # distance matrix
         self.distance_matrix = self.calculate_distance_matrix(
@@ -89,96 +71,129 @@ class Calculator(DistanceCalculator):
         self.distance_vec_tensor = self.calculate_distance_vector_tensor(
             R, neighborlist)
 
-    def potential(self):
+        # generating mask for subsequent calculation
+        # usual upper triangle boolean matrix
+        self.mask = self.utriang_mask
+
+        if neighborlist is not None:
+             self.mask *= neighborlist
+
+        self.mask_x3 = self.repeat_x3(self.mask)
+
+    def potential(self,return_matrix = False):
         """
         Method for calculating Lennard-Jones potential
         """
 
-        # usual upper triangle boolean matrix
-        mask = self.utriang_mask
-
-        if self.neighborlist is not None:
-             # add in neighborlist mask
-             mask *= self.neighborlist
-
         # extracting epsilon and sigma in the parameter matrix
         # that correspond to the mask position
-        epsilon = self.epsilon[mask]
-        sigma = self.sigma[mask]
+        epsilon = self.epsilon[self.mask]
+        sigma = self.sigma[self.mask]
 
         # extracting distance in the distance matrix
         # that correspond to the mask position
-        darray = self.distance_matrix[mask]
+        darray = self.distance_matrix[self.mask]
 
         # apply LJ_potential function
         potential = LJ_potential(sigma, epsilon, darray)
-        # rearrange the result array into matrix form
-        potential = self.matrix_reconstruct(
-            potential, symmetric_padding = 1, mask = mask)
+        
+        if return_matrix:
+            # rearrange the result array into matrix form
+            return self.matrix_reconstruct(
+                potential, symmetric_padding = 1, mask = self.mask)
 
-        return potential
+        return np.sum(potential)
 
     def force(self, return_matrix = False):
+        """
+        Method for calculating Lennard-Jones force
+        """
+        # retrieving parameters that corresponding to relevant pair of atoms
+        epsilon = self.epsilon[self.mask]
+        sigma = self.sigma[self.mask]
 
-        # similar to the potential method
-        mask = self.utriang_mask
-        mask_x3 = self.repeat_x3(mask)
+        # retrieving distance value and vector similarly
+        darray = self.distance_matrix[self.mask]
+        dvec_array = self.distance_vec_tensor[self.mask_x3].reshape(-1,3)
 
-        if self.neighborlist is not None:
-             mask *= self.neighborlist
-
-        epsilon = self.epsilon[mask]
-        sigma = self.sigma[mask]
-
-        darray = self.distance_matrix[mask]
-        dvec_array = self.distance_vec_tensor[mask].reshape(-1,3)
-
+        # calculating force
         force = LJ_force(sigma, epsilon, darray, dvec_array)
         force = self.matrix_reconstruct(
             force, symmetric_padding = -1, 
-            mask = mask, utriang_mask_x3 = mask_x3)
+            mask = self.mask, utriang_mask_x3 = self.mask_x3)
 
         if not return_matrix: 
             force = np.sum(force, axis = 1)
 
         return force 
 
-    def dipole(self):
+    def dipole(self, return_matrix=True):
 
-        # similar to the potential method
-        mask = self.utriang_mask * self. dipole_mask
+        #generate the mask for retrieving relevant distance and parameters
+        mask = self.dipole_mask
         mask_x3 = self.repeat_x3(mask)
 
-        if self.neighborlist is not None:
-             mask *= self.neighborlist
+        # generating distance array rather than matrix (similar for distance vec)
+        distance = self.distance_matrix[mask]
+        distance_vec = self.distance_vec_tensor[mask_x3].reshape(-1,3)
+
+        dipole = Grigoriev_dipole(
+                distance = distance, distance_vec = distance_vec, 
+                mu0 = self.mu0, a = self.a, d = self.d)
+
+        # rearrange the result array into N x N x 3 matrix form 
+        dipole = self.matrix_reconstruct(
+            dipole, symmetric_padding = 1, 
+            mask = mask, utriang_mask_x3 = mask_x3)
+
+        if not return_matrix: 
+            dipole = np.sum(dipole, axis = 1)
+
+        return dipole
+
+    def dipole_grad(self, return_matrix = False):
+        """
+        Return gradient of the dipole function w.r.t. position r = r_+.
+        The matrix will have the shape N x N x 3 x 3 where the 
+        3 x 3 tensor at i, j -th element will be
+            |~ dmu_x/dr_x dmu_y/dr_x dmu_z/dr_x ~|
+            |  dmu_x/dr_y dmu_y/dr_y dmu_z/dr_y  |
+            |_ dmu_x/dr_z dmu_y/dr_z dmu_z/dr_z _|; 
+            OR (D_r mu)_(ij) = dmu_j / dr_i 
+        with mu = mu(r_i, r_j), e.g. dipole vector between i-th and j-th atoms
+        """
+
+        mask = self.dipole_mask
+        mask_x3 = self.repeat_x3(mask)
 
         distance = self.distance_matrix[mask]
         distance_vec = self.distance_vec_tensor[mask_x3].reshape(-1,3)
 
-        dipole = self.mu0 * np.exp(-self.a * (distance - self.d)) 
+        gradient = Grigoriev_dipole_grad(
+            distance = distance, distance_vec = distance_vec,
+            mu0 = self.mu0, a = self.a, d = self.d)
 
-        dipole = np.tile(
-               dipole[:,np.newaxis], (1,3))
+        # rearrange the result array into N x N x 3 matrix form 
+        gradient = self.matrix_reconstruct(
+            gradient, symmetric_padding = -1, 
+            mask = mask, utriang_mask_x3 = mask_x3)
 
+        if not return_matrix:
+            gradient = np.sum(gradient, axis = 1)
 
-        dipole *= distance_vec
-
-        return dipole
-
-    def dipole_grad(self):
-        """!TODO"""
-        pass
+        return gradient
 
 if test == True:
     from utils import neighborlist_mask
     from forcefield import explicit_test_LJ
+    from dipole import explicit_test_dipole
 
     ########################
     ###### BOX LENGTH ######
     ########################
 
-    L = 200
-    cell_width = 40
+    L = 20
+    cell_width = 10
 
     ##########################
     ###### ATOMIC INPUT ######
@@ -229,22 +244,32 @@ if test == True:
     calculator = Calculator(
         N, box_length = L, 
         epsilon = epsilon_mat, sigma=sigma_mat,
-        dipole_mask = dipole_mask,
+        positive_atom_idx = idxXe, negative_atom_idx = idxAr,
         mu0=0.0124 , a=1.5121, d=7.10,
         )
 
     calculator.calculate_distance(R_all, neighborlist)
 
-    potential = calculator.potential()
-    force = calculator.force(return_matrix = True)
-
     potential_, force_ = explicit_test_LJ(R_all, epsilon_mat, sigma_mat, L)
 
+    print("### Potential test ###")
+    potential = calculator.potential()
     print(np.sum(abs(potential - potential_)))
+
+    print("### Force test ###")
+    force = calculator.force(return_matrix = True)
     print(np.sum(abs(force - force_)))
 
-
+    print("### Dipole test ###")
     dipole = calculator.dipole()
+    dipole_, gradD_ = explicit_test_dipole(R_all, dipole_mask,
+        mu0=0.0124 , a=1.5121, d=7.10, L = L)
 
+    print(np.sum(abs(dipole - dipole_)))
+
+    print("### Dipole gradient test ###")
+    gradD = calculator.dipole_grad()
+    
+    print(np.sum(abs(gradD - gradD_)))
 
 

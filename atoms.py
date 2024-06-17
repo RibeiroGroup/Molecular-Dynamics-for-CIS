@@ -1,6 +1,7 @@
 import numpy as np
 
-#from distance import DistanceCalculator
+from calculator import Calculator
+from utils import PBC_wrapping, neighborlist_mask
 
 test = True
 
@@ -8,20 +9,19 @@ class AtomsInBox:
     """
     Class for collections of atoms
     """
-    def __init__(self, box_length):
+    def __init__(self, box_length, cell_width, mass_dict):
         """
         Args:
         + box_length (float): the length of the box that contains atoms
         """
+        
+        self.L = box_length
+        self.cell_width = cell_width
+
+        self.calculator = None
 
         self.N_atoms = 0
-
-        self.elements = []
-
-        self.R = None
-        self.R_dot = None
-
-        self.L = box_length
+        self.mass_dict = mass_dict
 
     def add(self, elements, R, R_dot):
         """
@@ -40,19 +40,26 @@ class AtomsInBox:
         for element in elements:
             assert element == "Ar" or element == "Xe"
 
-        self.elements += elements
-        self.N_atoms += len(elements)
-
         assert R.shape[0] == len(elements)
         assert not np.any(R > self.L)
         assert R_dot.shape[0] == len(elements)
+
+        mass = np.array(
+                list(map(lambda e: self.mass_dict[e], elements)
+                    ))
         
-        if self.R is None and self.R_dot is None:
-            self.R = R
-            self.R_dot = R_dot
-        else:
+        try:
             self.R = np.hstack([self.R, R])
             self.R_dot = np.hstack([self.R_dot, R_dot])
+            self.elements += elements
+            self.N_atoms += len(elements)
+            self.mass += mass
+        except AttributeError:
+            self.R = R
+            self.R_dot = R_dot
+            self.elements = elements
+            self.N_atoms = len(elements)
+            self.mass = mass
 
     def random_initialize(self, atoms, max_velocity, min_velocity = 0):
         """
@@ -85,8 +92,65 @@ class AtomsInBox:
 
         self.add(elements, R, R_dot)
 
-if test == True:
-    atoms = AtomsInBox(box_length = 100)
+    def update(dR, dR_dot):
 
-    atoms.random_initialize({"Ar":50,"Xe":50}, max_velocity = 10)
+        self.R = PB_wrapping(self.R + dR)
+        self.R_dot += dR_dot
+
+        neighborlist = neighborlist_mask(self.R, L = self.L, cell_width = self.cell_width)
+
+        self.calculator.calculate_distance(self.R, neighborlist)
+
+    def element_idx(self,element):
+
+        atom_idx = np.array(
+                list(map( lambda e: True if e == element else False, self.elements)))
+
+        return atom_idx
+
+    def add_calculator(self, calculator_kwargs, calculator_class=Calculator):
+
+        self.calculator = calculator_class(
+                N = self.N_atoms, box_length =  self.L, **calculator_kwargs)
+
+        neighborlist = neighborlist_mask(self.R, L = self.L, cell_width = self.cell_width)
+
+        self.calculator.calculate_distance(self.R, neighborlist)
+
+    def force(self):
+        return self.calculator.force()
+
+    def potential(self):
+        return self.calculator.potential()
+
+    def dipole(self):
+        return self.calculator.dipole()
+
+    def dipole_grad(self):
+        return self.calculator.dipole_grad()
+
+    def kinetic_energy(self):
+        k = 0.5 * self.mass * self.R_dot.T @ self.R_dot
+        return np.sum(k)
+
+if test == True:
+    import reduced_parameter as red
+
+    atoms = AtomsInBox(box_length = 20, cell_width = 5, mass_dict = red.mass_dict)
+
+    atoms.random_initialize({"Ar":5,"Xe":5}, max_velocity = 10)
+
+    idxAr = atoms.element_idx(element = "Xe")
+    idxXe = atoms.element_idx(element = "Ar")
+
+    epsilon_mat, sigma_mat = red.generate_LJparam_matrix(idxAr = idxAr, idxXe = idxXe)
+
+    atoms.add_calculator(calculator_kwargs = {
+        "epsilon": epsilon_mat, "sigma" : sigma_mat, 
+        "positive_atom_idx" : idxXe, "negative_atom_idx" : idxAr,
+        "mu0" : red.mu0, "d" : red.d0, "a" : red.a
+        })
+
+    gradD = atoms.dipole_grad()
+    print(gradD.shape)
 

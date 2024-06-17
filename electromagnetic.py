@@ -1,7 +1,7 @@
 import numpy as np
 from utils import orthogonalize, timeit
 
-test = True
+test = False
 
 class FreeFieldVectorPotential:
     """
@@ -15,7 +15,7 @@ class FreeFieldVectorPotential:
     + epsilon (np.array, optional): polarization vector, SIZE N x 2 x 3 with N should be consistent
         with above arguments
     """
-    def __init__(self, k_vector, amplitude, V, epsilon = None):
+    def __init__(self, k_vector, amplitude, V, constant_c, pol_vec = None):
         self.number_modes = k_vector.shape[0]
 
         assert k_vector.shape[1] == 3
@@ -25,21 +25,29 @@ class FreeFieldVectorPotential:
         self.k_vector = k_vector
         self.C = amplitude
         self.V = V
+        self.constant_c = constant_c
 
-        if epsilon == None:
-            self.epsilon = []
+        if pol_vec == None:
+            self.pol_vec = []
 
             for k_vec in self.k_vector:
-                self.epsilon.append(orthogonalize(k_vec)[1:,:])
+                self.pol_vec.append(orthogonalize(k_vec)[1:,:])
 
-            self.epsilon = np.array(self.epsilon)
+            self.pol_vec = np.array(self.pol_vec)
 
         else:
-            self.epsilon = epsilon
+            self.pol_vec = pol_vec
 
-        assert self.epsilon.shape == (self.number_modes, 2, 3)
+        assert self.pol_vec.shape == (self.number_modes, 2, 3)
 
-        self.omega = np.einsum("ni,ni->n",self.k_vector,self.k_vector)
+        self.k_val = np.sqrt(
+                np.einsum("ni,ni->n",self.k_vector,self.k_vector)) 
+
+        self.omega = self.k_val * constant_c
+
+    def update_amplitude(self, amplitude):
+        assert amplitude.shape == (self.number_modes, 2)
+        self.C = amplitude
 
     def __call__(self, t, R, amplitude = None):
         """
@@ -51,9 +59,9 @@ class FreeFieldVectorPotential:
         + np.array: SIZE M x 3 with M specified in R argument
         """
 
-        C = self.C if amplitude = None else amplitude
+        C = self.C if amplitude is None else amplitude
         k_vec = self.k_vector
-        pol_vec = self.epsilon
+        pol_vec = self.pol_vec
 
         omega = np.tile(self.omega[:,np.newaxis], (1, R.shape[0]))
 
@@ -72,9 +80,9 @@ class FreeFieldVectorPotential:
         A_R = np.einsum("ki,km->mi",C_epsilon_k, f_R) \
             + np.einsum("ki,km->mi",np.conjugate(C_epsilon_k), fs_R)
 
-        return A_R / np.sqrt(V)
+        return A_R / np.sqrt(self.V)
 
-    def dot_amplitude(self, t, R, R_dot):
+    def dot_amplitude(self, t, R, current):
         """
         Calculate the time derivative of the amplitude of the vector potential
             in the presence of moving charge particle / dipole
@@ -82,35 +90,35 @@ class FreeFieldVectorPotential:
         + t (float): time
         + R (np.ndarray): position of charged particle 
             SIZE: M x 3 w/ M is number of particles
-        + R_dot (np.ndarray): velocity of charge particle
+        + current (np.ndarray): notation J, is the current
             SIZE: M x 3
-        + gradD (np.array): SIZE M x 3 x 3 where the i-th 3x3 matrix in the tensor is 
-            the total gradient of dipole of all M atoms with the i-th atom
         """
-        k_vec = self.k_vector[:,0,:]
-        pol_vec = self.k_vector[:,1:,:]
-        omega = np.tile(self.omega[:,np.newaxis],(1,2))
+        k_vec = self.k_vector
+        pol_vec = self.pol_vec
+
+        omega = self.omega
+
         k_val = np.tile(self.k_val[:,np.newaxis],(1,2))
 
-        C = C if C is not None else self.C
+        C = self.C
 
-        grad_mu_r_dot = np.einsum("nij,ni->nj", gradD, R_dot) # i = j = 3
+        #grad_mu_r_dot = np.einsum("nij,ni->nj", gradD, R_dot) # i = j = 3
 
         exp_ikr = np.exp(np.einsum("ki,ni->kn",-1j * k_vec,R)) # i = 3
 
-        grad_mu_eikr = np.einsum("nj,kn->kj",grad_mu_r_dot,exp_ikr) # j = 3
+        Jk = np.einsum("nj,kn->kj",current,exp_ikr) # j = 3
 
-        C_dot = np.einsum("kij,kj->ki",pol_vec,grad_mu_eikr) #i = 2, j = 3
+        C_dot = np.einsum("kij,kj->ki",pol_vec, Jk) #i = 2, j = 3
 
         C_dot *= (2 * np.pi * 1j / k_val) * np.exp(1j * self.omega * t)
 
         return C_dot
 
-    def time_diff(self, t, R, Rp, Rp_dot):
+    def time_diff(self, t, R, Rp, current):
         """
         Calculate the time derivative of the 
         """
-        C_dot = self.dot_amplitude(t, Rp, Rp_dot)
+        C_dot = self.dot_amplitude(t, Rp, current)
         omega = np.tile(self.omega[:,np.newaxis], (1,2))
 
         dA1 = self.__call__(t, R, C_dot)
@@ -118,14 +126,48 @@ class FreeFieldVectorPotential:
 
         return dA1 + dA2
 
-    def gradient(self, R):
-        pass
+    def gradient(self, t, R):
+        """
+        |Ax.kx   Ax.ky   Ax.kz|    |dAx/dx   dAx/dy   dAx/dz|
+        |Ay.kx   Ay.ky   Az.kz| == |dAy/dx   dAy/dy   dAz/dz|; (gradA)_(ij) = dA_i/dr_j
+        |Az.kx   Az.ky   Az.kz|    |dAz/dx   dAz/dy   dAz/dz|
+        """
+        k_vec = self.k_vector
+        pol_vec = self.pol_vec
 
-    def get_electric_field(self, R):
-        pass
+        C = self.C
+        
+        omega = np.tile(self.omega[:,np.newaxis], (1, R.shape[0]))
 
-    def get_magnetic_field(self, R):
-        pass
+        # free field mode function and c.c., a.k.a. exp(ikr) exp(-i \omega t) + c.c
+        f_R = 1j * np.exp(
+            1j * np.einsum("kj,mj->km",k_vec,R) - 1j * omega * t) # j = 3
+
+        fs_R = - 1j * np.exp(
+            -1j * np.einsum("kj,mj->km",k_vec,R) + 1j * omega * t) # j = 3
+
+        #Multiply C and epsilon_k (pol_vec), the outcome shape is N_modes x 3
+        # (sum over dim 2, which is the number of polarized vector)
+        C_epsilon_k = np.einsum("kj,kji->ki",C,pol_vec)
+
+        k_o_C_epsilon_k = np.einsum("kj,ki->kij",k_vec,C_epsilon_k)
+
+        #
+        gradA_R = np.einsum("kij,kn->nij",k_o_C_epsilon_k, f_R) \
+            + np.einsum("kij,kn->nij",np.conjugate(k_o_C_epsilon_k), fs_R)
+
+        return gradA_R
+
+    def hamiltonian(self, return_sum_only = False):
+        k_sum = self.k_val
+        c_sum = np.einsum("ki,ki->k",self.C,np.conjugate(self.C))
+
+        H = (2*np.pi)**-1 * k_sum * c_sum
+
+        if return_sum_only:
+            return np.sum(H)
+
+        return H
 
 class CavityFieldPotentialVector:
     """
