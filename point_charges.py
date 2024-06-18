@@ -8,27 +8,40 @@ import reduced_parameter as red
 Testing electromagnetic.py
 """
 
-k_vector = np.array([[0,0,1]]) / red.c
-amplitude = np.array(
-        [np.random.uniform(size = 2) * 100 + np.random.uniform(size = 2) * 100j]
-        )
+k_vector = np.array([
+    [0,0,1],
+    [0,1,0],
+    #[0,1,1]
+    ]) / (red.c)
+amplitude = np.vstack([
+    np.random.uniform(size = 2) * 10 + np.random.uniform(size = 2) * 10j,
+    np.random.uniform(size = 2) * 10 + np.random.uniform(size = 2) * 10j,
+    #np.random.uniform(size = 2) * 10 + np.random.uniform(size = 2) * 10j
+    ])
 
 Afield = FreeFieldVectorPotential(
         k_vector = k_vector, amplitude = amplitude,
-        V = 1.0, constant_c = red.c
+        V = 1.0, constant_c = red.c,
         )
+
+print(Afield.pol_vec)
+"""
+print(Afield.k_val)
+print(Afield.omega)
+raise Exception
+"""
 
 #simple point charge
 r = np.array([[1.0,1.0,1.0]])
 v = np.array([[1.0,0.0,0.0]]) * 10
-q = np.array([10 * np.eye(3)])
+q = np.array([np.eye(3)])
 m = 1
 
 t = 0
 h = 1e-4
 
 def current(r_dot, q):
-    return np.einsum("nii,ni->ni",q,r_dot)
+    return np.einsum("nij,ni->nj",q,r_dot)
 
 def EM_force(t, r, r_dot, q, A):
 
@@ -64,7 +77,7 @@ time = [0]
 
 #first iteration w/ Euler integration (and trapezoidal rule)
 
-for i in range(10000):
+for i in range(30000):
     force = EM_force(t, r, v, q, Afield)
     v_half = v + force * h / 2
     r_new = r + v_half * h
@@ -72,9 +85,9 @@ for i in range(10000):
     new_force = EM_force(t + h, r_new, v_half, q, Afield)
     v_new = v_half + new_force * h / 2
 
-    C_1 = Afield.dot_amplitude(t,r,current(v,q))
+    #C_1 = Afield.dot_amplitude(t,r,current(v,q))
     C_2 = Afield.dot_amplitude(t+h,r_new,current(v_new,q))
-    C_new = Afield.C + h * (C_1 + C_2) / 2
+    C_new = Afield.C + h * C_2
 
     t += h
     r = r_new

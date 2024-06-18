@@ -27,7 +27,7 @@ class FreeFieldVectorPotential:
         self.V = V
         self.constant_c = constant_c
 
-        if pol_vec == None:
+        if pol_vec is None:
             self.pol_vec = []
 
             for k_vec in self.k_vector:
@@ -96,7 +96,7 @@ class FreeFieldVectorPotential:
         k_vec = self.k_vector
         pol_vec = self.pol_vec
 
-        omega = self.omega
+        omega = np.tile(self.omega[:,np.newaxis], (1,2))
 
         k_val = np.tile(self.k_val[:,np.newaxis],(1,2))
 
@@ -110,7 +110,7 @@ class FreeFieldVectorPotential:
 
         C_dot = np.einsum("kij,kj->ki",pol_vec, Jk) #i = 2, j = 3
 
-        C_dot *= (2 * np.pi * 1j / k_val) * np.exp(1j * self.omega * t)
+        C_dot *= (2 * np.pi * 1j / k_val) * np.exp(1j * omega * t)
 
         return C_dot
 
@@ -121,10 +121,10 @@ class FreeFieldVectorPotential:
         C_dot = self.dot_amplitude(t, Rp, current)
         omega = np.tile(self.omega[:,np.newaxis], (1,2))
 
-        dA1 = self.__call__(t, R, C_dot)
-        dA2 = self.__call__(t, R, -1j * omega * self.C)
+        dA = self.__call__(
+                t, R, amplitude = -1j * omega * self.C + C_dot)
 
-        return dA1 + dA2
+        return dA
 
     def gradient(self, t, R):
         """
