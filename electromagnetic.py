@@ -159,7 +159,7 @@ class FreeFieldVectorPotential:
         return gradA_R
 
     def hamiltonian(self, return_sum_only = False):
-        k_sum = self.k_val
+        k_sum = np.einsum("ki,ki->k",self.k_vector,self.k_vector)
         c_sum = np.einsum("ki,ki->k",self.C,np.conjugate(self.C))
 
         H = (2*np.pi)**-1 * k_sum * c_sum

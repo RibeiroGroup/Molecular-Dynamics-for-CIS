@@ -8,7 +8,7 @@ import reduced_parameter as red
 Testing electromagnetic.py
 """
 
-k_vector = np.array([[0,0,1]])
+k_vector = np.array([[0,0,1]]) / red.c
 amplitude = np.array(
         [np.random.uniform(size = 2) * 100 + np.random.uniform(size = 2) * 100j]
         )
@@ -25,7 +25,7 @@ q = np.array([10 * np.eye(3)])
 m = 1
 
 t = 0
-h = 1e-5
+h = 1e-4
 
 def current(r_dot, q):
     return np.einsum("nii,ni->ni",q,r_dot)
@@ -100,6 +100,10 @@ ax.plot(time,Hmat_list)
 
 fig.savefig("test2.jpeg")
 
+fig,ax = plt.subplots()
+ax.plot(time,Hrad_list)
+
+fig.savefig("test3.jpeg")
 
 
 
