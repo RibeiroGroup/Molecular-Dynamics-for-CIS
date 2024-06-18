@@ -11,12 +11,16 @@ Testing electromagnetic.py
 k_vector = np.array([
     [0,0,1],
     [0,1,0],
-    #[0,1,1]
+    [0,1,1],
+    [1,1,0],
+    [1,1,1]
     ]) / (red.c)
 amplitude = np.vstack([
     np.random.uniform(size = 2) * 10 + np.random.uniform(size = 2) * 10j,
     np.random.uniform(size = 2) * 10 + np.random.uniform(size = 2) * 10j,
-    #np.random.uniform(size = 2) * 10 + np.random.uniform(size = 2) * 10j
+    np.random.uniform(size = 2) * 10 + np.random.uniform(size = 2) * 10j,
+    np.random.uniform(size = 2) * 10 + np.random.uniform(size = 2) * 10j,
+    np.random.uniform(size = 2) * 10 + np.random.uniform(size = 2) * 10j
     ])
 
 Afield = FreeFieldVectorPotential(
@@ -24,8 +28,9 @@ Afield = FreeFieldVectorPotential(
         V = 1.0, constant_c = red.c,
         )
 
-print(Afield.pol_vec)
 """
+print(Afield.k_vector)
+print(Afield.pol_vec)
 print(Afield.k_val)
 print(Afield.omega)
 raise Exception
@@ -38,7 +43,7 @@ q = np.array([np.eye(3)])
 m = 1
 
 t = 0
-h = 1e-4
+h = 1e-3
 
 def current(r_dot, q):
     return np.einsum("nij,ni->nj",q,r_dot)
@@ -59,12 +64,13 @@ def EM_force(t, r, r_dot, q, A):
     force1 /= A.constant_c
     force2 /= A.constant_c
     force3 /= A.constant_c
+
     force = force1 - force2 - force3
 
     return force
 
 def kinetic_energy(r_dot):
-    k = 0.5 * r_dot.T @ r_dot
+    k = 0.5 * r_dot @ r_dot.T
     return np.sum(k)
 
 Hmat = kinetic_energy(v)
@@ -77,14 +83,17 @@ time = [0]
 
 #first iteration w/ Euler integration (and trapezoidal rule)
 
-for i in range(30000):
+for i in range(3000):
     force = EM_force(t, r, v, q, Afield)
     v_half = v + force * h / 2
     r_new = r + v_half * h
 
     new_force = EM_force(t + h, r_new, v_half, q, Afield)
     v_new = v_half + new_force * h / 2
-
+    """
+    v_new = v + force * h
+    r_new = r + v_new * h
+    """
     #C_1 = Afield.dot_amplitude(t,r,current(v,q))
     C_2 = Afield.dot_amplitude(t+h,r_new,current(v_new,q))
     C_new = Afield.C + h * C_2
@@ -96,12 +105,17 @@ for i in range(30000):
     Afield.update_amplitude(C_new)
 
     Hmat = kinetic_energy(v)
-    Hrad =  Afield.hamiltonian(True)
+    Hrad = Afield.hamiltonian(True)
 
     energy.append(Hmat + Hrad)
     Hmat_list.append(Hmat)
     Hrad_list.append(Hrad)
     time.append(t)
+
+print(Afield.k_vector)
+print(Afield.pol_vec)
+print(Afield.k_val)
+print(Afield.omega)
 
 fig,ax = plt.subplots()
 ax.plot(time,energy)

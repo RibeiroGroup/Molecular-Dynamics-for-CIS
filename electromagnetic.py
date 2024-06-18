@@ -220,10 +220,10 @@ class CavityFieldPotentialVector:
 
         # TE mode
         f_R = np.exp(
-                1j * np.einsum("kj,mj->km",self.kapa_vec,R[:,:2]) - 1j * omega * t)
+            1j * np.einsum("kj,mj->km",self.kapa_vec,R[:,:2]) - 1j * omega * t)
 
         fs_R = np.exp(
-            -1j * np.einsum("kj,mj->km",k_vec,R) + 1j * omega * t)
+                -1j * np.einsum("kj,mj->km",self.kappa_vec,R[:,:2]) + 1j * omega * t)
         
         C_TE_sinkz = self.C[:,0] * np.sin(self.kz * R[:,-1])
         C_TE_sinkz_ekmu = np.tile(C_TE_sinkz[:,np.newaxis],(1,3)) * self.epsilon_TE #k x 3
