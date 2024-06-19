@@ -36,22 +36,60 @@ print(Afield.omega)
 raise Exception
 """
 
-#simple point charge
-r = np.array([[1.0,1.0,1.0]])
-v = np.array([[1.0,0.0,0.0]]) * 10
-q = np.array([np.eye(3)])
-m = 1
+class PointCharges:
+    def __init__(self, q, r, r_dot):
+        self.N = len(q)
 
-t = 0
-h = 1e-3
+        self.q = q
+        self.update(r, r_dot)
 
-def current(r_dot, q):
-    return np.einsum("nij,ni->nj",q,r_dot)
+    def update(self, r, r_dot):
+        assert len(r) == self.N
+        assert len(r_dot) == self.N
+        self.r = r
+        self.r_dot = r_dot
 
-def EM_force(t, r, r_dot, q, A):
+    def current(self, k_vec, mode_function = None):
+        qr_dot = np.einsum("nij,ni->nj", q, self.r_dot)
 
-    dAdt = A.time_diff(t,r,r,current(r_dot,q))
-    gradA = A.gradient(t,r)
+        if mode_function == None:
+            exp_ikr = np.exp(
+                np.einsum("ki,ni->kn", -1j * k_vec, self.r)) # i = 3
+
+        elif mode_function == "TE":
+            raise Exception("To be implemented")
+
+        elif mode_function == "TM":
+            raise Exception("To be implemented")
+
+        Jk = np.einsum("nj,kn->kj",qr_dot,exp_ikr) # j = 3
+
+        return Jk
+
+    def Verlet_step(self, t, h, force_func):
+        force = force_func(t, self)
+
+        v_half = self.r_dot + force * h / 2
+        r_new = self.r + v_half * h
+
+        self.update(r_new, v_half)
+
+        new_force = force_func(t + h, self)
+        v_new = v_half + new_force * h / 2
+
+        self.update(r = r_new, r_dot = v_new)
+
+    def kinetic_energy(self):
+        k = 0.5 * np.einsum("ni,ni->n",self.r_dot,self.r_dot)
+        return np.sum(k)
+
+         
+def EM_force(t, charge_assemble , A):
+
+    dAdt = A.time_diff(t,charge_assemble)
+    gradA = A.gradient(t,charge_assemble.r)
+    r_dot = charge_assemble.r_dot
+    q = charge_assemble.q
 
     force1 = np.einsum("nlj,nl->nj",q, r_dot)
     force1 = np.einsum("nj,nji->ni",force1,gradA)
@@ -69,11 +107,17 @@ def EM_force(t, r, r_dot, q, A):
 
     return force
 
-def kinetic_energy(r_dot):
-    k = 0.5 * r_dot @ r_dot.T
-    return np.sum(k)
+#simple point charge
+r = np.array([[1.0,1.0,1.0]])
+v = np.array([[1.0,0.0,0.0]]) * 10
+q = np.array([np.eye(3)])
 
-Hmat = kinetic_energy(v)
+point_charge = PointCharges(q = q, r = r, r_dot = v)
+
+t = 0
+h = 1e-3
+
+Hmat = point_charge.kinetic_energy()
 Hrad =  Afield.hamiltonian(True)
 
 Hmat_list = [Hmat]
@@ -84,27 +128,18 @@ time = [0]
 #first iteration w/ Euler integration (and trapezoidal rule)
 
 for i in range(3000):
-    force = EM_force(t, r, v, q, Afield)
-    v_half = v + force * h / 2
-    r_new = r + v_half * h
-
-    new_force = EM_force(t + h, r_new, v_half, q, Afield)
-    v_new = v_half + new_force * h / 2
-    """
-    v_new = v + force * h
-    r_new = r + v_new * h
-    """
-    #C_1 = Afield.dot_amplitude(t,r,current(v,q))
-    C_2 = Afield.dot_amplitude(t+h,r_new,current(v_new,q))
-    C_new = Afield.C + h * C_2
+    force_func = lambda t, charge_assembly: EM_force(t, charge_assembly, Afield)
+    
+    point_charge.Verlet_step(t, h, force_func = force_func)
+    
+    C_dot = Afield.dot_amplitude(t+h,point_charge)
+    C_new = Afield.C + h * C_dot
 
     t += h
-    r = r_new
-    v = v_new
 
     Afield.update_amplitude(C_new)
 
-    Hmat = kinetic_energy(v)
+    Hmat = point_charge.kinetic_energy()
     Hrad = Afield.hamiltonian(True)
 
     energy.append(Hmat + Hrad)
