@@ -1,39 +1,52 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-from electromagnetic import FreeFieldVectorPotential
+from electromagnetic import FreeVectorPotential, CavityVectorPotential
 import reduced_parameter as red
 
 """
 Testing electromagnetic.py
+Demo the electromagnetic.py for simulating the simplest 
+system: one point charge 
 """
+
 
 k_vector = np.array([
     [0,0,1],
     [0,1,0],
     [0,1,1],
     [1,1,0],
-    [1,1,1]
+    #[1,1,1]
     ]) / (red.c)
+
 amplitude = np.vstack([
     np.random.uniform(size = 2) * 10 + np.random.uniform(size = 2) * 10j,
     np.random.uniform(size = 2) * 10 + np.random.uniform(size = 2) * 10j,
     np.random.uniform(size = 2) * 10 + np.random.uniform(size = 2) * 10j,
     np.random.uniform(size = 2) * 10 + np.random.uniform(size = 2) * 10j,
-    np.random.uniform(size = 2) * 10 + np.random.uniform(size = 2) * 10j
+    #np.random.uniform(size = 2) * 10 + np.random.uniform(size = 2) * 10j
     ])
 
-Afield = FreeFieldVectorPotential(
+Afield = FreeVectorPotential(
         k_vector = k_vector, amplitude = amplitude,
         V = 1.0, constant_c = red.c,
         )
-
 """
-print(Afield.k_vector)
-print(Afield.pol_vec)
-print(Afield.k_val)
-print(Afield.omega)
-raise Exception
+kappa = np.array([
+        [0,1],
+        [1,0]
+        ]) / red.c
+
+m = np.array([1,1])
+
+amplitude = np.array([
+    10 * np.random.uniform(size = 2) + 10j * np.random.uniform(size = 2),
+    10 * np.random.uniform(size = 2) + 10j * np.random.uniform(size = 2)
+    ])
+
+Afield = CavityVectorPotential(
+    kappa = kappa, m = m, amplitude = amplitude,
+    L = 1e3, S = 1.0, constant_c = red.c)
 """
 
 class PointCharges:
@@ -49,22 +62,11 @@ class PointCharges:
         self.r = r
         self.r_dot = r_dot
 
-    def current(self, k_vec, mode_function = None):
+    def current_mode_projection(self):
+
         qr_dot = np.einsum("nij,ni->nj", q, self.r_dot)
 
-        if mode_function == None:
-            exp_ikr = np.exp(
-                np.einsum("ki,ni->kn", -1j * k_vec, self.r)) # i = 3
-
-        elif mode_function == "TE":
-            raise Exception("To be implemented")
-
-        elif mode_function == "TM":
-            raise Exception("To be implemented")
-
-        Jk = np.einsum("nj,kn->kj",qr_dot,exp_ikr) # j = 3
-
-        return Jk
+        return qr_dot
 
     def Verlet_step(self, t, h, force_func):
         force = force_func(t, self)
@@ -108,14 +110,14 @@ def EM_force(t, charge_assemble , A):
     return force
 
 #simple point charge
-r = np.array([[1.0,1.0,1.0]])
-v = np.array([[1.0,0.0,0.0]]) * 10
-q = np.array([np.eye(3)])
+r = -np.array([[5.0,5.0,5.0]])
+v = np.array([[1.0,1.0,1.0]]) * 1e2
+q = np.array([np.eye(3)]) * 1e0
 
 point_charge = PointCharges(q = q, r = r, r_dot = v)
 
 t = 0
-h = 1e-3
+h = 1e-4
 
 Hmat = point_charge.kinetic_energy()
 Hrad =  Afield.hamiltonian(True)
@@ -127,7 +129,7 @@ time = [0]
 
 #first iteration w/ Euler integration (and trapezoidal rule)
 
-for i in range(3000):
+for i in range(50000):
     force_func = lambda t, charge_assembly: EM_force(t, charge_assembly, Afield)
     
     point_charge.Verlet_step(t, h, force_func = force_func)
@@ -146,11 +148,6 @@ for i in range(3000):
     Hmat_list.append(Hmat)
     Hrad_list.append(Hrad)
     time.append(t)
-
-print(Afield.k_vector)
-print(Afield.pol_vec)
-print(Afield.k_val)
-print(Afield.omega)
 
 fig,ax = plt.subplots()
 ax.plot(time,energy)

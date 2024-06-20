@@ -3,6 +3,11 @@ import numpy as np
 import numpy.linalg as la
 from itertools import combinations, combinations_with_replacement, permutations
 
+def repeat_x3(array):
+    array = np.tile(
+        array[:,np.newaxis], (1,3))
+    return array
+
 def timeit(func):
     def inner(*args, **kwargs):
         start = time.time()

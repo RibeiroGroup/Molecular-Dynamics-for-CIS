@@ -1,14 +1,30 @@
 import numpy as np
-from utils import orthogonalize, timeit
+from utils import orthogonalize, timeit, repeat_x3
 
-test = True
+test = False
 
 class BaseVectorPotential:
-    def __init__(self):
-        self.C = amplitude
+    """
+    Base class for Vector Potential. 
+    """
+    def __init__(self, k_vector, amplitude,constant_c,V):
+
+        self.n_modes = len(k_vector)
+
+        self.update_amplitude(amplitude)
+
+        self.constant_c = constant_c
+
+        self.k_val = np.sqrt(
+                np.einsum("ni,ni->n",k_vector,k_vector)) 
+
+        self.omega = self.k_val * constant_c
+
+        assert isinstance(V,float)
+        self.V = V
 
     def update_amplitude(self, amplitude):
-        assert amplitude.shape == (self.number_modes, 2)
+        assert amplitude.shape == (self.n_modes, 2)
         self.C = amplitude
 
     def mode_function(self, t, R):
@@ -16,7 +32,11 @@ class BaseVectorPotential:
 
     def __call__(self, t, R, amplitude = None):
         """
-        Evaluate the vector potential at time t and multiple positions specified in R
+        Evaluate the vector potential at time t and multiple positions specified in R.
+        The inherited class need to have the 'mode_function' method, which take in two
+        variables 't' and 'R' and return numpy array of shape k x 2 x N x 3 for k and N are
+        the number of field modes and the number of points where the field are evaluated
+        respectively.
         Args:
         + t (float): time
         + R (np.array): position. SIZE: M x 3 with M is the number of positions
@@ -47,22 +67,19 @@ class BaseVectorPotential:
             'current' method that: 1/ take in arg 'k' and 'mode_function', 
             2/ mode_function must take in None, 'TE' or 'TM' corresponding to
             current in k-space for free field (exponential Fourier), current 
-            projected by TE or TM mode function
+            projected by TE or TM mode function. In addition, it must have
+            attribute 'r' for array of position vectors.
+
         """
-        k_vec = self.k_vector
-        pol_vec = self.pol_vec
-
-        omega = np.tile(self.omega[:,np.newaxis], (1,2))
-
         k_val = np.tile(self.k_val[:,np.newaxis],(1,2))
 
-        C = self.C
+        Jk = charge_assemble.current_mode_projection() # shape N x 3
 
-        Jk = charge_assemble.current(k_vec, mode_function = None)
+        fs = np.conjugate(self.mode_function(t, charge_assemble.r))
 
-        C_dot = np.einsum("kij,kj->ki",pol_vec, Jk) #i = 2, j = 3
+        C_dot = np.einsum("mj,kimj->ki",Jk,fs)
 
-        C_dot *= (2 * np.pi * 1j / k_val) * np.exp(1j * omega * t)
+        C_dot *= (2 * np.pi * 1j / k_val)
 
         return C_dot
 
@@ -75,15 +92,43 @@ class BaseVectorPotential:
             'current' method that: 1/ take in arg 'k' and 'mode_function', 
             2/ mode_function must take in None, 'TE' or 'TM' corresponding to
             current in k-space for free field (exponential Fourier), current 
-            projected by TE or TM mode function
+            projected by TE or TM mode function. In addition, it must have
+            attribute 'r' for array of position vectors.
         """
         C_dot = self.dot_amplitude(t, charge_assembly)
         omega = np.tile(self.omega[:,np.newaxis], (1,2))
 
         dA = self.__call__(
-                t, R, amplitude = -1j * omega * self.C + C_dot)
+                t, charge_assembly.r, 
+                amplitude = -1j * omega * self.C + C_dot)
 
         return dA
+
+    def gradient(self, t, R):
+        """
+        Calcuate the gradient of the vector potential (gradA)_(ij) = dA_i/dr_j
+        |Ax.kx   Ax.ky   Ax.kz|    |dAx/dx   dAx/dy   dAx/dz|
+        |Ay.kx   Ay.ky   Az.kz| == |dAy/dx   dAy/dy   dAz/dz|; 
+        |Az.kx   Az.ky   Az.kz|    |dAz/dx   dAz/dy   dAz/dz|
+        """
+        k_vec = self.k_vector
+
+        C = self.C
+        
+        omega = np.tile(self.omega[:,np.newaxis], (1, R.shape[0]))
+
+        # evaluate mode function at time t and positions vector R
+        f_R = self.mode_function(t, R)
+        fs_R = np.conjugate(f_R)
+
+        #Multiply C and epsilon_k (pol_vec), the outcome shape is N_modes x 3
+        kC = np.einsum("ki,kl->kil", C, 1j * k_vec)
+
+        #
+        gradA_R = np.einsum("kil,kimj->mjl",kC, f_R) \
+            + np.einsum("kil,kimj->mjl",np.conjugate(kC), fs_R)
+
+        return gradA_R
 
     def hamiltonian(self, return_sum_only = False):
         """
@@ -103,7 +148,7 @@ class BaseVectorPotential:
 
         return H
 
-class FreeFieldVectorPotential(BaseVectorPotential):
+class FreeVectorPotential(BaseVectorPotential):
     """
     Class for vector potential of the electromagnetic field in free (e.g. not confined) field
     Args:
@@ -118,18 +163,10 @@ class FreeFieldVectorPotential(BaseVectorPotential):
     """
     def __init__(self, k_vector, amplitude, V, constant_c, pol_vec = None):
 
-        super().__init__()
-
-        self.number_modes = k_vector.shape[0]
-
-        assert k_vector.shape == (self.number_modes, 3)
-        assert isinstance(V, float)
-
-        self.update_amplitude(amplitude)
+        super().__init__(k_vector, amplitude, constant_c,V)
 
         self.k_vector = k_vector
-        self.V = V
-        self.constant_c = constant_c
+        self.mode_projection = None
 
         if pol_vec is None:
             # if no polarization vector is provided, a set of orthonormal
@@ -144,12 +181,7 @@ class FreeFieldVectorPotential(BaseVectorPotential):
         else:
             self.pol_vec = pol_vec
 
-        assert self.pol_vec.shape == (self.number_modes, 2, 3)
-
-        self.k_val = np.sqrt(
-                np.einsum("ni,ni->n",self.k_vector,self.k_vector)) 
-
-        self.omega = self.k_val * constant_c
+        assert self.pol_vec.shape == (self.n_modes, 2, 3)
 
     def mode_function(self, t, R):
         """
@@ -179,39 +211,7 @@ class FreeFieldVectorPotential(BaseVectorPotential):
 
         return f_R
 
-    def gradient(self, t, R):
-        """
-        |Ax.kx   Ax.ky   Ax.kz|    |dAx/dx   dAx/dy   dAx/dz|
-        |Ay.kx   Ay.ky   Az.kz| == |dAy/dx   dAy/dy   dAz/dz|; (gradA)_(ij) = dA_i/dr_j
-        |Az.kx   Az.ky   Az.kz|    |dAz/dx   dAz/dy   dAz/dz|
-        """
-        k_vec = self.k_vector
-        pol_vec = self.pol_vec
-
-        C = self.C
-        
-        omega = np.tile(self.omega[:,np.newaxis], (1, R.shape[0]))
-
-        # free field mode function and c.c., a.k.a. exp(ikr) exp(-i \omega t) + c.c
-        f_R = 1j * np.exp(
-            1j * np.einsum("kj,mj->km",k_vec,R) - 1j * omega * t) # j = 3
-
-        fs_R = - 1j * np.exp(
-            -1j * np.einsum("kj,mj->km",k_vec,R) + 1j * omega * t) # j = 3
-
-        #Multiply C and epsilon_k (pol_vec), the outcome shape is N_modes x 3
-        # (sum over dim 2, which is the number of polarized vector)
-        C_epsilon_k = np.einsum("kj,kji->ki",C,pol_vec)
-
-        k_o_C_epsilon_k = np.einsum("kj,ki->kij",k_vec,C_epsilon_k)
-
-        #
-        gradA_R = np.einsum("kij,kn->nij",k_o_C_epsilon_k, f_R) \
-            + np.einsum("kij,kn->nij",np.conjugate(k_o_C_epsilon_k), fs_R)
-
-        return gradA_R
-
-class CavityFieldPotentialVector:
+class CavityVectorPotential(BaseVectorPotential):
     """
     Class for vector potential of the field in the cavity
     Args:
@@ -226,118 +226,110 @@ class CavityFieldPotentialVector:
     + constant_c (float): value of speed of light constant
     """
     def __init__(self, kappa, m, amplitude, S, L, constant_c):
-        
-        self.n_modes = len(kappa)
-        assert kappa.shape == (self.n_modes, 2)
-        assert len(m) == self.n_modes and len(m.shape) == 1
-        assert amplitude.shape == (self.n_modes, 2)
-        assert isinstance(S, float)
-        assert isinstance(L, float)
+
+        assert kappa.shape[0] == m.shape[0]
+        assert kappa.shape[1] == 2 and len(m.shape) == 1
 
         # kappa vector 
-        self.kappa_vec = np.hstack([kappa, np.zeros((self.n_modes,1))])
+        self.kappa_vec = np.hstack([kappa, np.zeros((len(kappa),1))])
         self.kappa = np.sqrt(
                 np.einsum("ki,ki->k",self.kappa_vec,self.kappa_vec)
                 )
-        # unit vector along the kappa vector
+        # unit vector along the kappa vector SIZE: k x 3
         self.kappa_unit = self.kappa_vec / np.tile(self.kappa[:,np.newaxis], (1,3))
 
         # kz 
-        self.kz = np.pi * m / L
+        self.kz = 2 * np.pi * m / L
         # z unit vector
         self.z_vec = np.tile(np.array([0,0,1])[np.newaxis,:], (len(self.kappa), 1))
 
-        # k vector magnitude
-        self.k = np.sqrt(self.kappa ** 2 + self.kz ** 2)
-        self.omega = self.k * constant_c
-
-        # value of amplitude/ C parameters
-        self.C = amplitude
-
+        #k_vector in general
+        self.k_vector = np.hstack([kappa, self.kz[:,np.newaxis] ])
+        
         # cavity geometry
+        assert isinstance(S, float)
+        assert isinstance(L, float)
+
         self.S = S
         self.L = L
-        self.V = S * L
 
-        self.constant_c = constant_c
+        super().__init__(self.k_vector, amplitude, constant_c, V = 1.0)
+        print("Warning, the volume is set to 1")
 
-        # constructing the TE mode polarization vector
-        self.epsilon_TE = np.zeros((self.n_modes, 3))
-        self.epsilon_TE[:,0] = self.kappa_vec[:,1] / self.kappa
-        self.epsilon_TE[:,1] = -self.kappa_vec[:,0] / self.kappa
+        # eta = kappa_unit x z_unit (x = cross product)
+        # size = N_modes x 3
+        self.eta = np.zeros((self.n_modes, 3))
+        self.eta[:,0] = self.kappa_vec[:,1] / self.kappa
+        self.eta[:,1] = -self.kappa_vec[:,0] / self.kappa
 
-    def __call__(self, t, R):
-        """
-        Evaluate the vector potential at time t and multiple positions specified in R
-        Args:
-        + t (float): time
-        + R (np.array): position. SIZE: M x 3 with M is the number of positions
-        Returns:
-        + np.array: SIZE M x 3 with M specified in R argument
-        """
+    def mode_function(self, t, R):
+        omega = np.tile(self.omega[:,np.newaxis],(1,len(R)))
 
-        omega = np.tile(self.omega[:,np.newaxis], (1, R.shape[0]))
+        expkz = np.exp(
+            1j * np.einsum("kj,mj->km",self.kappa_vec,R) - 1j * omega * t
+            )
 
-        # evaluating the exp parts, j = 3, m = number of points of evaulation
-        f_R = np.exp(
-             1j * np.einsum("kj,mj->km",self.kappa_vec,R) - 1j * omega * t)
+        # TE mode  
+        f_te = expkz * np.sin(
+            np.einsum("k,m->km",self.kz,R[:,-1].ravel()))
 
-        fs_R = np.exp(
-            -1j * np.einsum("kj,mj->km",self.kappa_vec,R) + 1j * omega * t)
-        
-        # TE mode
-        C_TE = self.C[:,0] * np.sin(self.kz * R[:,-1])
-        C_TE = np.tile(C_TE[:,np.newaxis],(1,3)) * self.epsilon_TE #k x 3
+        f_te = np.tile(f_te[:,np.newaxis,:,np.newaxis], (1,1,1,3))
+        eta = np.tile(self.eta[:,np.newaxis,np.newaxis,:], (1,1,len(R),1))
 
-        # TM mode
-        C_TM_coskz = self.C[:,1] * (self.kappa / self.k) * np.cos(self.kz * R[:,-1]) 
-        C_TM_coskz = np.tile(C_TM_coskz[:,np.newaxis],(1,3)) * self.z_vec
+        f_te = f_te * eta
 
-        C_TM_sinkz = self.C[:,1] * 1j * (self.kz / self.k) * np.sin(self.kz * R[:,-1])
-        C_TM_sinkz = np.tile(C_TM_sinkz[:,np.newaxis],(1,3)) * (self.kappa_unit)
+        #TM mode
+        coskz = np.cos(
+            np.einsum("k,m->km",self.kz,R[:,-1].ravel())
+            ) * expkz
+        coskz = np.tile(coskz[:,np.newaxis,:,np.newaxis],(1,1,1,3))
 
-        C_TM = (C_TM_coskz - C_TM_sinkz)
+        sinkz = np.sin(
+            np.einsum("k,m->km",self.kz,R[:,-1].ravel())
+            ) * expkz
+        sinkz = np.tile(sinkz[:,np.newaxis,:,np.newaxis],(1,1,1,3))
 
-        C = C_TE + C_TM
+        z_vec = self.z_vec * repeat_x3(self.kappa / self.k_val)
+        z_vec = np.tile(z_vec[:,np.newaxis,np.newaxis,:], (1,1,len(R),1))
 
-        # i = 3
-        A_R = np.einsum("ki,km->mi", C, f_R) \
-            + np.einsum("ki,km->mi", np.conjugate(C), fs_R)
+        kappa = repeat_x3(self.kz / self.k_val) * self.kappa_unit
+        kappa = np.tile(kappa[:,np.newaxis,np.newaxis,:], (1,1,len(R),1))
 
-        return A_R / np.sqrt(self.V)
+        f_tm = coskz * z_vec - 1j * sinkz * kappa
 
-    def dot_amplitude(self, t, R, current):
-        """
-        Calculate the time derivative of the amplitude of the vector potential
-            in the presence of moving charge particle / dipole
-        Args:
-        + t (float): time
-        + R (np.ndarray): position of charged particle 
-            SIZE: M x 3 w/ M is number of particles
-        + current (np.ndarray): notation J, is the current
-            SIZE: M x 3
-        """
-        k_vec = self.k_vector
-        pol_vec = self.pol_vec
+        f_r = np.concatenate((f_te, f_tm), axis = 1)
+        return f_r
+         
+def single_eval_cavityA(kappa_vec, kz, C, t, R, constant_c, V):
 
-        omega = np.tile(self.omega[:,np.newaxis], (1,2))
+    kappa_vec = np.hstack([kappa_vec, [0]])
+    kappa = np.sum(kappa_vec * kappa_vec)
+    k_val = np.sqrt(kappa**2 + kz**2)
+    omega = constant_c * k_val
 
-        k_val = np.tile(self.k_val[:,np.newaxis],(1,2))
+    kappa_unit = kappa_vec / kappa
+    eta = np.array([kappa_unit[1], -kappa_unit[0], 0])
+    z_vec = np.array([0,0,1])
+    
+    exp_kr = np.exp(
+        1j * np.sum(kappa_vec * R) - 1j * omega * t
+        )
 
-        C = self.C
+    #TE mode
+    f_te = np.sin(kz * R[-1]) * exp_kr * eta
+    print(f_te)
+    fs_te = np.conjugate(f_te)
 
-        #grad_mu_r_dot = np.einsum("nij,ni->nj", gradD, R_dot) # i = j = 3
+    #TM mode
+    f_tm = kappa / k_val * np.cos(kz * R[-1]) * exp_kr * z_vec
+    f_tm -= 1j * kz / k_val * np.sin(kz * R[-1]) * exp_kr * kappa_unit
+    print(f_tm)
+    fs_tm = np.conjugate(f_tm)
 
-        exp_ikr = np.exp(np.einsum("ki,ni->kn",-1j * k_vec,R)) # i = 3
+    A = C[0] * f_te + np.conjugate(C[0]) * fs_te
+    A += C[1] * f_tm + np.conjugate(C[1]) * fs_tm
 
-        Jk = np.einsum("nj,kn->kj",current,exp_ikr) # j = 3
-
-        C_dot = np.einsum("kij,kj->ki",pol_vec, Jk) #i = 2, j = 3
-
-        C_dot *= (2 * np.pi * 1j / k_val) * np.exp(1j * omega * t)
-
-        return C_dot
-
+    return A / np.sqrt(V)
 
 if test:
     from utils import EM_mode_generate
@@ -356,20 +348,25 @@ if test:
         ])
 
     m = np.array([1])
-    print(m.shape)
 
     amplitude = np.array([
         np.random.uniform(size = 2) + 1j * np.random.uniform(size = 2),
         #np.random.uniform(size = 2) + 1j * np.random.uniform(size = 2)
         ])
-    print(amplitude.shape)
+    print(amplitude)
 
-    A = CavityFieldPotentialVector(
+    A = CavityPotentialVector(
         kappa = kappa, m = m, amplitude = amplitude,
         S = 100.0, L = 10.0, constant_c = red.c
         )
 
-    R = np.array([[1,1,0]])
+    """
+    R = np.vstack([
+        np.array([[1,1,0],[1,1,5]]),
+        np.random.uniform(size = (3,3))
+        ])
+    """
+    R = np.array([[1,1,1]])
 
     print(
         A(t = 0 , R = R)
