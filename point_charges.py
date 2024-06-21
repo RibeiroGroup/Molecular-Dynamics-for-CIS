@@ -83,10 +83,10 @@ L = 1e4
 ### FREE FIELD POTENTIAL BEGIN ###
 ##################################
 k_vector = np.array([
-    [0,0,1],
+    #[0,0,1],
     #[0,1,0],
     #[1,0,0],
-    #[0,1,1],
+    [0,1,1],
     #[1,1,0],
     #[1,1,1]
     ]) * (2 * np.pi / L)
@@ -114,17 +114,17 @@ print("Warning, the volume is set to 1")
 ##############################
 kappa = np.array([
         [0,1],
-        [1,0],
-        [1,1],
+        #[1,0],
+        #[1,1],
         ]) * (2 * np.pi / L)
 
 m = np.array([1] * len(kappa))
 
 amplitude = np.array([
     1 * np.random.uniform(size = 2) + 1j * np.random.uniform(size = 2),
-    1 * np.random.uniform(size = 2) + 1j * np.random.uniform(size = 2),
-    1 * np.random.uniform(size = 2) + 1j * np.random.uniform(size = 2),
-    ]) * 100
+    #1 * np.random.uniform(size = 2) + 1j * np.random.uniform(size = 2),
+    #1 * np.random.uniform(size = 2) + 1j * np.random.uniform(size = 2),
+    ]) * 100 * np.sqrt(L**3)
 
 Afield = CavityVectorPotential(
     kappa = kappa, m = m, amplitude = amplitude,
@@ -136,14 +136,14 @@ Afield = CavityVectorPotential(
 #simple point charge
 r = -np.array([[L, L, L]]) / 100
 v = np.array([[1.0,1.0,1.0]])# * 1e3
-q = np.array([np.eye(3)]) * 1e3
+q = np.array([np.eye(3)]) * 1e4
 
 point_charge = PointCharges(q = q, r = r, r_dot = v)
 
 t = 0
-h = 1e-4
+h = 1e-5
 
-k = 100#(red.c * (2 * np.pi / L) ** 2) ** 2
+k = 4#(red.c * (2 * np.pi / L) ** 2) ** 2
 print(np.sqrt(k))
 
 Hmat = point_charge.kinetic_energy() + oscillator_potential(point_charge, k)
@@ -155,7 +155,7 @@ energy = [Hmat + Hrad]
 time = [0]
 
 #first iteration w/ Euler integration (and trapezoidal rule)
-for i in range(5000):
+for i in range(50000):
     force_func = lambda t, charge_assembly:\
             EM_force(t, charge_assembly, Afield) \
             + oscillator_force(charge_assembly, k)
