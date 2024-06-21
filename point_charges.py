@@ -46,6 +46,13 @@ class PointCharges:
         k = 0.5 * np.einsum("ni,ni->n",self.r_dot,self.r_dot)
         return np.sum(k)
 
+def oscillator_force(charge_assemble, k):
+    r = charge_assemble.r
+    return - k * r
+
+def oscillator_potential(charge_assemble, k):
+    r = charge_assemble.r
+    return 0.5 * k * np.sum(np.einsum("ni,ni->n",r,r))
          
 def EM_force(t, charge_assemble , A):
 
@@ -70,60 +77,76 @@ def EM_force(t, charge_assemble , A):
 
     return force
 
-L = 1e7
+L = 1e4
 
-"""
+##################################
+### FREE FIELD POTENTIAL BEGIN ###
+##################################
 k_vector = np.array([
     [0,0,1],
-    [0,1,0],
-    [0,1,1],
-    [1,1,0],
+    #[0,1,0],
+    #[1,0,0],
+    #[0,1,1],
+    #[1,1,0],
     #[1,1,1]
     ]) * (2 * np.pi / L)
 
+print(np.einsum("ki,ki->k",k_vector,k_vector) * red.c)
+
 amplitude = np.vstack([
-    np.random.uniform(size = 2) * 10 + np.random.uniform(size = 2) * 10j,
-    np.random.uniform(size = 2) * 10 + np.random.uniform(size = 2) * 10j,
-    np.random.uniform(size = 2) * 10 + np.random.uniform(size = 2) * 10j,
-    np.random.uniform(size = 2) * 10 + np.random.uniform(size = 2) * 10j,
+    #np.random.uniform(size = 2) * 1 + np.random.uniform(size = 2) * 1j,
+    #np.random.uniform(size = 2) * 1 + np.random.uniform(size = 2) * 1j,
+    np.random.uniform(size = 2) * 1 + np.random.uniform(size = 2) * 1j,
+    #np.random.uniform(size = 2) * 10 + np.random.uniform(size = 2) * 10j,
     #np.random.uniform(size = 2) * 10 + np.random.uniform(size = 2) * 10j
-    ])
+    ]) * 100 * np.sqrt(L**3)
 
 Afield = FreeVectorPotential(
         k_vector = k_vector, amplitude = amplitude,
-        V = 1.0, constant_c = red.c,
+        V = L ** 3, constant_c = red.c,
         )
 print("Warning, the volume is set to 1")
+### FREE FIELD POTENTIAL END ###
 """
+
+##############################
+### CAVITY POTENTIAL BEGIN ###
+##############################
 kappa = np.array([
         [0,1],
         [1,0],
         [1,1],
-        ]) / (2 * np.pi / L)
+        ]) * (2 * np.pi / L)
 
 m = np.array([1] * len(kappa))
 
 amplitude = np.array([
-    10 * np.random.uniform(size = 2) + 10j * np.random.uniform(size = 2),
-    10 * np.random.uniform(size = 2) + 10j * np.random.uniform(size = 2),
-    10 * np.random.uniform(size = 2) + 10j * np.random.uniform(size = 2),
-    ])
+    1 * np.random.uniform(size = 2) + 1j * np.random.uniform(size = 2),
+    1 * np.random.uniform(size = 2) + 1j * np.random.uniform(size = 2),
+    1 * np.random.uniform(size = 2) + 1j * np.random.uniform(size = 2),
+    ]) * 100
 
 Afield = CavityVectorPotential(
     kappa = kappa, m = m, amplitude = amplitude,
-    L = L, S = 1.0, constant_c = red.c)
+    L = L, S = L ** 2, constant_c = red.c)
+
+### CAVITY POTENTIAL END ###
+"""
 
 #simple point charge
-r = -np.array([[5.0,5.0,5.0]])
-v = np.array([[1.0,1.0,1.0]]) * 1e2
-q = np.array([np.eye(3)]) * 1e0
+r = -np.array([[L, L, L]]) / 100
+v = np.array([[1.0,1.0,1.0]])# * 1e3
+q = np.array([np.eye(3)]) * 1e3
 
 point_charge = PointCharges(q = q, r = r, r_dot = v)
 
 t = 0
 h = 1e-4
 
-Hmat = point_charge.kinetic_energy()
+k = 100#(red.c * (2 * np.pi / L) ** 2) ** 2
+print(np.sqrt(k))
+
+Hmat = point_charge.kinetic_energy() + oscillator_potential(point_charge, k)
 Hrad =  Afield.hamiltonian(True)
 
 Hmat_list = [Hmat]
@@ -132,9 +155,10 @@ energy = [Hmat + Hrad]
 time = [0]
 
 #first iteration w/ Euler integration (and trapezoidal rule)
-
-for i in range(50000):
-    force_func = lambda t, charge_assembly: EM_force(t, charge_assembly, Afield)
+for i in range(5000):
+    force_func = lambda t, charge_assembly:\
+            EM_force(t, charge_assembly, Afield) \
+            + oscillator_force(charge_assembly, k)
     
     point_charge.Verlet_step(t, h, force_func = force_func)
     
@@ -146,7 +170,7 @@ for i in range(50000):
 
     Afield.update_amplitude(C_new)
 
-    Hmat = point_charge.kinetic_energy()
+    Hmat = point_charge.kinetic_energy() + oscillator_potential(point_charge, k)
     Hrad = Afield.hamiltonian(True)
 
     energy.append(Hmat + Hrad)

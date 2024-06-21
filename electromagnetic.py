@@ -261,8 +261,8 @@ class CavityVectorPotential(BaseVectorPotential):
         self.S = S
         self.L = L
 
-        super().__init__(self.k_vector, amplitude, constant_c, V = 1.0)
-        print("Warning, the volume is set to 1")
+        super().__init__(self.k_vector, amplitude, constant_c, V = S * L)
+        #print("Warning, the volume is set to 1")
 
         # eta = kappa_unit x z_unit (x = cross product)
         # size = N_modes x 3
