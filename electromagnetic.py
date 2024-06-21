@@ -47,6 +47,7 @@ class BaseVectorPotential:
         """
 
         C = self.C if amplitude is None else amplitude
+        C /= np.sqrt(self.V)
 
         f_R = self.mode_function(t, R)
 
@@ -55,7 +56,7 @@ class BaseVectorPotential:
         A_R = np.einsum("ki,kimj->mj",C, f_R) \
             + np.einsum("ki,kimj->mj",np.conjugate(C), fs_R)
 
-        return A_R / np.sqrt(self.V)
+        return A_R 
 
     def dot_amplitude(self, t, charge_assemble):
         """
@@ -106,27 +107,18 @@ class BaseVectorPotential:
 
     def gradient(self, t, R):
         """
-        Calcuate the gradient of the vector potential (gradA)_(ij) = dA_i/dr_j
+        Calculate the gradient of the vector potential (gradA)_(ij) = dA_i/dr_j
         |Ax.kx   Ax.ky   Ax.kz|    |dAx/dx   dAx/dy   dAx/dz|
         |Ay.kx   Ay.ky   Az.kz| == |dAy/dx   dAy/dy   dAz/dz|; 
         |Az.kx   Az.ky   Az.kz|    |dAz/dx   dAz/dy   dAz/dz|
         """
-        k_vec = self.k_vector
-
-        C = self.C
+        C = self.C / np.sqrt(self.V)
         
-        omega = np.tile(self.omega[:,np.newaxis], (1, R.shape[0]))
-
-        # evaluate mode function at time t and positions vector R
-        f_R = self.mode_function(t, R)
-        fs_R = np.conjugate(f_R)
-
-        #Multiply C and epsilon_k (pol_vec), the outcome shape is N_modes x 3
-        kC = np.einsum("ki,kl->kil", C, 1j * k_vec)
-
-        #
-        gradA_R = np.einsum("kil,kimj->mjl",kC, f_R) \
-            + np.einsum("kil,kimj->mjl",np.conjugate(kC), fs_R)
+        gradf_R = self.grad_mode_func(t, R)
+        gradfs_R = np.conjugate(gradf_R)
+        
+        gradA_R = np.einsum("ki,lkimj->mjl", C, gradf_R) \
+            + np.einsum("ki,lkimj->mjl", np.conjugate(C), gradfs_R) \
 
         return gradA_R
 
@@ -210,6 +202,22 @@ class FreeVectorPotential(BaseVectorPotential):
         f_R = f_R * pol_vec
 
         return f_R
+
+    def grad_mode_func(self, t, R):
+
+        k_vec = self.k_vector
+
+        C = self.C / np.sqrt(self.V)
+        
+        omega = np.tile(self.omega[:,np.newaxis], (1, R.shape[0]))
+
+        # evaluate mode function at time t and positions vector R
+        f_R = self.mode_function(t, R)
+
+        # l = 3
+        gradf_R = np.einsum("kimj,kl->lkimj", f_R, 1j * self.k_vector )
+
+        return gradf_R
 
 class CavityVectorPotential(BaseVectorPotential):
     """
@@ -299,7 +307,68 @@ class CavityVectorPotential(BaseVectorPotential):
 
         f_r = np.concatenate((f_te, f_tm), axis = 1)
         return f_r
-         
+
+    def grad_mode_func(self, t, R):
+        """
+        Calcuate the gradient of the vector potential (gradA)_(ij) = dA_i/dr_j
+        |Ax.kx   Ax.ky   Ax.kz|    |dAx/dx   dAx/dy   dAx/dz|
+        |Ay.kx   Ay.ky   Az.kz| == |dAy/dx   dAy/dy   dAz/dz|; 
+        |Az.kx   Az.ky   Az.kz|    |dAz/dx   dAz/dy   dAz/dz|
+        """
+        k_vec = self.k_vector
+        kz = np.tile(self.kz[:,np.newaxis], (1,len(R)))
+
+        C = self.C / np.sqrt(self.V)
+        
+        omega = np.tile(self.omega[:,np.newaxis], (1, R.shape[0]))
+
+        # evaluate mode function at time t and positions vector R
+        gradf_R = self.mode_function(t, R)
+
+        # calculating the gradient along the x and y axis (kappa vector) 
+        # l = 2 as differentiating along the z axis is ommitted
+        gradf_R = np.einsum("kimj,kl->lkimj", gradf_R, 1j * self.kappa_vec[:,:2] )
+
+        #calculating the gradient along the z axis
+        expkz = np.exp(
+            1j * np.einsum("kj,mj->km",self.kappa_vec,R) - 1j * omega * t
+            )
+
+        # differentiating TE mode  
+        gradf_te = expkz * kz * np.cos(
+            np.einsum("k,m->km",self.kz,R[:,-1].ravel()))
+
+        gradf_te = np.tile(gradf_te[:,np.newaxis,:,np.newaxis], (1,1,1,3))
+        eta = np.tile(self.eta[:,np.newaxis,np.newaxis,:], (1,1,len(R),1))
+
+        gradf_te = gradf_te * eta
+
+        #differentiating TM mode
+        grad_coskz = kz * np.sin(
+            np.einsum("k,m->km",self.kz,R[:,-1].ravel())
+            ) * expkz
+        grad_coskz = np.tile(grad_coskz[:,np.newaxis,:,np.newaxis],(1,1,1,3))
+
+        grad_sinkz = kz * np.cos(
+            np.einsum("k,m->km",self.kz,R[:,-1].ravel())
+            ) * expkz
+        grad_sinkz = np.tile(grad_sinkz[:,np.newaxis,:,np.newaxis],(1,1,1,3))
+
+        z_vec = self.z_vec * repeat_x3(self.kappa / self.k_val)
+        z_vec = np.tile(z_vec[:,np.newaxis,np.newaxis,:], (1,1,len(R),1))
+
+        kappa = repeat_x3(self.kz / self.k_val) * self.kappa_unit
+        kappa = np.tile(kappa[:,np.newaxis,np.newaxis,:], (1,1,len(R),1))
+
+        gradf_tm = (grad_coskz * z_vec - 1j * grad_sinkz * kappa)
+
+        dz_fr = np.concatenate((gradf_te, gradf_tm), axis = 1)
+        dz_fr = dz_fr[np.newaxis,:,:,:,:]
+
+        gradf_R = np.concatenate((gradf_R, dz_fr), axis = 0)
+
+        return gradf_R
+
 def single_eval_cavityA(kappa_vec, kz, C, t, R, constant_c, V):
 
     kappa_vec = np.hstack([kappa_vec, [0]])
@@ -344,18 +413,18 @@ if test:
 
     kappa = np.array([
         [1,0],
-        #[0,1]
+        [0,1]
         ])
 
-    m = np.array([1])
+    m = np.array([1,1])
 
     amplitude = np.array([
         np.random.uniform(size = 2) + 1j * np.random.uniform(size = 2),
-        #np.random.uniform(size = 2) + 1j * np.random.uniform(size = 2)
+        np.random.uniform(size = 2) + 1j * np.random.uniform(size = 2)
         ])
     print(amplitude)
 
-    A = CavityPotentialVector(
+    A = CavityVectorPotential(
         kappa = kappa, m = m, amplitude = amplitude,
         S = 100.0, L = 10.0, constant_c = red.c
         )
@@ -366,11 +435,13 @@ if test:
         np.random.uniform(size = (3,3))
         ])
     """
-    R = np.array([[1,1,1]])
+    R = np.array([[1,1,1],[1,1,2],[1,2,1]])
 
     print(
         A(t = 0 , R = R)
         )
+
+    print(A.gradient(0,R).shape)
 
 
 

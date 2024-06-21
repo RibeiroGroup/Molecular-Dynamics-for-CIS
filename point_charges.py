@@ -10,45 +10,6 @@ Demo the electromagnetic.py for simulating the simplest
 system: one point charge 
 """
 
-
-k_vector = np.array([
-    [0,0,1],
-    [0,1,0],
-    [0,1,1],
-    [1,1,0],
-    #[1,1,1]
-    ]) / (red.c)
-
-amplitude = np.vstack([
-    np.random.uniform(size = 2) * 10 + np.random.uniform(size = 2) * 10j,
-    np.random.uniform(size = 2) * 10 + np.random.uniform(size = 2) * 10j,
-    np.random.uniform(size = 2) * 10 + np.random.uniform(size = 2) * 10j,
-    np.random.uniform(size = 2) * 10 + np.random.uniform(size = 2) * 10j,
-    #np.random.uniform(size = 2) * 10 + np.random.uniform(size = 2) * 10j
-    ])
-
-Afield = FreeVectorPotential(
-        k_vector = k_vector, amplitude = amplitude,
-        V = 1.0, constant_c = red.c,
-        )
-"""
-kappa = np.array([
-        [0,1],
-        [1,0]
-        ]) / red.c
-
-m = np.array([1,1])
-
-amplitude = np.array([
-    10 * np.random.uniform(size = 2) + 10j * np.random.uniform(size = 2),
-    10 * np.random.uniform(size = 2) + 10j * np.random.uniform(size = 2)
-    ])
-
-Afield = CavityVectorPotential(
-    kappa = kappa, m = m, amplitude = amplitude,
-    L = 1e3, S = 1.0, constant_c = red.c)
-"""
-
 class PointCharges:
     def __init__(self, q, r, r_dot):
         self.N = len(q)
@@ -109,6 +70,49 @@ def EM_force(t, charge_assemble , A):
 
     return force
 
+L = 1e7
+
+"""
+k_vector = np.array([
+    [0,0,1],
+    [0,1,0],
+    [0,1,1],
+    [1,1,0],
+    #[1,1,1]
+    ]) * (2 * np.pi / L)
+
+amplitude = np.vstack([
+    np.random.uniform(size = 2) * 10 + np.random.uniform(size = 2) * 10j,
+    np.random.uniform(size = 2) * 10 + np.random.uniform(size = 2) * 10j,
+    np.random.uniform(size = 2) * 10 + np.random.uniform(size = 2) * 10j,
+    np.random.uniform(size = 2) * 10 + np.random.uniform(size = 2) * 10j,
+    #np.random.uniform(size = 2) * 10 + np.random.uniform(size = 2) * 10j
+    ])
+
+Afield = FreeVectorPotential(
+        k_vector = k_vector, amplitude = amplitude,
+        V = 1.0, constant_c = red.c,
+        )
+print("Warning, the volume is set to 1")
+"""
+kappa = np.array([
+        [0,1],
+        [1,0],
+        [1,1],
+        ]) / (2 * np.pi / L)
+
+m = np.array([1] * len(kappa))
+
+amplitude = np.array([
+    10 * np.random.uniform(size = 2) + 10j * np.random.uniform(size = 2),
+    10 * np.random.uniform(size = 2) + 10j * np.random.uniform(size = 2),
+    10 * np.random.uniform(size = 2) + 10j * np.random.uniform(size = 2),
+    ])
+
+Afield = CavityVectorPotential(
+    kappa = kappa, m = m, amplitude = amplitude,
+    L = L, S = 1.0, constant_c = red.c)
+
 #simple point charge
 r = -np.array([[5.0,5.0,5.0]])
 v = np.array([[1.0,1.0,1.0]]) * 1e2
@@ -134,8 +138,9 @@ for i in range(50000):
     
     point_charge.Verlet_step(t, h, force_func = force_func)
     
-    C_dot = Afield.dot_amplitude(t+h,point_charge)
-    C_new = Afield.C + h * C_dot
+    #C_dot_t = Afield.dot_amplitude(t,point_charge)
+    C_dot_tp1 = Afield.dot_amplitude(t+h,point_charge)
+    C_new = Afield.C + h * (C_dot_tp1)
 
     t += h
 
