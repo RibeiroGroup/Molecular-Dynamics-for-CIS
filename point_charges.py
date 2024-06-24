@@ -1,8 +1,11 @@
+from tqdm import tqdm
+
 import numpy as np
 import matplotlib.pyplot as plt
 
 from electromagnetic import FreeVectorPotential, CavityVectorPotential
 import reduced_parameter as red
+from utils import EM_mode_generate
 
 """
 Testing electromagnetic.py
@@ -77,30 +80,33 @@ def EM_force(t, charge_assemble , A):
 
     return force
 
-L = 1e4
+def profiling_rad(omega_list,unique_omega,Hrad):
+    rad_profile = []
+
+    for i, omega in enumerate(unique_omega):
+        rad_profile.append(
+                np.sum(Hrad[omega_list == omega])
+                )
+
+    return rad_profile
+
+L = 1e8
+
+k_vector = np.array(EM_mode_generate(max_n = 10, min_n = 1), dtype=np.float64)
+
+print(k_vector.shape)
+
+np.random.seed(2024)
+amplitude = np.vstack([
+    np.random.uniform(size = 2) * 1 + np.random.uniform(size = 2) * 1j
+    for i in range(len(k_vector))
+    ]) * 0e0 * np.sqrt(L**3)
+
 
 ##################################
 ### FREE FIELD POTENTIAL BEGIN ###
 ##################################
-k_vector = np.array([
-    #[0,0,1],
-    #[0,1,0],
-    #[1,0,0],
-    [0,1,1],
-    #[1,1,0],
-    #[1,1,1]
-    ]) * (2 * np.pi / L)
-
-print(np.einsum("ki,ki->k",k_vector,k_vector) * red.c)
-
-amplitude = np.vstack([
-    #np.random.uniform(size = 2) * 1 + np.random.uniform(size = 2) * 1j,
-    #np.random.uniform(size = 2) * 1 + np.random.uniform(size = 2) * 1j,
-    np.random.uniform(size = 2) * 1 + np.random.uniform(size = 2) * 1j,
-    #np.random.uniform(size = 2) * 10 + np.random.uniform(size = 2) * 10j,
-    #np.random.uniform(size = 2) * 10 + np.random.uniform(size = 2) * 10j
-    ]) * 100 * np.sqrt(L**3)
-
+k_vector *= (2 * np.pi / L)
 Afield = FreeVectorPotential(
         k_vector = k_vector, amplitude = amplitude,
         V = L ** 3, constant_c = red.c,
@@ -108,90 +114,94 @@ Afield = FreeVectorPotential(
 print("Warning, the volume is set to 1")
 ### FREE FIELD POTENTIAL END ###
 """
-
 ##############################
 ### CAVITY POTENTIAL BEGIN ###
 ##############################
-kappa = np.array([
-        [0,1],
-        #[1,0],
-        #[1,1],
-        ]) * (2 * np.pi / L)
+kappa = k_vector[:,:2] * (2 * np.pi / L)
 
-m = np.array([1] * len(kappa))
-
-amplitude = np.array([
-    1 * np.random.uniform(size = 2) + 1j * np.random.uniform(size = 2),
-    #1 * np.random.uniform(size = 2) + 1j * np.random.uniform(size = 2),
-    #1 * np.random.uniform(size = 2) + 1j * np.random.uniform(size = 2),
-    ]) * 100 * np.sqrt(L**3)
+m = k_vector[:,-1].reshape(-1)
 
 Afield = CavityVectorPotential(
     kappa = kappa, m = m, amplitude = amplitude,
     L = L, S = L ** 2, constant_c = red.c)
 
+print(Afield.kappa_unit.shape)
+
 ### CAVITY POTENTIAL END ###
 """
 
+omega_list = red.c * np.sqrt(np.einsum("ki,ki->k",k_vector, k_vector))
+unique_omega = list(set(omega_list))
+
 #simple point charge
-r = -np.array([[L, L, L]]) / 100
-v = np.array([[1.0,1.0,1.0]])# * 1e3
+r = -np.array([[1, 1, 1]]) * 100.0
+v = np.array([[1.0,1.0,1.0]]) #* 1e2
 q = np.array([np.eye(3)]) * 1e4
 
 point_charge = PointCharges(q = q, r = r, r_dot = v)
 
 t = 0
-h = 1e-5
+h = 1e-4
 
-k = 4#(red.c * (2 * np.pi / L) ** 2) ** 2
+k = 100#(red.c * (2 * np.pi / L) ** 2) ** 2
 print(np.sqrt(k))
 
 Hmat = point_charge.kinetic_energy() + oscillator_potential(point_charge, k)
-Hrad =  Afield.hamiltonian(True)
+Hrad =  Afield.hamiltonian(False)
+total_Hrad = np.sum(Hrad)
 
 Hmat_list = [Hmat]
-Hrad_list = [Hrad]
-energy = [Hmat + Hrad]
+Hrad_list = [total_Hrad]
+
+energy = [Hmat + total_Hrad]
+rad_profile = profiling_rad(omega_list,unique_omega,Hrad)
+rad_profile = [rad_profile]
 time = [0]
 
 #first iteration w/ Euler integration (and trapezoidal rule)
-for i in range(50000):
+for i in tqdm(range(20000)):
+    
     force_func = lambda t, charge_assembly:\
             EM_force(t, charge_assembly, Afield) \
             + oscillator_force(charge_assembly, k)
-    
+
     point_charge.Verlet_step(t, h, force_func = force_func)
     
     #C_dot_t = Afield.dot_amplitude(t,point_charge)
     C_dot_tp1 = Afield.dot_amplitude(t+h,point_charge)
-    C_new = Afield.C + h * (C_dot_tp1)
-
-    t += h
+    C_new = Afield.C + h * (C_dot_tp1 )
 
     Afield.update_amplitude(C_new)
+        
+    t += h
 
     Hmat = point_charge.kinetic_energy() + oscillator_potential(point_charge, k)
-    Hrad = Afield.hamiltonian(True)
+    Hrad = Afield.hamiltonian(False)
+    total_Hrad = np.sum(Hrad)
 
-    energy.append(Hmat + Hrad)
+    energy.append(Hmat + total_Hrad)
     Hmat_list.append(Hmat)
-    Hrad_list.append(Hrad)
+    Hrad_list.append(total_Hrad)
+
+    rad_profile.append(profiling_rad(omega_list,unique_omega,Hrad))
+
     time.append(t)
 
-fig,ax = plt.subplots()
-ax.plot(time,energy)
+fig,ax = plt.subplots(2,2,figsize = (12,8))
+ax[0,0].plot(time,energy)
+ax[0,0].set_ylabel("Total energy")
+ax[0,1].plot(time,Hmat_list)
+ax[0,1].set_ylabel("Matter Hamiltonian")
+ax[1,0].plot(time,Hrad_list)
+ax[1,0].set_ylabel("Radiation Hamiltonian")
 
-fig.savefig("test.jpeg")
+unique_omega = list(unique_omega)
+rad_profile = np.max(np.array(rad_profile),axis=0).reshape(-1)
 
-fig,ax = plt.subplots()
-ax.plot(time,Hmat_list)
+ax[1,1].scatter(unique_omega,rad_profile)
+ax[1,1].set_ylabel("Radiation Hamiltonian")
 
-fig.savefig("test2.jpeg")
-
-fig,ax = plt.subplots()
-ax.plot(time,Hrad_list)
-
-fig.savefig("test3.jpeg")
+fig.savefig("test.jpeg",dpi = 600,bbox_inches = "tight")
 
 
 

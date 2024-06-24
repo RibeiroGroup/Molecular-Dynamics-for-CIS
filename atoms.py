@@ -3,7 +3,7 @@ import numpy as np
 from calculator import Calculator
 from utils import PBC_wrapping, neighborlist_mask
 
-test = True
+test = False
 
 class AtomsInBox:
     """
@@ -49,8 +49,8 @@ class AtomsInBox:
                     ))
         
         try:
-            self.R = np.hstack([self.R, R])
-            self.R_dot = np.hstack([self.R_dot, R_dot])
+            self.R = np.vstack([self.R, R])
+            self.R_dot = np.vstack([self.R_dot, R_dot])
             self.elements += elements
             self.N_atoms += len(elements)
             self.mass += mass
@@ -92,14 +92,16 @@ class AtomsInBox:
 
         self.add(elements, R, R_dot)
 
-    def update(dR, dR_dot):
+    def update(self, R, R_dot, update_distance = True):
 
-        self.R = PB_wrapping(self.R + dR)
-        self.R_dot += dR_dot
+        self.R = PBC_wrapping(R,self.L)
+        self.R_dot = R_dot
 
-        neighborlist = neighborlist_mask(self.R, L = self.L, cell_width = self.cell_width)
+        if update_distance:
 
-        self.calculator.calculate_distance(self.R, neighborlist)
+            neighborlist = neighborlist_mask(self.R, L = self.L, cell_width = self.cell_width)
+
+            self.calculator.calculate_distance(self.R, neighborlist)
 
     def element_idx(self,element):
 
@@ -117,9 +119,29 @@ class AtomsInBox:
 
         self.calculator.calculate_distance(self.R, neighborlist)
 
-    def force(self):
-        return self.calculator.force()
+    def acceleration(self, other_force_func = None):
+        force = self.calculator.force()
 
+        if other_force_func is not None:
+            force += other_force_func(self)
+
+        a = force / np.tile(self.mass[:,np.newaxis], (1,3))
+
+        return a
+
+    def Verlet_update(self, h):
+        a = self.acceleration()
+
+        v_half = self.R_dot + h * a / 2
+        r_new = self.R + h * v_half
+
+        self.update(R = r_new, R_dot = v_half, update_distance = False)
+
+        a = self.acceleration()
+        v_new = v_half + h * a / 2
+
+        self.update(R = r_new, R_dot = v_new)
+    
     def potential(self):
         return self.calculator.potential()
 

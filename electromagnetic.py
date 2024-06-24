@@ -243,8 +243,16 @@ class CavityVectorPotential(BaseVectorPotential):
         self.kappa = np.sqrt(
                 np.einsum("ki,ki->k",self.kappa_vec,self.kappa_vec)
                 )
-        # unit vector along the kappa vector SIZE: k x 3
-        self.kappa_unit = self.kappa_vec / np.tile(self.kappa[:,np.newaxis], (1,3))
+        # calculating unit vector
+        # begin with unit vector along the kappa vector
+        self.kappa_unit = []
+        for i, k in enumerate(self.kappa_vec):
+            if self.kappa[i] == 0.0:
+                self.kappa_unit.append(np.zeros(3))
+            else:
+                self.kappa_unit.append(k / self.kappa[i])
+
+        self.kappa_unit = np.vstack(self.kappa_unit)
 
         # kz 
         self.kz = 2 * np.pi * m / L
