@@ -30,9 +30,9 @@ class AtomsInBox:
         + elements (list of String): elements of the atoms in collections
             LEN: N for N is the number of atoms
         + R (np.array): list of positions, no positions larger than the box length
-            SIZE: N same as N defined above
+            SIZE: N x 3 same as N defined above
         + R_dot (np.array): list of velocity
-            SIZE: N same as N defined above
+            SIZE: N x 3 same as N defined above
         """
 
         assert isinstance(elements, list) 
@@ -40,9 +40,9 @@ class AtomsInBox:
         for element in elements:
             assert element == "Ar" or element == "Xe"
 
-        assert R.shape[0] == len(elements)
+        assert R.shape == (len(elements), 3)
         assert not np.any(R > self.L)
-        assert R_dot.shape[0] == len(elements)
+        assert R_dot.shape == (len(elements), 3)
 
         mass = np.array(
                 list(map(lambda e: self.mass_dict[e], elements)
@@ -135,24 +135,24 @@ class AtomsInBox:
         v_half = self.R_dot + h * a / 2
         r_new = self.R + h * v_half
 
-        self.update(R = r_new, R_dot = v_half, update_distance = False)
+        self.update(R = r_new, R_dot = v_half)
 
         a = self.acceleration()
         v_new = v_half + h * a / 2
 
-        self.update(R = r_new, R_dot = v_new)
+        self.update(R = r_new, R_dot = v_new, update_distance = False)
     
     def potential(self):
         return self.calculator.potential()
 
-    def dipole(self):
-        return self.calculator.dipole()
+    def dipole(self,return_matrix = False):
+        return self.calculator.dipole(return_matrix = False)
 
     def dipole_grad(self):
         return self.calculator.dipole_grad()
 
     def kinetic_energy(self):
-        k = 0.5 * self.mass * self.R_dot.T @ self.R_dot
+        k = 0.5 * self.mass * np.einsum("ni,ni->n",self.R_dot,self.R_dot)
         return np.sum(k)
 
 if test == True:

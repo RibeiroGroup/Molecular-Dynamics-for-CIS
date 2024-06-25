@@ -243,21 +243,8 @@ class CavityVectorPotential(BaseVectorPotential):
         self.kappa = np.sqrt(
                 np.einsum("ki,ki->k",self.kappa_vec,self.kappa_vec)
                 )
-        # calculating unit vector
-        # begin with unit vector along the kappa vector
-        self.kappa_unit = []
-        for i, k in enumerate(self.kappa_vec):
-            if self.kappa[i] == 0.0:
-                self.kappa_unit.append(np.zeros(3))
-            else:
-                self.kappa_unit.append(k / self.kappa[i])
-
-        self.kappa_unit = np.vstack(self.kappa_unit)
-
         # kz 
         self.kz = 2 * np.pi * m / L
-        # z unit vector
-        self.z_vec = np.tile(np.array([0,0,1])[np.newaxis,:], (len(self.kappa), 1))
 
         #k_vector in general
         self.k_vector = np.hstack([kappa, self.kz[:,np.newaxis] ])
@@ -272,11 +259,29 @@ class CavityVectorPotential(BaseVectorPotential):
         super().__init__(self.k_vector, amplitude, constant_c, V = S * L)
         #print("Warning, the volume is set to 1")
 
-        # eta = kappa_unit x z_unit (x = cross product)
-        # size = N_modes x 3
-        self.eta = np.zeros((self.n_modes, 3))
-        self.eta[:,0] = self.kappa_vec[:,1] / self.kappa
-        self.eta[:,1] = -self.kappa_vec[:,0] / self.kappa
+        # calculating unit vector
+        # unit vector along the z axis
+        self.z_vec = np.vstack([np.array([0,0,1]) for i in range(self.n_modes)])
+
+        self.kappa_unit = [] # unit vector along kappa
+        self.eta = []        # unit vector kappa x z_vec (cross product)
+
+        for i, k in enumerate(self.kappa_vec):
+            if self.kappa[i] == 0.0:
+                self.kappa_unit.append(np.array([1,0,0]))
+                self.eta.append(np.array([0,1,0]))
+            else:
+                self.kappa_unit.append(k / self.kappa[i])
+
+                # eta = kappa_unit x z_unit (x = cross product)
+                eta = np.zeros(3)
+                eta[0] =  k[1] / self.kappa[i]
+                eta[1] = -k[0] / self.kappa[i]
+
+                self.eta.append(eta)
+
+        self.kappa_unit = np.vstack(self.kappa_unit)
+        self.eta = np.vstack(self.eta)
 
     def mode_function(self, t, R):
         omega = np.tile(self.omega[:,np.newaxis],(1,len(R)))
@@ -305,9 +310,11 @@ class CavityVectorPotential(BaseVectorPotential):
             ) * expkz
         sinkz = np.tile(sinkz[:,np.newaxis,:,np.newaxis],(1,1,1,3))
 
+        # calculating the (kappa / k) . z_vec       and tiling the result
         z_vec = self.z_vec * repeat_x3(self.kappa / self.k_val)
         z_vec = np.tile(z_vec[:,np.newaxis,np.newaxis,:], (1,1,len(R),1))
 
+        # calculating the (   kz / k) . kappa_unit  and tiling the result
         kappa = repeat_x3(self.kz / self.k_val) * self.kappa_unit
         kappa = np.tile(kappa[:,np.newaxis,np.newaxis,:], (1,1,len(R),1))
 
@@ -351,20 +358,24 @@ class CavityVectorPotential(BaseVectorPotential):
 
         gradf_te = gradf_te * eta
 
-        #differentiating TM mode
+        # differentiating TM mode
+        # differentiating cos part
         grad_coskz = kz * np.sin(
             np.einsum("k,m->km",self.kz,R[:,-1].ravel())
             ) * expkz
         grad_coskz = np.tile(grad_coskz[:,np.newaxis,:,np.newaxis],(1,1,1,3))
 
+        # differentiating sin part
         grad_sinkz = kz * np.cos(
             np.einsum("k,m->km",self.kz,R[:,-1].ravel())
             ) * expkz
         grad_sinkz = np.tile(grad_sinkz[:,np.newaxis,:,np.newaxis],(1,1,1,3))
 
+        # calculating the (kappa / k) . z_vec       and tiling the result
         z_vec = self.z_vec * repeat_x3(self.kappa / self.k_val)
         z_vec = np.tile(z_vec[:,np.newaxis,np.newaxis,:], (1,1,len(R),1))
 
+        # calculating the (   kz / k) . kappa_unit  and tiling the result
         kappa = repeat_x3(self.kz / self.k_val) * self.kappa_unit
         kappa = np.tile(kappa[:,np.newaxis,np.newaxis,:], (1,1,len(R),1))
 

@@ -50,7 +50,7 @@ class Calculator(DistanceCalculator):
         self.a = a
         self.d = d
 
-    def calculate_distance(self, R, neighborlist = None):
+    def calculate_distance(self, R, neighborlist = None, update_attr = True):
         """
         Calculating all relevant distances and distances vector.
         Note: ALways running this method to update all distances matrix 
@@ -64,12 +64,16 @@ class Calculator(DistanceCalculator):
 
         # using methods from DistanceCalculator parent class to calculate 
         # distance matrix
-        self.distance_matrix = self.calculate_distance_matrix(
+        distance_matrix = self.calculate_distance_matrix(
             R, neighborlist)
 
         # and distance vector matrix
-        self.distance_vec_tensor = self.calculate_distance_vector_tensor(
+        distance_vec_tensor = self.calculate_distance_vector_tensor(
             R, neighborlist)
+
+        if update_attr:
+            self.distance_matrix = distance_matrix
+            self.distance_vec_tensor = distance_vec_tensor
 
         # generating mask for subsequent calculation
         # usual upper triangle boolean matrix
@@ -79,6 +83,8 @@ class Calculator(DistanceCalculator):
              self.mask *= neighborlist
 
         self.mask_x3 = self.repeat_x3(self.mask)
+
+        return distance_matrix, distance_vec_tensor
 
     def potential(self,return_matrix = False):
         """
@@ -262,6 +268,7 @@ if test == True:
 
     print("### Dipole test ###")
     dipole = calculator.dipole()
+    print(dipole)
     dipole_, gradD_ = explicit_test_dipole(R_all, dipole_mask,
         mu0=0.0124 , a=1.5121, d=7.10, L = L)
 

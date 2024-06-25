@@ -3,7 +3,7 @@ import scipy.constants as scicon
 from scipy.constants import physical_constants, Avogadro, e as e_charge
 import constants
 
-test = 0
+test = 1
 
 ###############
 ### LJ unit ###
@@ -108,4 +108,8 @@ if test:
 
     print("######################")
     print("c: ", c)
+
+    emat, smat = generate_LJparam_matrix([1,0],[0,1])
+    print(emat)
+    print(smat)
 

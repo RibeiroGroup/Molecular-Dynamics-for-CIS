@@ -1,3 +1,4 @@
+import math
 from tqdm import tqdm
 import numpy as np
 import matplotlib.pyplot as plt
@@ -7,21 +8,23 @@ from calculator import Calculator
 
 import reduced_parameter as red
 
-atoms = AtomsInBox(box_length = 20, cell_width = 5, mass_dict = red.mass_dict)
+atoms = AtomsInBox(box_length = 30, cell_width = 10, mass_dict = red.mass_dict)
 
-np.random.seed(2024)
-#atoms.random_initialize({"Ar":10,"Xe":10}, max_velocity = 100)
+np.random.seed(1)
+atoms.random_initialize({"Ar":60, "Xe":60}, max_velocity = 100, min_velocity = 20)
+"""
 atoms.add(
         elements = ["Ar"],
-        R = np.array([[-2,-2,-2]]),
-        R_dot = np.array([[10,10,10]]),
+        R = np.array([[-1,-1,-1]]),
+        R_dot = np.array([[1,1,1]]),
         )
 
 atoms.add(
         elements = ["Xe"],
-        R = np.array([[2,2,2]]),
+        R = np.array([[1,1,1]]),
         R_dot = np.array([[-1,-1,-1]]),
         )
+"""
 
 idxAr = atoms.element_idx(element = "Xe")
 idxXe = atoms.element_idx(element = "Ar")
@@ -36,14 +39,15 @@ atoms.add_calculator(calculator_kwargs = {
 
 
 t = 0
-h = 1e-5
+h = 1e-4
 
+time_list = []
 energy_list = []
 potential_list = []
 kinetic_list = []
-time_list = []
+dipole_list = []
 
-for i in tqdm(range(50000)):
+for i in tqdm(range(100000)):
     atoms.Verlet_update(h)
 
     potential = atoms.potential()
@@ -57,15 +61,32 @@ for i in tqdm(range(50000)):
     t += h
 
     energy_list.append(total_energy)
+
+    dipole_vec = atoms.dipole(return_matrix = False)
+    dipole_vec = np.einsum("ni,ni->n",dipole_vec,dipole_vec)
+    total_dipole = 0.5 * np.sum(dipole_vec)
+
+    dipole_list.append(total_dipole)
+
     time_list.append(t)
 
 energy_list = np.array(energy_list)
+dipole_list = np.array(dipole_list)
 time_list = np.array(time_list)
 
-fig, ax = plt.subplots()
+fig,ax = plt.subplots(2,2,figsize = (12,8))
 
-ax.plot(time_list,energy_list)
-ax.plot(time_list,potential_list)
-ax.plot(time_list,kinetic_list)
+ax[0,0].plot(time_list,energy_list)
+ax[0,0].set_ylabel("Total energy")
 
-fig.savefig("test_md.jpeg")
+ax[0,1].plot(time_list,kinetic_list)
+ax[0,1].set_ylabel("Kinetic energy")
+
+ax[1,0].plot(time_list,potential_list)
+ax[1,0].set_ylabel("Potential energy")
+
+ax[1,1].plot(time_list,dipole_list)
+ax[1,1].set_ylabel("Dipole")
+
+fig.savefig("test_md.jpeg", dpi = 600,bbox_inches = "tight")
+

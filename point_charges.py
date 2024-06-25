@@ -10,7 +10,7 @@ from utils import EM_mode_generate
 """
 Testing electromagnetic.py
 Demo the electromagnetic.py for simulating the simplest 
-system: one point charge 
+system: one point charge and one charged oscillator 
 """
 
 class PointCharges:
@@ -90,9 +90,9 @@ def profiling_rad(omega_list,unique_omega,Hrad):
 
     return rad_profile
 
-L = 1e8
+L = 1e6
 
-k_vector = np.array(EM_mode_generate(max_n = 10, min_n = 1), dtype=np.float64)
+k_vector = np.array(EM_mode_generate(max_n = 5, min_n = 0), dtype=np.float64)
 
 print(k_vector.shape)
 
@@ -100,7 +100,7 @@ np.random.seed(2024)
 amplitude = np.vstack([
     np.random.uniform(size = 2) * 1 + np.random.uniform(size = 2) * 1j
     for i in range(len(k_vector))
-    ]) * 0e0 * np.sqrt(L**3)
+    ]) * 1e1 * np.sqrt(L**3)
 
 
 ##################################
@@ -134,8 +134,8 @@ omega_list = red.c * np.sqrt(np.einsum("ki,ki->k",k_vector, k_vector))
 unique_omega = list(set(omega_list))
 
 #simple point charge
-r = -np.array([[1, 1, 1]]) * 100.0
-v = np.array([[1.0,1.0,1.0]]) #* 1e2
+r = -np.array([[1, 1, 1]]) * 20.0
+v = np.array([[1.0,1.0,1.0]]) * 0e2
 q = np.array([np.eye(3)]) * 1e4
 
 point_charge = PointCharges(q = q, r = r, r_dot = v)
@@ -143,7 +143,7 @@ point_charge = PointCharges(q = q, r = r, r_dot = v)
 t = 0
 h = 1e-4
 
-k = 100#(red.c * (2 * np.pi / L) ** 2) ** 2
+k = 9#(red.c * (2 * np.pi / L) ** 2) ** 2
 print(np.sqrt(k))
 
 Hmat = point_charge.kinetic_energy() + oscillator_potential(point_charge, k)
@@ -159,7 +159,7 @@ rad_profile = [rad_profile]
 time = [0]
 
 #first iteration w/ Euler integration (and trapezoidal rule)
-for i in tqdm(range(20000)):
+for i in tqdm(range(100000)):
     
     force_func = lambda t, charge_assembly:\
             EM_force(t, charge_assembly, Afield) \
@@ -195,11 +195,13 @@ ax[0,1].set_ylabel("Matter Hamiltonian")
 ax[1,0].plot(time,Hrad_list)
 ax[1,0].set_ylabel("Radiation Hamiltonian")
 
+"""
 unique_omega = list(unique_omega)
 rad_profile = np.max(np.array(rad_profile),axis=0).reshape(-1)
 
 ax[1,1].scatter(unique_omega,rad_profile)
 ax[1,1].set_ylabel("Radiation Hamiltonian")
+"""
 
 fig.savefig("test.jpeg",dpi = 600,bbox_inches = "tight")
 
