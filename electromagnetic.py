@@ -6,6 +6,10 @@ test = False
 class BaseVectorPotential:
     """
     Base class for Vector Potential. 
+    Attribute:
+    + n_modes (int): number of modes
+    + C (np.array of size n_modes x 2): ampltiude of all the modes
+    + constant_c (float): value of speed of light constant
     """
     def __init__(self, k_vector, amplitude,constant_c,V):
 
@@ -139,6 +143,39 @@ class BaseVectorPotential:
             return np.sum(H)
 
         return H
+
+    def force(self, t, charge_assemble):
+        """
+        Computing the force exerting by the electromagnetic field on 
+        the charge particle/ dipole
+        Args:
+        + t (float): time
+        + charge_assemble (Python object): object wrapper for charged particle
+        or dipole. It should have the following attributes: 
+            1/ r (np.array of size N x 3) for position
+            2/ r_dot (np.array of size N x 3) for velocity
+        and method "charge" which take no arguments and return np.array
+        of size N x 3 x 3
+        """
+
+        dAdt = self.time_diff(t,charge_assemble)
+        gradA = self.gradient(t,charge_assemble.r)
+
+        r_dot = charge_assemble.r_dot
+        q = charge_assemble.charge()
+
+        force1 = np.einsum("nlj,nl->nj",q, r_dot)
+        force1 = np.einsum("nj,nji->ni",force1,gradA)
+
+        force2 = np.einsum("nj,nji->ni",dAdt, q)
+
+        force3 = np.einsum("njl,nl->nj",gradA,r_dot)
+        force3 = np.einsum("nj,nij->ni",force3,q)
+
+        force = force1 - force2 - force3
+        force /= self.constant_c
+
+        return force
 
 class FreeVectorPotential(BaseVectorPotential):
     """
@@ -387,37 +424,6 @@ class CavityVectorPotential(BaseVectorPotential):
         gradf_R = np.concatenate((gradf_R, dz_fr), axis = 0)
 
         return gradf_R
-
-def single_eval_cavityA(kappa_vec, kz, C, t, R, constant_c, V):
-
-    kappa_vec = np.hstack([kappa_vec, [0]])
-    kappa = np.sum(kappa_vec * kappa_vec)
-    k_val = np.sqrt(kappa**2 + kz**2)
-    omega = constant_c * k_val
-
-    kappa_unit = kappa_vec / kappa
-    eta = np.array([kappa_unit[1], -kappa_unit[0], 0])
-    z_vec = np.array([0,0,1])
-    
-    exp_kr = np.exp(
-        1j * np.sum(kappa_vec * R) - 1j * omega * t
-        )
-
-    #TE mode
-    f_te = np.sin(kz * R[-1]) * exp_kr * eta
-    print(f_te)
-    fs_te = np.conjugate(f_te)
-
-    #TM mode
-    f_tm = kappa / k_val * np.cos(kz * R[-1]) * exp_kr * z_vec
-    f_tm -= 1j * kz / k_val * np.sin(kz * R[-1]) * exp_kr * kappa_unit
-    print(f_tm)
-    fs_tm = np.conjugate(f_tm)
-
-    A = C[0] * f_te + np.conjugate(C[0]) * fs_te
-    A += C[1] * f_tm + np.conjugate(C[1]) * fs_tm
-
-    return A / np.sqrt(V)
 
 if test:
     from utils import EM_mode_generate

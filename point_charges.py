@@ -20,6 +20,9 @@ class PointCharges:
         self.q = q
         self.update(r, r_dot)
 
+    def charge(self):
+        return self.q
+
     def update(self, r, r_dot):
         assert len(r) == self.N
         assert len(r_dot) == self.N
@@ -57,29 +60,6 @@ def oscillator_potential(charge_assemble, k):
     r = charge_assemble.r
     return 0.5 * k * np.sum(np.einsum("ni,ni->n",r,r))
          
-def EM_force(t, charge_assemble , A):
-
-    dAdt = A.time_diff(t,charge_assemble)
-    gradA = A.gradient(t,charge_assemble.r)
-    r_dot = charge_assemble.r_dot
-    q = charge_assemble.q
-
-    force1 = np.einsum("nlj,nl->nj",q, r_dot)
-    force1 = np.einsum("nj,nji->ni",force1,gradA)
-
-    force2 = np.einsum("nj,nji->ni",dAdt, q)
-
-    force3 = np.einsum("njl,nl->nj",gradA,r_dot)
-    force3 = np.einsum("nj,nij->ni",force3,q)
-
-    force1 /= A.constant_c
-    force2 /= A.constant_c
-    force3 /= A.constant_c
-
-    force = force1 - force2 - force3
-
-    return force
-
 def profiling_rad(omega_list,unique_omega,Hrad):
     rad_profile = []
 
@@ -162,7 +142,7 @@ time = [0]
 for i in tqdm(range(100000)):
     
     force_func = lambda t, charge_assembly:\
-            EM_force(t, charge_assembly, Afield) \
+            Afield.force(t, charge_assembly) \
             + oscillator_force(charge_assembly, k)
 
     point_charge.Verlet_step(t, h, force_func = force_func)
