@@ -22,22 +22,22 @@ h = 1e-5
             ### INITIATE ATOMS BOX ###
             ##########################
             ##########################
-atoms = AtomsInBox(box_length = L, cell_width = 1e4, mass_dict = red.mass_dict)
+atoms = AtomsInBox(box_length = L, cell_width = 1e3, mass_dict = red.mass_dict)
 """
 np.random.seed(1)
 atoms.random_initialize({"Ar":60, "Xe":60}, max_velocity = 100, min_velocity = 20)
 """
 atoms.add(
         elements = ["Ar"],
-        r = np.array([[-1,-0,-0]]),
-        r_dot = np.array([[51,0,0]]),
+        r = np.array([[-1,-1,-1]]),
+        r_dot = np.array([[30,30,30]]),
         )
 
 atoms.add(
         elements = ["Xe"],
-        r = np.array([[1,0,0]]),
+        r = np.array([[1,1,1]]),
         #r_dot = np.array([[-10,-10,-10]]),
-        r_dot = np.array([[-51,0,0]]),
+        r_dot = np.array([[-9,-9,-9]]),
         )
 
 # Generate a matrix of LJ potential parameter
@@ -59,14 +59,14 @@ atoms.add_calculator(calculator_kwargs = {
             ##########################
             ##########################
 
-k_vector = np.array(EM_mode_generate(max_n = 5, min_n = 0), dtype=np.float64)
+k_vector = np.array(EM_mode_generate(max_n = 10, min_n = 0), dtype=np.float64)
 
 np.random.seed(2024)
 
 amplitude = np.vstack([
     np.random.uniform(size = 2) * 1 + np.random.uniform(size = 2) * 1j
     for i in range(len(k_vector))
-    ]) * 1e1 * np.sqrt(L**3)
+    ]) * 1e-1 * np.sqrt(L**3)
 
 ##################################
 ### FREE FIELD POTENTIAL BEGIN ###
@@ -90,13 +90,13 @@ Afield = CavityVectorPotential(
     L = L, S = L ** 2, constant_c = red.c)
 
 ### CAVITY POTENTIAL END ###
+"""
 
             ############################
             ############################
             ### START THE SIMULATION ###
             ############################
             ############################
-"""
 
 tlist = [t]
 kinetic_elist = [atoms.kinetic()] 
@@ -104,15 +104,15 @@ potential_elist = [atoms.potential()]
 field_elist = [Afield.hamiltonian(return_sum_only=True)]
 
 for i in tqdm(range(10000)):
-    em_force_func = lambda atoms: Afield.force(t,atoms)
+    em_force_func = lambda t, atoms: Afield.force(t,atoms)
 
     atoms.Verlet_update(
-            h = h,
-            other_force_func = em_force_func
+            h = h, t = t,
+            field_force = em_force_func
             )
 
     C_dot_tp1 = Afield.dot_amplitude(t+h,atoms)
-    C_new = Afield.C + h * (C_dot_tp1 )
+    C_new = Afield.C + h * (C_dot_tp1)
 
     Afield.update_amplitude(C_new)
         
@@ -128,6 +128,9 @@ kinetic_elist = np.array(kinetic_elist)
 potential_elist = np.array(potential_elist)
 field_elist = np.array(field_elist)
 total_energy = kinetic_elist + potential_elist + field_elist
+
+print(total_energy[0])
+print(total_energy[-1])
 
 fig, ax = plt.subplots(2,2,figsize = (12,8))
 

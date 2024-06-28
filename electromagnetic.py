@@ -76,6 +76,7 @@ class BaseVectorPotential:
             attribute 'r' for array of position vectors.
 
         """
+        # change shape of k_val from K to K x 2 by tiling the last axis
         k_val = np.tile(self.k_val[:,np.newaxis],(1,2))
 
         Jk = charge_assemble.current_mode_projection() # shape N x 3
@@ -88,7 +89,7 @@ class BaseVectorPotential:
 
         return C_dot
 
-    def time_diff(self, t, charge_assembly):
+    def time_diff(self, t, charge_assembly, amplitude = None):
         """
         Calculate the time derivative of the vector potential
         Args: 
@@ -100,23 +101,26 @@ class BaseVectorPotential:
             projected by TE or TM mode function. In addition, it must have
             attribute 'r' for array of position vectors.
         """
+        C = self.C if amplitude is None else amplitude
+
         C_dot = self.dot_amplitude(t, charge_assembly)
         omega = np.tile(self.omega[:,np.newaxis], (1,2))
 
         dA = self.__call__(
                 t, charge_assembly.r, 
-                amplitude = -1j * omega * self.C + C_dot)
+                amplitude = -1j * omega * C + C_dot)
 
         return dA
 
-    def gradient(self, t, R):
+    def gradient(self, t, R, amplitude = None):
         """
         Calculate the gradient of the vector potential (gradA)_(ij) = dA_i/dr_j
         |Ax.kx   Ax.ky   Ax.kz|    |dAx/dx   dAx/dy   dAx/dz|
         |Ay.kx   Ay.ky   Az.kz| == |dAy/dx   dAy/dy   dAz/dz|; 
         |Az.kx   Az.ky   Az.kz|    |dAz/dx   dAz/dy   dAz/dz|
         """
-        C = self.C / np.sqrt(self.V)
+        C = self.C if amplitude is None else amplitude
+        C = C / np.sqrt(self.V)
         
         gradf_R = self.grad_mode_func(t, R)
         gradfs_R = np.conjugate(gradf_R)
@@ -144,7 +148,7 @@ class BaseVectorPotential:
 
         return H
 
-    def force(self, t, charge_assemble):
+    def force(self, t, charge_assemble, amplitude = None):
         """
         Computing the force exerting by the electromagnetic field on 
         the charge particle/ dipole
@@ -158,8 +162,8 @@ class BaseVectorPotential:
         of size N x 3 x 3
         """
 
-        dAdt = self.time_diff(t,charge_assemble)
-        gradA = self.gradient(t,charge_assemble.r)
+        dAdt = self.time_diff(t,charge_assemble, amplitude = amplitude)
+        gradA = self.gradient(t,charge_assemble.r, amplitude = amplitude)
 
         r_dot = charge_assemble.r_dot
         q = charge_assemble.charge()

@@ -119,25 +119,26 @@ class AtomsInBox:
 
         self.calculator.calculate_distance(self.r, neighborlist)
 
-    def acceleration(self, other_force_func = None):
+    def acceleration(self, t = None, field_force = None):
         force = self.calculator.force()
 
-        if other_force_func is not None:
-            force += np.real(other_force_func(self))
+        if field_force is not None:
+            assert t is not None
+            force += np.real(field_force(t, self))
 
         a = force / np.tile(self.mass[:,np.newaxis], (1,3))
 
         return a
 
-    def Verlet_update(self, h, other_force_func = None):
-        a = self.acceleration(other_force_func)
+    def Verlet_update(self, h, t = None, field_force = None):
+        a = self.acceleration(field_force=field_force, t=t)
 
         v_half = self.r_dot + h * a / 2
         r_new = self.r + h * v_half
 
         self.update(r = r_new, r_dot = v_half)
 
-        a = self.acceleration(other_force_func)
+        a = self.acceleration(field_force=field_force, t=t+h)
         v_new = v_half + h * a / 2
 
         self.update(r = r_new, r_dot = v_new, update_distance = False)

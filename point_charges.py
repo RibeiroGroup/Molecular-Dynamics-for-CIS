@@ -70,7 +70,7 @@ def profiling_rad(omega_list,unique_omega,Hrad):
 
     return rad_profile
 
-L = 1e6
+L = 1e5
 
 k_vector = np.array(EM_mode_generate(max_n = 5, min_n = 0), dtype=np.float64)
 
@@ -114,16 +114,16 @@ omega_list = red.c * np.sqrt(np.einsum("ki,ki->k",k_vector, k_vector))
 unique_omega = list(set(omega_list))
 
 #simple point charge
-r = -np.array([[1, 1, 1]]) * 20.0
+r = -np.array([[1, 1, 1]]) * 100.0
 v = np.array([[1.0,1.0,1.0]]) * 0e2
 q = np.array([np.eye(3)]) * 1e4
 
 point_charge = PointCharges(q = q, r = r, r_dot = v)
 
 t = 0
-h = 1e-4
+h = 1e-5
 
-k = 9#(red.c * (2 * np.pi / L) ** 2) ** 2
+k = 100#(red.c * (2 * np.pi / L) ** 2) ** 2
 print(np.sqrt(k))
 
 Hmat = point_charge.kinetic_energy() + oscillator_potential(point_charge, k)
@@ -166,6 +166,9 @@ for i in tqdm(range(100000)):
     rad_profile.append(profiling_rad(omega_list,unique_omega,Hrad))
 
     time.append(t)
+
+print("Initial energy: ",energy[0])
+print("Mean energy: ",np.mean(energy))
 
 fig,ax = plt.subplots(2,2,figsize = (12,8))
 ax[0,0].plot(time,energy)
