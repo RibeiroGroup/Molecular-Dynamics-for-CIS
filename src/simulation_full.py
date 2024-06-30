@@ -24,7 +24,7 @@ h = 1e-4
             ##########################
             ##########################
 atoms = AtomsInBox(
-    box_length = L, cell_width = 1e3, 
+    box_length = L, cell_width = 1e4, 
     mass_dict = red.mass_dict)
 """
 np.random.seed(1)
@@ -64,7 +64,7 @@ atoms.add_calculator(
             ##########################
             ##########################
 
-k_vector = np.array(EM_mode_generate(max_n = 10, min_n = 0), dtype=np.float64)
+k_vector = np.array(EM_mode_generate(max_n = 20, min_n = 0), dtype=np.float64)
 
 np.random.seed(2024)
 
