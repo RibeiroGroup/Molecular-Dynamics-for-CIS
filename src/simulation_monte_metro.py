@@ -1,3 +1,4 @@
+import time
 import pickle
 import os, sys
 from tqdm import tqdm
@@ -20,8 +21,8 @@ import utilities.reduced_parameter as red
             ### EMPTY PARAMETERS ###
             ########################
             ########################
-L = 1e5
-cell_width = 1e3
+L = 1e6
+cell_width = 1e4
 
 t = 0
 h = 1e-3
@@ -34,14 +35,16 @@ np.random.seed(2)
             ##########################
             ##########################
 
-k_vector = np.array(EM_mode_generate(max_n = 10, min_n = 0), dtype=np.float64)
+k_vector = np.array(
+        EM_mode_generate(max_n = 15, min_n = 0, vector_per_kval = 3), 
+        dtype=np.float64)
+print(len(k_vector))
 
 amplitude = np.vstack([
     np.random.uniform(size = 2) * 1 + np.random.uniform(size = 2) * 1j
     for i in range(len(k_vector))
     ]) * 0e-1 * np.sqrt(L**3)
 
-"""
 ##################################
 ### FREE FIELD POTENTIAL BEGIN ###
 ##################################
@@ -64,6 +67,7 @@ Afield = CavityVectorPotential(
     L = L, S = L ** 2, constant_c = red.c)
 
 ### CAVITY POTENTIAL END ###
+"""
 
             ##########################
             ##########################
@@ -74,7 +78,7 @@ atoms = AtomsInBox(
     box_length = L, cell_width = cell_width, 
     mass_dict = red.mass_dict)
 
-N_atom_pairs = 3
+N_atom_pairs = 512
 # Generate a matrix of LJ potential parameter
 # e.g. matrix P with Pij is LJ parameter for i- and j-th atoms
 idxAr = [1]*N_atom_pairs + [0]*N_atom_pairs # atoms.element_idx(element = "Xe")
@@ -105,7 +109,7 @@ sampler = AllInOneSampler(
             ############################
             ############################
 
-for i in range(2):
+for i in range(1):
     sample = sampler()
     r_ar, r_xe = sample["r"]
     r_dot_ar, r_dot_xe = sample["r_dot"]
@@ -120,7 +124,7 @@ for i in range(2):
 
     dipole_drop_flag = False
 
-    while not dipole_drop_flag or abs(potential) > 1e-2:
+    while not dipole_drop_flag or abs(potential) > 1e-1:
         em_force_func = lambda t, atoms: Afield.force(t,atoms)
 
         atoms.Verlet_update(
@@ -141,7 +145,7 @@ for i in range(2):
         dipole = atoms.observable["total_dipole"][-1]
         potential = atoms.observable["potential"][-1]
 
-        print(dipole, "\t", potential)
+        print(i,"\t",dipole, "\t", potential)
 
         if dipole < atoms.observable["total_dipole"][-2]:
             dipole_drop_flag = True
@@ -149,5 +153,5 @@ for i in range(2):
     atoms.clear()
 
 result = {"atoms":atoms, "field":Afield}
-with open("pickle_jar/result.pkl","wb") as handle:
+with open("pickle_jar/result2.pkl","wb") as handle:
     pickle.dump(result, handle)

@@ -106,6 +106,18 @@ def EM_mode_generate(
 
     return np.vstack(modes_list)
 
+def profiling_rad(omega_list,Hrad):
+
+    unique_omega = list(set(omega_list))
+    rad_profile = []
+
+    for i, omega in enumerate(unique_omega):
+        rad_profile.append(
+                np.sum(Hrad[omega_list == omega])
+                )
+
+    return unique_omega, rad_profile
+
 
 """
 k_vector = EM_mode_generate(3, vector_per_kval=3, align_vector = None)# np.array([1,0,0]))
