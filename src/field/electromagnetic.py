@@ -1,3 +1,4 @@
+from copy import deepcopy
 import numpy as np
 from .utils import orthogonalize, timeit, repeat_x3
 
@@ -25,9 +26,20 @@ class BaseVectorPotential:
         assert isinstance(V,float)
         self.V = V
 
+        self.history = {"t":[], "C":[], "energy":[]}
+
     def update_amplitude(self, amplitude):
         assert amplitude.shape == (self.n_modes, 2)
         self.C = amplitude
+
+    def record(self,t):
+
+        self.history["t"].append(t)
+        self.history["C"].append(deepcopy(self.C))
+
+        self.history["energy"].append(
+                self.hamiltonian(return_sum_only=False)
+                )
 
     def mode_function(self, t, R):
         pass

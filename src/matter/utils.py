@@ -1,5 +1,7 @@
 import numpy as np
 
+from scipy.stats import maxwell
+
 def PBC_wrapping(r, L):
     """
     Function for wrapping position or distance vector with periodic boundary condition
@@ -59,4 +61,101 @@ def neighborlist_mask(R_all, L, cell_width):
     mask = np.where(mask <= 3, True, False) 
 
     return mask
+
+def sample_velocity(N,max_velocity,min_velocity):
+    r_dot = np.random.uniform(
+                low = min_velocity, high = max_velocity,
+                size = (N, 3))
+
+    #calculate the magnitude of the velocity
+    V = np.sqrt(np.einsum("ni,ni->n",r_dot,r_dot)) 
+    #scaling the veclocity so that all veclocity magnitude is below the maximum
+    scaler = np.where(max_velocity / V > 1 , 1, max_velocity / V)
+    #if V > max_velocity, it will be scaled by -^
+    scaler = np.tile(scaler[:,np.newaxis],(1,3))
+
+    r_dot *= scaler
+
+    return r_dot
+
+class MaxwellSampler:
+
+    def __init__(self,mass, red_temp_unit, K_temp):
+
+        red_temp = K_temp / red_temp_unit
+
+        a = np.sqrt( red_temp / mass )
+
+        self.distri = maxwell(scale = a)
+
+    def __call__(self, N,repeat_x3 = True):
+
+        r_dot_squared = [] 
+
+        for i in range(N):
+            r_dot_squared.append(self.distri.rvs())
+
+        r_dot_squared = np.array(r_dot_squared)
+        if repeat_x3:
+            r_dot_squared = np.tile(r_dot_squared[:,np.newaxis],(1,3))
+
+        return r_dot_squared
+
+class AllInOneSampler:
+    def __init__(
+            self, N_atom_pairs, angle_range, L,
+            red_temp_unit, K_temp,
+            ar_mass, xe_mass
+            ):
+
+        self.N_atom_pairs = N_atom_pairs
+
+        self.angle_range = angle_range
+
+        self.L = L
+
+        self.sampler_ar = MaxwellSampler(
+                mass = ar_mass,
+                red_temp_unit = red_temp_unit, 
+                K_temp = K_temp)
+
+        self.sampler_xe = MaxwellSampler(
+                mass = xe_mass,
+                red_temp_unit = red_temp_unit, 
+                K_temp = K_temp)
+
+    def __call__(self):
+        N_atom_pairs = self.N_atom_pairs
+        offset = self.angle_range
+        L = self.L
+
+        r_ar = np.random.uniform(-L/2,L/2,size = (N_atom_pairs,3))
+        phi = np.random.uniform(0, 2 * np.pi, size = N_atom_pairs)
+        theta = np.random.uniform(0, np.pi, size = N_atom_pairs)
+        r_xe = r_ar + np.array([
+            3 * np.sin(theta) * np.cos(phi),
+            3 * np.sin(theta) * np.sin(phi),
+            3 * np.cos(theta)
+            ]).T
+
+        r_dot_ar_sqrt = self.sampler_ar(N = N_atom_pairs)
+        phi_ = np.random.uniform(phi-offset, phi+offset, size = N_atom_pairs)
+        theta_ = np.random.uniform(theta-offset, theta+offset, size = N_atom_pairs)
+        r_dot_ar = r_dot_ar_sqrt * np.array([
+            np.sin(theta_) * np.cos(phi_),
+            np.sin(theta_) * np.sin(phi_),
+            np.cos(theta_)
+            ]).T
+
+        r_dot_xe_sqrt = self.sampler_xe(N = N_atom_pairs)
+        phi_ = np.random.uniform(phi + np.pi - offset, phi + np.pi + offset, size = N_atom_pairs)
+        theta_ = np.random.uniform(np.pi - theta - offset, np.pi - theta + offset, size = N_atom_pairs)
+        r_dot_xe = r_dot_xe_sqrt * np.array([
+            np.sin(theta_) * np.cos(phi_),
+            np.sin(theta_) * np.sin(phi_),
+            np.cos(theta_)
+            ]).T
+
+        return {"r":(r_ar,r_xe), "r_dot":(r_dot_ar, r_dot_xe)}
+
 

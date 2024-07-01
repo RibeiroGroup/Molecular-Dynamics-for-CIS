@@ -36,15 +36,15 @@ class DistanceCalculator:
 			neighbor_list_mask function from neighborlist.py module
         + box_lenth (float): for incorporating the Periodic Boundary condition 
         """
-        self.n_points = N
+        self.N = N
 
         self.L = box_length
 
 		# Pre-generate boolean matrix for masking position-matrix
         # -> accelerating distance calculation
-        self.identity_mat = np.eye(self.n_points, dtype = bool)
+        self.identity_mat = np.eye(self.N, dtype = bool)
 
-        mask = np.ones((self.n_points,self.n_points),dtype=bool)
+        mask = np.ones((self.N,self.N),dtype=bool)
         # upper triangular 2d boolean matrix
         self.utriang_mask = np.triu(mask ,k = 1)
 
@@ -83,7 +83,7 @@ class DistanceCalculator:
         """
 
         R_mat1 = np.tile(
-                R[np.newaxis,:,:], (self.n_points,1,1))
+                R[np.newaxis,:,:], (self.N,1,1))
         """
         shape of R_mat1 should be:
         [r1 r2 r3 r4 ... rN
@@ -147,11 +147,11 @@ class DistanceCalculator:
             mask = self.utriang_mask
         else:
             #ensure provided custom mask matrix should have shape N x N
-            assert custom_mask.shape == (self.n_points, self.n_points)
+            assert custom_mask.shape == (self.N, self.N)
             mask = custom_mask
 
         if neighborlist is not None:
-            assert neighborlist.shape == (self.n_points, self.n_points)
+            assert neighborlist.shape == (self.N, self.N)
             #the final mask is the element-wise product of the mask and neighborlist 
             mask *= neighborlist
 
@@ -178,17 +178,17 @@ class DistanceCalculator:
         utriang_mask_x3 = None, symmetric_padding = None
         ):
 
-        return_matrix = np.zeros((self.n_points,self.n_points) + some_array.shape[1:])
+        return_matrix = np.zeros((self.N,self.N) + some_array.shape[1:])
 
-        if return_matrix.shape == (self.n_points, self.n_points):
+        if return_matrix.shape == (self.N, self.N):
             if mask is None: raise Exception("Mask needed to be provide")
             out_mask = mask
 
-        elif return_matrix.shape == (self.n_points, self.n_points, 3):
+        elif return_matrix.shape == (self.N, self.N, 3):
             if utriang_mask_x3 is None: raise Exception("Mask needed to be provide")
             out_mask = utriang_mask_x3
         
-        elif return_matrix.shape == (self.n_points, self.n_points, 3, 3):
+        elif return_matrix.shape == (self.N, self.N, 3, 3):
             if utriang_mask_x3 is None: raise Exception("Mask needed to be provide")
             out_mask = self.repeat_x3(utriang_mask_x3)
 

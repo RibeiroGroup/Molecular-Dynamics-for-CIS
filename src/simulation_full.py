@@ -3,9 +3,12 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from calculator.calculator import Calculator
+
 from matter.atoms import AtomsInBox
+
 from field.electromagnetic import FreeVectorPotential,CavityVectorPotential
 from field.utils import EM_mode_generate
+
 import utilities.reduced_parameter as red
 
             ########################
@@ -26,10 +29,7 @@ h = 1e-4
 atoms = AtomsInBox(
     box_length = L, cell_width = 1e4, 
     mass_dict = red.mass_dict)
-"""
-np.random.seed(1)
-atoms.random_initialize({"Ar":60, "Xe":60}, max_velocity = 100, min_velocity = 20)
-"""
+
 atoms.add(
         elements = ["Ar"],
         r = np.array([[-1,-1,-1]]),
@@ -39,7 +39,6 @@ atoms.add(
 atoms.add(
         elements = ["Xe"],
         r = np.array([[1,1,1]]),
-        #r_dot = np.array([[-10,-10,-10]]),
         r_dot = np.array([[-9,-9,-9]]),
         )
 
@@ -57,6 +56,8 @@ atoms.add_calculator(
         "positive_atom_idx" : idxXe, "negative_atom_idx" : idxAr,
         "mu0" : red.mu0 * 1e0, "d" : red.d0, "a" : red.a
     })
+
+atoms.update_distance()
 
             ##########################
             ##########################

@@ -35,10 +35,10 @@ class Calculator(DistanceCalculator):
 
         super().__init__(N, box_length)
 
-        assert epsilon.shape == (self.n_points, self.n_points)
+        assert epsilon.shape == (self.N, self.N)
         self.epsilon = epsilon
 
-        assert sigma.shape == (self.n_points, self.n_points)
+        assert sigma.shape == (self.N, self.N)
         self.sigma = sigma
 
         self.dipole_mask = generate_dipole_mask(
@@ -47,6 +47,10 @@ class Calculator(DistanceCalculator):
         self.mu0 = mu0
         self.a = a
         self.d = d
+
+    def clear(self):
+        self.distance_matrix = None
+        self.distance_vec_tensor = None
 
     def calculate_distance(self, R, neighborlist = None, update_attr = True):
         """
@@ -79,6 +83,7 @@ class Calculator(DistanceCalculator):
 
         if neighborlist is not None:
              self.mask *= neighborlist
+             self.dipole_mask *= neighborlist
 
         self.mask_x3 = self.repeat_x3(self.mask)
 

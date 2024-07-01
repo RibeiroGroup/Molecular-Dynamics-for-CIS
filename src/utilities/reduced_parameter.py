@@ -7,6 +7,7 @@ from scipy.constants import physical_constants, Avogadro, e as e_charge #1.6e-19
 test = 0
 
 c = 1.37e2
+boltzmann = 1.380649e-16 #UNIT: (erg/K)
 
 ###############
 ### LJ unit ###
@@ -66,6 +67,8 @@ d0 = 7.10 * bohr_rad / sigma
 #####################################
 
 c = 3e10 / (sigma / time_unit)
+
+temp = epsilon / boltzmann
 
 #####################
 ### FUNCTIONALITY ###

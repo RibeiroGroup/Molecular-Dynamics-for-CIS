@@ -1,14 +1,14 @@
+from copy import deepcopy
+
 import numpy as np
 
 from .utils import PBC_wrapping, neighborlist_mask
-
-test = False
 
 class AtomsInBox:
     """
     Class for collections of atoms
     """
-    def __init__(self, box_length, cell_width, mass_dict):
+    def __init__(self, box_length, mass_dict, cell_width = None):
         """
         Args:
         + box_length (float): the length of the box that contains atoms
@@ -21,6 +21,14 @@ class AtomsInBox:
 
         self.N_atoms = 0
         self.mass_dict = mass_dict
+
+        self.N_atoms = 0
+        self.r = None
+        self.r_dot = None
+        self.elements = None
+
+        self.trajectory = {"t":[],"r":[],"r_dot":[]}
+        self.observable = {"t":[],"kinetic":[],"potential":[],"total_dipole":[]}
 
     def add(self, elements, r, r_dot):
         """
@@ -46,19 +54,31 @@ class AtomsInBox:
         mass = np.array(
                 list(map(lambda e: self.mass_dict[e], elements)
                     ))
-        
-        try:
-            self.r = np.vstack([self.r, r])
-            self.r_dot = np.vstack([self.r_dot, r_dot])
-            self.elements += elements
-            self.N_atoms += len(elements)
-            self.mass += mass
-        except AttributeError:
+
+        if self.r is None:
+            assert self.r_dot is None and self.elements is None
             self.r = r
             self.r_dot = r_dot
             self.elements = elements
             self.N_atoms = len(elements)
             self.mass = mass
+
+        else:
+            self.r = np.vstack([self.r, r])
+            self.r_dot = np.vstack([self.r_dot, r_dot])
+            self.elements += elements
+            self.N_atoms += len(elements)
+            self.mass = np.hstack([mass,self.mass])
+
+    def record(self, t):
+        self.trajectory["t"].append(t)
+        self.trajectory["r"].append(deepcopy(self.r))
+        self.trajectory["r_dot"].append(deepcopy(self.r_dot))
+        
+        self.observable["t"].append(t)
+        self.observable["kinetic"].append(self.kinetic())
+        self.observable["potential"].append(self.potential())
+        self.observable["total_dipole"].append(self.total_dipole())
 
     def random_initialize(self, atoms, max_velocity, min_velocity = 0):
         """
@@ -76,31 +96,36 @@ class AtomsInBox:
         r = np.random.uniform(
                 low = 0, high = self.L, size = (total_natoms, 3))
 
-        r_dot = np.random.uniform(
-                low = min_velocity, high = max_velocity,
-                size = (total_natoms, 3))
-
-        #calculate the magnitude of the velocity
-        V = np.sqrt(np.einsum("ni,ni->n",r_dot,r_dot)) 
-        #scaling the veclocity so that all veclocity magnitude is below the maximum
-        scaler = np.where(max_velocity / V > 1 , 1, max_velocity / V)
-        #if V > max_velocity, it will be scaled by -^
-        scaler = np.tile(scaler[:,np.newaxis],(1,3))
-
-        r_dot *= scaler
+        r_dot = sample_velocity(total_natoms, max_velocity, min_velocity)
 
         self.add(elements, r, r_dot)
 
+    def update_distance(self):
+
+        assert self.N_atoms == self.calculator.N
+
+        if self.cell_width is not None:
+            neighborlist = neighborlist_mask(self.r, L = self.L, cell_width = self.cell_width)
+            self.calculator.calculate_distance(self.r, neighborlist)
+        else:
+            self.calculator.calculate_distance(self.r)
+
     def update(self, r, r_dot, update_distance = True):
+        
+        assert self.N_atoms == self.calculator.N
 
         self.r = PBC_wrapping(r,self.L)
         self.r_dot = r_dot
 
         if update_distance:
+            self.update_distance()
 
-            neighborlist = neighborlist_mask(self.r, L = self.L, cell_width = self.cell_width)
-
-            self.calculator.calculate_distance(self.r, neighborlist)
+    def clear(self):
+        self.N_atoms = 0
+        self.r = None
+        self.r_dot = None
+        self.elements = None
+        self.calculator.clear()
 
     def element_idx(self,element):
 
@@ -109,14 +134,12 @@ class AtomsInBox:
 
         return atom_idx
 
-    def add_calculator(self, calculator_class, calculator_kwargs):
+    def add_calculator(self, calculator_class, calculator_kwargs, N_atoms = None):
+
+        N_atoms = self.N_atoms if N_atoms is None else N_atoms
 
         self.calculator = calculator_class(
-                N = self.N_atoms, box_length =  self.L, **calculator_kwargs)
-
-        neighborlist = neighborlist_mask(self.r, L = self.L, cell_width = self.cell_width)
-
-        self.calculator.calculate_distance(self.r, neighborlist)
+                N = N_atoms, box_length =  self.L, **calculator_kwargs)
 
     def acceleration(self, t = None, field_force = None):
         force = self.calculator.force()
@@ -145,8 +168,14 @@ class AtomsInBox:
     def potential(self):
         return self.calculator.potential()
 
-    def dipole(self,return_matrix = False):
+    def dipole(self):
         return self.calculator.dipole(return_matrix = False)
+
+    def total_dipole(self):
+        dipole_vec = np.sum(
+                self.calculator.dipole(return_matrix = False), axis = 0
+                )
+        return np.sqrt(np.sum(dipole_vec**2))
 
     def charge(self):
         return self.calculator.dipole_grad()
@@ -159,25 +188,4 @@ class AtomsInBox:
         q = self.charge()
         return np.einsum("nij,ni->nj",q,self.r_dot)
 
-
-if test == True:
-    import reduced_parameter as red
-
-    atoms = AtomsInBox(box_length = 20, cell_width = 5, mass_dict = red.mass_dict)
-
-    atoms.random_initialize({"Ar":5,"Xe":5}, max_velocity = 10)
-
-    idxAr = atoms.element_idx(element = "Xe")
-    idxXe = atoms.element_idx(element = "Ar")
-
-    epsilon_mat, sigma_mat = red.generate_LJparam_matrix(idxAr = idxAr, idxXe = idxXe)
-
-    atoms.add_calculator(calculator_kwargs = {
-        "epsilon": epsilon_mat, "sigma" : sigma_mat, 
-        "positive_atom_idx" : idxXe, "negative_atom_idx" : idxAr,
-        "mu0" : red.mu0, "d" : red.d0, "a" : red.a
-        })
-
-    gradD = atoms.dipole_grad()
-    print(gradD.shape)
 
