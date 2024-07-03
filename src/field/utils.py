@@ -106,6 +106,25 @@ def EM_mode_generate(
 
     return np.vstack(modes_list)
 
+def EM_mode_generate_(max_n, n_vec_per_kz = 1, min_n = 1):
+    modes_list = []
+    for i in range(min_n, max_n + 1):
+        sample_range = np.arange(1,i + 1)
+        if n_vec_per_kz < len(sample_range):
+            ky = np.random.choice(
+                    sample_range, size = n_vec_per_kz - 1, 
+                    replace = False)
+            ky = np.hstack([[0], ky])
+        else: ky = sample_range
+
+        kz = np.array([i] * len(ky)).reshape(-1,1)
+        ky = ky.reshape(-1,1)
+        kx = np.zeros(ky.shape)
+
+        mode_vector = np.hstack([kx,ky,kz])
+        modes_list.append(mode_vector)
+    return np.vstack(modes_list)
+
 def profiling_rad(omega_list,Hrad):
 
     unique_omega = list(set(omega_list))

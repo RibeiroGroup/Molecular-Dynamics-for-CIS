@@ -12,7 +12,7 @@ from matter.atoms import AtomsInBox
 from matter.utils import AllInOneSampler
 
 from field.electromagnetic import FreeVectorPotential,CavityVectorPotential
-from field.utils import EM_mode_generate
+from field.utils import EM_mode_generate_,EM_mode_generate
 
 import utilities.reduced_parameter as red
 
@@ -25,7 +25,7 @@ L = 1e8
 cell_width = 1e4
 
 t = 0
-h = 1e-3
+h = 1e-2
 
 np.random.seed(2)
 
@@ -38,7 +38,8 @@ K_temp = 292
             ##########################
 
 k_vector = np.array(
-        EM_mode_generate(max_n = 25, min_n = 5, vector_per_kval = 3), 
+        EM_mode_generate_(
+            max_n = 1000, min_n = 1, n_vec_per_kz  = 1),
         dtype=np.float64)
 print(len(k_vector))
 
@@ -76,7 +77,7 @@ Afield = CavityVectorPotential(
             ### INITIATE ATOMS BOX ###
             ##########################
             ##########################
-N_atom_pairs = 64
+N_atom_pairs = 32
 
 def initiate_atoms_box():
     atoms = AtomsInBox(
@@ -94,7 +95,7 @@ def initiate_atoms_box():
         calculator_kwargs = {
             "epsilon": epsilon_mat, "sigma" : sigma_mat, 
             "positive_atom_idx" : idxXe, "negative_atom_idx" : idxAr,
-            "mu0" : red.mu0 * 1e3, "d" : red.d0, "a" : red.a
+            "mu0" : red.mu0 * 1e5, "d" : red.d0, "a" : red.a
         })
 
     return atoms
@@ -102,7 +103,7 @@ def initiate_atoms_box():
 #sampler for atoms configurations
 sampler = AllInOneSampler(
         N_atom_pairs=N_atom_pairs, angle_range=np.pi/4, L=L,
-        d_ar_xe=4,red_temp_unit=red.temp, K_temp=K_temp,
+        d_ar_xe=3,red_temp_unit=red.temp, K_temp=K_temp,
         ar_mass=red.mass_dict["Ar"], xe_mass=red.mass_dict["Xe"]
         )
 
@@ -129,7 +130,7 @@ for i in range(40):
     dipole_drop_flag = False
     potential_drop_flag = False
 
-    while not dipole_drop_flag or abs(dipole) > 1e-4:
+    while not dipole_drop_flag or abs(dipole) > 1e-3:
 
         em_force_func = lambda t, atoms: Afield.force(t,atoms)
 
