@@ -92,8 +92,8 @@ if test:
     parent_path = os.path.abspath("")
     sys.path.append(parent_path)
 
-    from src.dipole import Grigoriev_dipole
-    from src.forcefield import LJ_potential
+    #from src.dipole import Grigoriev_dipole
+    #from src.forcefield import LJ_potential
 
     print("Epsilon (erg)", epsilon)
     print("Reduced epsilon (Ar-Ar, Ar-Xe, Xe-Xe):", 
@@ -139,6 +139,12 @@ if test:
 
     dist_list = np.linspace(1,3,100)
 
+    def LJ_potential(sigma, epsilon, distance):
+
+        V = 4 * epsilon * ( (sigma/distance)**12 - (sigma/distance)**6 )
+
+        return V
+
     potential = list(
         map(lambda d: LJ_potential(sigma_Ar_Ar, epsilon_Ar_Ar, d), dist_list))
     ax[0].plot(dist_list, potential,label = "Ar-Ar potential")
@@ -151,7 +157,7 @@ if test:
         map(lambda d: LJ_potential(sigma_Xe_Xe, epsilon_Xe_Xe, d), dist_list))
     ax[0].plot(dist_list, potential,label = "Xe-Xe potential")
 
-    dist_list = np.linspace(0,3,100)
+    dist_list = np.linspace(1,3,100)
 
     dipole = list(
         map(lambda d: mu0 * np.exp(-a * (d - d0)), dist_list

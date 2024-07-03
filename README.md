@@ -1,7 +1,14 @@
 # Molecular Mechanic for  polariton
 
-## By Tuan Nguyen
+By Tuan Nguyen
 
-CURRENT WORKING FILE: 
+## DEPENDENCIES:
+python >= 3.10 (probably)  
+numpy  
+matplotlib  
 
-main2.py: 
+## USAGE
+### Simulation of a charged harmonic oscillator in free/confined electromagnetic field
+'''
+$python src/simulation_point_charge.py
+'''

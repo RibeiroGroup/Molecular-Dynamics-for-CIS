@@ -71,11 +71,9 @@ class AtomsInBox:
             self.mass = np.hstack([mass,self.mass])
 
     def record(self, t):
-        """
         self.trajectory["t"].append(t)
         self.trajectory["r"].append(deepcopy(self.r))
         self.trajectory["r_dot"].append(deepcopy(self.r_dot))
-        """
         
         self.observable["t"].append(t)
         self.observable["kinetic"].append(self.kinetic())

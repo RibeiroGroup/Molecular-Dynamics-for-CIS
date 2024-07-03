@@ -104,7 +104,7 @@ class MaxwellSampler:
 class AllInOneSampler:
     def __init__(
             self, N_atom_pairs, angle_range, L,
-            red_temp_unit, K_temp,
+            d_ar_xe, red_temp_unit, K_temp,
             ar_mass, xe_mass
             ):
 
@@ -113,6 +113,7 @@ class AllInOneSampler:
         self.angle_range = angle_range
 
         self.L = L
+        self.d_ar_xe = d_ar_xe
 
         self.sampler_ar = MaxwellSampler(
                 mass = ar_mass,
@@ -133,9 +134,9 @@ class AllInOneSampler:
         phi = np.random.uniform(0, 2 * np.pi, size = N_atom_pairs)
         theta = np.random.uniform(0, np.pi, size = N_atom_pairs)
         r_xe = r_ar + np.array([
-            3 * np.sin(theta) * np.cos(phi),
-            3 * np.sin(theta) * np.sin(phi),
-            3 * np.cos(theta)
+            self.d_ar_xe * np.sin(theta) * np.cos(phi),
+            self.d_ar_xe * np.sin(theta) * np.sin(phi),
+            self.d_ar_xe * np.cos(theta)
             ]).T
 
         r_dot_ar_sqrt = self.sampler_ar(N = N_atom_pairs)
