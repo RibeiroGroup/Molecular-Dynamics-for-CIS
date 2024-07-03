@@ -9,6 +9,6 @@ matplotlib
 
 ## USAGE
 ### Simulation of a charged harmonic oscillator in free/confined electromagnetic field
-'''
+```
 $python src/simulation_point_charge.py
-'''
+```
