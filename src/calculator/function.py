@@ -48,7 +48,7 @@ def generate_dipole_mask(positive_atom_idx, negative_atom_idx, all_distance = Fa
     return r_pn
 
 def Grigoriev_dipole(distance, distance_vec, mu0, a, d):
-    dipole = mu0 * np.exp(-a * (distance - d)) 
+    dipole = mu0 * np.exp(-a * (distance - d))
 
     dipole = np.tile(
            dipole[:,np.newaxis], (1,3))
@@ -71,3 +71,32 @@ def Grigoriev_dipole_grad(distance, distance_vec, mu0, a, d):
 
     return gradient
 
+def Grigoriev_dipole_(distance, distance_vec, mu0, a, d, d7):
+    dipole = mu0 * np.exp(-a * (distance - d)) - d7/distance**7
+
+    dipole = np.tile(
+           dipole[:,np.newaxis], (1,3))
+
+    # multiplying with distance vec to generate distance vector
+    dipole *= distance_vec
+
+    return dipole
+
+def Grigoriev_dipole_grad_(distance, distance_vec, mu0, a, d, d7):
+    distance = np.tile(distance[:,np.newaxis,np.newaxis], (1,3,3))
+
+    exp_ad = np.exp(-a * (distance - d))
+
+    distance_outer = np.einsum("ij,ik->ijk", distance_vec, distance_vec)
+
+    gradient1 = (- a * exp_ad / distance + 7*d7 / distance ** 9) * distance_outer
+    gradient1 /= distance
+
+    gradient2 = - distance_outer * (exp_ad - d7/distance**7)
+    gradient2 /= distance ** 3
+
+    gradient3 = ((exp_ad - d7/distance**7) / distance) * np.eye(3)
+
+    gradient = mu0 * ( gradient1 + gradient2 + gradient3 )
+
+    return gradient

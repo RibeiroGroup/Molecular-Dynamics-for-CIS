@@ -12,7 +12,7 @@ from matter.atoms import AtomsInBox
 from matter.utils import AllInOneSampler
 
 from field.electromagnetic import FreeVectorPotential,CavityVectorPotential
-from field.utils import EM_mode_generate_,EM_mode_generate
+from field.utils import EM_mode_generate_,EM_mode_generate, EM_mode_generate3
 
 import utilities.reduced_parameter as red
 
@@ -21,13 +21,13 @@ import utilities.reduced_parameter as red
             ### EMPTY PARAMETERS ###
             ########################
             ########################
-L = 1e8
+L = 1e7
 cell_width = 1e4
 
 t = 0
 h = 1e-2
 
-np.random.seed(2)
+np.random.seed(715)
 
 K_temp = 292
 
@@ -38,8 +38,8 @@ K_temp = 292
             ##########################
 
 k_vector = np.array(
-        EM_mode_generate_(
-            max_n = 1000, min_n = 1, n_vec_per_kz  = 1),
+        EM_mode_generate3(
+            max_n = 100, min_n = 1),
         dtype=np.float64)
 print(len(k_vector))
 
@@ -77,7 +77,7 @@ Afield = CavityVectorPotential(
             ### INITIATE ATOMS BOX ###
             ##########################
             ##########################
-N_atom_pairs = 32
+N_atom_pairs = 1024
 
 def initiate_atoms_box():
     atoms = AtomsInBox(
@@ -95,7 +95,7 @@ def initiate_atoms_box():
         calculator_kwargs = {
             "epsilon": epsilon_mat, "sigma" : sigma_mat, 
             "positive_atom_idx" : idxXe, "negative_atom_idx" : idxAr,
-            "mu0" : red.mu0 * 1e5, "d" : red.d0, "a" : red.a
+            "mu0" : red.mu0, "d" : red.d0, "a" : red.a, "d7": red.d7
         })
 
     return atoms
@@ -113,7 +113,7 @@ sampler = AllInOneSampler(
             ############################
             ############################
 
-for i in range(40):
+for i in range(10):
     sample = sampler()
     r_ar, r_xe = sample["r"]
     r_dot_ar, r_dot_xe = sample["r_dot"]

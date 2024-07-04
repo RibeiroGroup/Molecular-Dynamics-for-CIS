@@ -54,13 +54,16 @@ mass_dict = {"Ar": 39.948 / M_ , "Xe" : 131.293 / M_}
 
 bohr_rad, _, _ = physical_constants["Bohr radius"]
 
-mu0 = (0.0124 * e_charge * bohr_rad * 3e11) / ( dipole_unit)
+#mu0 = (0.0124 * e_charge * bohr_rad * 3e11) / ( dipole_unit)
+mu0 = (0.0284 * e_charge * bohr_rad * 3e11) / ( dipole_unit)
 
 bohr_rad *= 1e2
 
-a = 1.5121 * sigma / bohr_rad
+#a = 1.5121 * sigma / bohr_rad
+a = 1.22522 * sigma / bohr_rad
 
 d0 = 7.10 * bohr_rad / sigma
+d7 = 14200 * (bohr_rad / sigma) ** 7
 
 #####################################
 ### Calculating reduced constants ###

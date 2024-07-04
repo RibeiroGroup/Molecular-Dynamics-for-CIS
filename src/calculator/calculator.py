@@ -3,7 +3,7 @@ from .distance import DistanceCalculator
 from .utils import PBC_wrapping
 
 from .function import LJ_force, LJ_potential, \
-    Grigoriev_dipole, Grigoriev_dipole_grad, generate_dipole_mask
+    Grigoriev_dipole_, Grigoriev_dipole_grad_, generate_dipole_mask
 
 class Calculator(DistanceCalculator):
     """
@@ -30,7 +30,7 @@ class Calculator(DistanceCalculator):
     """
     def __init__(
         self, N, box_length, epsilon, sigma, 
-        positive_atom_idx, negative_atom_idx, mu0, a, d
+        positive_atom_idx, negative_atom_idx, mu0, a, d, d7
         ):
 
         super().__init__(N, box_length)
@@ -47,6 +47,7 @@ class Calculator(DistanceCalculator):
         self.mu0 = mu0
         self.a = a
         self.d = d
+        self.d7 = d7
 
     def clear(self):
         self.distance_matrix = None
@@ -146,9 +147,9 @@ class Calculator(DistanceCalculator):
         distance = self.distance_matrix[mask]
         distance_vec = self.distance_vec_tensor[mask_x3].reshape(-1,3)
 
-        dipole = Grigoriev_dipole(
+        dipole = Grigoriev_dipole_(
                 distance = distance, distance_vec = distance_vec, 
-                mu0 = self.mu0, a = self.a, d = self.d)
+                mu0 = self.mu0, a = self.a, d = self.d, d7 = self.d7)
 
         # rearrange the result array into N x N x 3 matrix form 
         dipole = self.matrix_reconstruct(
@@ -178,9 +179,9 @@ class Calculator(DistanceCalculator):
         distance = self.distance_matrix[mask]
         distance_vec = self.distance_vec_tensor[mask_x3].reshape(-1,3)
 
-        gradient = Grigoriev_dipole_grad(
+        gradient = Grigoriev_dipole_grad_(
             distance = distance, distance_vec = distance_vec,
-            mu0 = self.mu0, a = self.a, d = self.d)
+            mu0 = self.mu0, a = self.a, d = self.d, d7 = self.d7)
 
         # rearrange the result array into N x N x 3 matrix form 
         gradient = self.matrix_reconstruct(

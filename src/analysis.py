@@ -33,9 +33,11 @@ for file in glob(PICKLE_PATH):
 file_list =sorted(file_list)
 final_time = 0
 profilefile = None
-for file in file_list:
+for i,file in enumerate(file_list):
 
     print(file)
+
+    if i >= 3: break
 
     with open(file,"rb") as handle:
         result = pickle.load(handle)
@@ -48,6 +50,7 @@ for file in file_list:
 
     print(total_energy[0])
     print(total_energy[1])
+    print(total_energy[1] * red.epsilon * 6.242e11 )
 
     time = np.array(atoms.observable["t"]) * red.time_unit * 1e12
 
@@ -90,6 +93,7 @@ ax3[1].set_xlabel("Xenon velocity (km/s)")
 
 ax1[0].set_xlabel("Time (ps)")
 ax1[1].scatter(omega_profile, rad_profile, s = 10)
+print(len(omega_profile))
 ax1[1].set_xlabel("Wavenumber (cm^-1)")
 ax1[1].set_ylabel("Final energy (eV)")
 
