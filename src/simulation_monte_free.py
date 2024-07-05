@@ -21,13 +21,13 @@ import utilities.reduced_parameter as red
             ### EMPTY PARAMETERS ###
             ########################
             ########################
-L = 1e7
+L = 1e8
 cell_width = 1e4
 
 t = 0
 h = 1e-2
 
-np.random.seed(715)
+np.random.seed(1)
 
 K_temp = 292
 
@@ -39,45 +39,33 @@ K_temp = 292
 
 k_vector = np.array(
         EM_mode_generate3(
-            max_n = 100, min_n = 1),
+            max_n = 800, min_n = 1, max_n111 = 50),
         dtype=np.float64)
-print(len(k_vector))
+k_val2 = np.einsum("ki,ki->k",k_vector, k_vector)
+k_val2 = np.tile(k_val2[:,np.newaxis],(1,2))
 
 amplitude = np.vstack([
     np.random.uniform(size = 2) * 1 + np.random.uniform(size = 2) * 1j
     for i in range(len(k_vector))
-    ]) * 0e-1 * np.sqrt(L**3)
+    ]) * 1e3 * np.sqrt(L**3) / k_val2
 
 ##################################
 ### FREE FIELD POTENTIAL BEGIN ###
 ##################################
+VECTOR_POTENTIAL_CLASS = FreeVectorPotential
 k_vector *= (2 * np.pi / L)
-Afield = FreeVectorPotential(
+Afield = VECTOR_POTENTIAL_CLASS(
         k_vector = k_vector, amplitude = amplitude,
         V = L ** 3, constant_c = red.c,
         )
 ### FREE FIELD POTENTIAL END ###
-"""
-##############################
-### CAVITY POTENTIAL BEGIN ###
-##############################
-kappa = k_vector[:,:2] * (2 * np.pi / L)
-
-m = k_vector[:,-1].reshape(-1)
-
-Afield = CavityVectorPotential(
-    kappa = kappa, m = m, amplitude = amplitude,
-    L = L, S = L ** 2, constant_c = red.c)
-
-### CAVITY POTENTIAL END ###
-"""
 
             ##########################
             ##########################
             ### INITIATE ATOMS BOX ###
             ##########################
             ##########################
-N_atom_pairs = 1024
+N_atom_pairs = 512
 
 def initiate_atoms_box():
     atoms = AtomsInBox(
@@ -129,8 +117,10 @@ for i in range(10):
 
     dipole_drop_flag = False
     potential_drop_flag = False
+    steps = 0
 
-    while not dipole_drop_flag or abs(dipole) > 1e-3:
+    while not dipole_drop_flag or abs(dipole) > 1e-3 or steps < 100:
+        steps += 1
 
         em_force_func = lambda t, atoms: Afield.force(t,atoms)
 
@@ -167,13 +157,14 @@ for i in range(10):
         """
 
     result = {"atoms":atoms, "field":Afield}
-    with open("pickle_jar/result{}.pkl".format(i),"wb") as handle:
+    with open("pickle_jar/result_free{}.pkl".format(i),"wb") as handle:
         pickle.dump(result, handle)
 
     del atoms
-    new_Afield = FreeVectorPotential(
-        k_vector = k_vector, amplitude = Afield.C,
-        V = L ** 3, constant_c = red.c,
+    new_Afield = VECTOR_POTENTIAL_CLASS(
+        k_vector = k_vector, V = L ** 3, 
+        amplitude = Afield.C,
+        constant_c = red.c,
         )
 
     del Afield
