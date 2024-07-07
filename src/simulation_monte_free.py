@@ -21,15 +21,15 @@ import utilities.reduced_parameter as red
             ### EMPTY PARAMETERS ###
             ########################
             ########################
-L = 1e8
+L = 5e6
 cell_width = 1e4
 
 t = 0
-h = 1e-2
+h = 1e-3
 
 np.random.seed(1)
 
-K_temp = 292
+K_temp = 10000
 
             ##########################
             ##########################
@@ -37,17 +37,16 @@ K_temp = 292
             ##########################
             ##########################
 
-k_vector = np.array(
-        EM_mode_generate3(
-            max_n = 800, min_n = 1, max_n111 = 50),
-        dtype=np.float64)
+#k_vector = np.array([[0,0,i] for i in range(1,401)], dtype = np.float64)
+k_vector = np.array(EM_mode_generate3(min_n = 1, max_n = 250), dtype = np.float64)
+
 k_val2 = np.einsum("ki,ki->k",k_vector, k_vector)
 k_val2 = np.tile(k_val2[:,np.newaxis],(1,2))
 
 amplitude = np.vstack([
     np.random.uniform(size = 2) * 1 + np.random.uniform(size = 2) * 1j
     for i in range(len(k_vector))
-    ]) * 1e3 * np.sqrt(L**3) / k_val2
+    ]) * 0 * np.sqrt(L**3) / k_val2
 
 ##################################
 ### FREE FIELD POTENTIAL BEGIN ###
@@ -65,7 +64,8 @@ Afield = VECTOR_POTENTIAL_CLASS(
             ### INITIATE ATOMS BOX ###
             ##########################
             ##########################
-N_atom_pairs = 512
+np.random.seed(1507)
+N_atom_pairs = 64
 
 def initiate_atoms_box():
     atoms = AtomsInBox(
@@ -83,7 +83,7 @@ def initiate_atoms_box():
         calculator_kwargs = {
             "epsilon": epsilon_mat, "sigma" : sigma_mat, 
             "positive_atom_idx" : idxXe, "negative_atom_idx" : idxAr,
-            "mu0" : red.mu0, "d" : red.d0, "a" : red.a, "d7": red.d7
+            "mu0" : red.mu0 * 1e3, "d" : red.d0, "a" : red.a, "d7": red.d7
         })
 
     return atoms
@@ -119,7 +119,7 @@ for i in range(10):
     potential_drop_flag = False
     steps = 0
 
-    while not dipole_drop_flag or abs(dipole) > 1e-3 or steps < 100:
+    while not dipole_drop_flag or abs(dipole) > 1e-3 or steps < 10:
         steps += 1
 
         em_force_func = lambda t, atoms: Afield.force(t,atoms)
@@ -156,7 +156,7 @@ for i in range(10):
             potential_drop_flag = False
         """
 
-    result = {"atoms":atoms, "field":Afield}
+    result = {"atoms":atoms, "cavity_field":None, "probe_field":Afield}
     with open("pickle_jar/result_free{}.pkl".format(i),"wb") as handle:
         pickle.dump(result, handle)
 

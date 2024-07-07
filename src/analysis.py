@@ -14,7 +14,7 @@ import utilities.reduced_parameter as red
 
 #PICKLE_PATH = "pickle_jar/result_Jul5th_2024_1024/*"
 PICKLE_PATH = "pickle_jar/*"
-KEYWORDS = "free"
+KEYWORDS = "cavity"
 
 fig1, ax1 = plt.subplots(1,2,figsize = (12,4))
 fig2, ax2 = plt.subplots()
@@ -43,20 +43,32 @@ for i,file in enumerate(file_list):
 
     print(file)
 
-    if i >= 19: break
+    if i >= 10: break
 
     with open(file,"rb") as handle:
         result = pickle.load(handle)
 
     atoms = result["atoms"]
-    Afield = result["field"]
+    Afield = result["probe_field"]
+    cave_field = result["cavity_field"]
 
     total_energy = np.array(atoms.observable["kinetic"]) + np.array(atoms.observable["potential"]) \
-            + np.sum(Afield.history["energy"],axis = 1)
+            + np.sum(Afield.history["energy"],axis = 1) 
+    if KEYWORDS == "cavity":
+        total_energy += np.sum(cave_field.history["energy"],axis = 1)
+        print("cavity energy")
+        print(np.sum(cave_field.history["energy"],axis = 1)[-1])
+        print(np.sum(cave_field.history["energy"],axis = 1)[0])
 
+    print("total energy")
     print(total_energy[0])
     print(total_energy[1])
-    print(total_energy[1] * red.epsilon * 6.242e11 )
+    print("Probe field energy")
+    print(np.sum(Afield.history["energy"],axis = 1)[0])
+    print(np.sum(Afield.history["energy"],axis = 1)[-1])
+
+    print("Kinetic energy")
+    print(np.array(atoms.observable["kinetic"])[0])
 
     time = np.array(atoms.observable["t"]) * red.time_unit * 1e12
 
@@ -74,6 +86,7 @@ for i,file in enumerate(file_list):
     total_dipole = np.array(atoms.observable["total_dipole"])
 
     rad_energy = np.array(Afield.history["energy"]) * red.epsilon * 6.242e11 
+    #rad_energy *= 8065.56 # convert from eV to cm^-1
 
     omega = Afield.k_val / red.sigma
     omega /= 2*np.pi
@@ -98,6 +111,11 @@ rad_profile = np.array(final_rad_profile) - np.array(initial_rad_profile)
 print(initialfile)
 print(profilefile)
 
+"""
+for i, o in enumerate(omega_profile):
+    print(i+1,o)
+"""
+
 n,_,_ = ax3[1].hist(xe_velocity_dist, bins = np.arange(0,3,0.01))
 ax3[0].hist(ar_velocity_dist, bins = np.arange(0,3,0.01))
 ax3[0].set_ylim(0, np.max(n))
@@ -109,7 +127,7 @@ ax1[0].set_xlabel("Time (ps)")
 ax1[1].scatter(omega_profile, rad_profile, s = 10)
 print(len(omega_profile))
 ax1[1].set_xlabel("Wavenumber (cm^-1)")
-ax1[1].set_ylabel("Final energy (eV)")
+ax1[1].set_ylabel("Final energy (cm^-1)")
 
 fig1.savefig("figure/full_simulation_radiation"+KEYWORDS+".jpeg",dpi = 600,bbox_inches="tight")
 fig2.savefig("figure/full_simulation_dipole"+KEYWORDS+".jpeg",dpi = 600,bbox_inches="tight")

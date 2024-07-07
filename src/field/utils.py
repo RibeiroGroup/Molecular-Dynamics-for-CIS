@@ -54,8 +54,9 @@ def orthogonalize(vec, eps=1e-15):
     return V
 
 def EM_mode_generate(
-        max_n, min_n = 0,
+        possible_kval_list,
         vector_per_kval=None,
+        max_kval = None,
         align_vector = None
         ):
 
@@ -64,7 +65,7 @@ def EM_mode_generate(
     """
 
     all_combs = combinations_with_replacement(
-            list(range(min_n,max_n)), 3
+            possible_kval_list, 3
             )
     #generate all combinations of sorted integers, e.g. (0,1,2) or (1,1,2)
 
@@ -78,6 +79,10 @@ def EM_mode_generate(
         comb_modes_list = []
 
         if np.sum(comb) < 1: 
+            continue
+
+        comb_val = np.sum(np.array(comb)**2)
+        if max_kval and comb_val > max_kval**2:
             continue
 
         if comb[0] == comb[1] and comb[1] == comb[2]:

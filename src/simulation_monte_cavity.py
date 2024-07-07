@@ -21,15 +21,15 @@ import utilities.reduced_parameter as red
             ### EMPTY PARAMETERS ###
             ########################
             ########################
-L = 1e7
+L = 5e6
 cell_width = 1e4
 
 t = 0
-h = 1e-2
+h = 1e-3
 
-np.random.seed(1507)
+np.random.seed(1)
 
-K_temp = 292
+K_temp = 10000
 
             ##########################
             ##########################
@@ -37,29 +37,45 @@ K_temp = 292
             ##########################
             ##########################
 
-k_vector = np.array(
-        EM_mode_generate3(
-            max_n = 100, min_n = 1, max_n111 = 50),
-        dtype=np.float64)
-print(len(k_vector))
+k_vector1 = EM_mode_generate3(min_n = 1, max_n = 250)\
+    * (2 * np.pi / L)
 
-amplitude = np.vstack([
+print(len(k_vector1))
+
+amplitude1 = np.vstack([
     np.random.uniform(size = 2) * 1 + np.random.uniform(size = 2) * 1j
-    for i in range(len(k_vector))
+    for i in range(len(k_vector1))
     ]) * 0e-1 * np.sqrt(L**3)
+
+possible_cavity_k = [0] + list(range(50,100)) 
+k_vector2 = np.array(
+        EM_mode_generate(possible_cavity_k, vector_per_kval = 1, max_kval = 100),
+        dtype=np.float64)
+print(len(k_vector2))
+
+k_val2 = np.einsum("ki,ki->k",k_vector2, k_vector2)
+k_val2 = np.tile(k_val2[:,np.newaxis],(1,2))
+
+amplitude2 = np.vstack([
+    np.random.uniform(size = 2) * 1 + np.random.uniform(size = 2) * 1j
+    for i in range(len(k_vector2))
+    ]) * 1e5 * np.sqrt(L**3) / k_val2
 
 ##############################
 ### CAVITY POTENTIAL BEGIN ###
 ##############################
-VECTOR_POTENTIAL_CLASS = CavityVectorPotential
-kappa = k_vector[:,:2] * (2 * np.pi / L)
+kappa = k_vector2[:,:2] * (2 * np.pi / L)
 
-m = k_vector[:,-1].reshape(-1)
+m = k_vector2[:,-1].reshape(-1)
 
-Afield = VECTOR_POTENTIAL_CLASS(
-    kappa = kappa, m = m, amplitude = amplitude,
+cavity_field = CavityVectorPotential(
+    kappa = kappa, m = m, amplitude = amplitude2,
     L = L, S = L ** 2, constant_c = red.c)
 
+probe_field = FreeVectorPotential(
+        k_vector = k_vector1, amplitude = amplitude1,
+        V = L ** 3, constant_c = red.c,
+        )
 ### CAVITY POTENTIAL END ###
 
             ##########################
@@ -67,7 +83,8 @@ Afield = VECTOR_POTENTIAL_CLASS(
             ### INITIATE ATOMS BOX ###
             ##########################
             ##########################
-N_atom_pairs = 512
+np.random.seed(1507)
+N_atom_pairs = 64
 
 def initiate_atoms_box():
     atoms = AtomsInBox(
@@ -85,7 +102,7 @@ def initiate_atoms_box():
         calculator_kwargs = {
             "epsilon": epsilon_mat, "sigma" : sigma_mat, 
             "positive_atom_idx" : idxXe, "negative_atom_idx" : idxAr,
-            "mu0" : red.mu0, "d" : red.d0, "a" : red.a, "d7": red.d7
+            "mu0" : red.mu0 * 1e3, "d" : red.d0, "a" : red.a, "d7": red.d7
         })
 
     return atoms
@@ -115,31 +132,38 @@ for i in range(10):
     atoms.update_distance()
 
     atoms.record(t)
-    Afield.record(t)
+    cavity_field.record(t)
+    probe_field.record(t)
 
     dipole_drop_flag = False
     potential_drop_flag = False
     steps = 0
 
-    while not dipole_drop_flag or abs(dipole) > 1e-3 or steps < 100:
+    while not dipole_drop_flag or abs(dipole) > 1e-3 or steps < 10:
         steps += 1
 
-        em_force_func = lambda t, atoms: Afield.force(t,atoms)
+        em_force_func = lambda t, atoms: \
+            cavity_field.force(t,atoms) + probe_field.force(t,atoms)
 
         atoms.Verlet_update(
                 h = h, t = t,
                 field_force = em_force_func
                 )
 
-        C_dot_tp1 = Afield.dot_amplitude(t+h,atoms)
-        C_new = Afield.C + h * (C_dot_tp1)
+        C_dot_tp1 = cavity_field.dot_amplitude(t+h,atoms)
+        C_new = cavity_field.C + h * (C_dot_tp1)
 
-        Afield.update_amplitude(C_new)
+        cavity_field.update_amplitude(C_new)
             
+        C_dot_tp1 = probe_field.dot_amplitude(t+h,atoms)
+        C_new = probe_field.C + h * (C_dot_tp1)
+
+        probe_field.update_amplitude(C_new)
         t += h
 
         atoms.record(t)
-        Afield.record(t)
+        cavity_field.record(t)
+        probe_field.record(t)
 
         dipole = atoms.observable["total_dipole"][-1]
         potential = atoms.observable["potential"][-1]
@@ -151,23 +175,24 @@ for i in range(10):
         elif dipole > atoms.observable["total_dipole"][-2]:
             dipole_drop_flag = False
 
-        """
-        if potential < atoms.observable["potential"][-2]:
-            potential_drop_flag = True
-        elif potential > atoms.observable["potential"][-2]:
-            potential_drop_flag = False
-        """
-
-    result = {"atoms":atoms, "field":Afield}
+    result = {"atoms":atoms, "cavity_field":cavity_field, "probe_field":probe_field}
     with open("pickle_jar/result_cavity_{}.pkl".format(i),"wb") as handle:
         pickle.dump(result, handle)
 
     del atoms
-    new_Afield = VECTOR_POTENTIAL_CLASS(
+    new_cavity_field = CavityVectorPotential(
         kappa = kappa, m = m, L = L, S = L ** 2,
-        amplitude = Afield.C,
+        amplitude = cavity_field.C,
         constant_c = red.c,
         )
 
-    del Afield
-    Afield = new_Afield
+    new_probe_field = FreeVectorPotential(
+            k_vector = k_vector1, amplitude = probe_field.C,
+            V = L ** 3, constant_c = red.c,
+            )
+
+    del probe_field
+    probe_field = new_probe_field
+
+    del cavity_field
+    cavity_field = new_cavity_field
