@@ -20,7 +20,7 @@ K_temp = 292
 
 probe_kvector = np.array(EM_mode_generate3(min_n = 1, max_n = 300), dtype = np.float64)
 
-N_atom_pairs = 128
+N_atom_pairs = 512
 
 mu0 = red.mu0 * 1e3
 

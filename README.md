@@ -27,3 +27,13 @@ $python src/simulation_full.py
 ```
 $python src/simulation_monte.py
 ```
+
+### Experiments so far:
+- T = 1000K, 256 of total atoms per run @ 09:28, July 11st, 2024. mu0 multiplier: 1e3  
+- T = 15000K, 512 of total atoms per run @ 14:21, July 10th, 2024. mu0 multiplier: 1e3  
+
+Note: the figure can be found at folder
+```
+src/figure/result_[date]_[time]_[note]
+```
+The Pickle files are stored locally due to its size.

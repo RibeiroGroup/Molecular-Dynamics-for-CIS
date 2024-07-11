@@ -13,10 +13,10 @@ from field.utils import profiling_rad
 import utilities.reduced_parameter as red
 from utilities.etc import binning, moving_average
 
-#PICKLE_PATH = "pickle_jar/result_Jul3_2024_1018/*"
-#PICKLE_PATH = "pickle_jar/result_Jul9th_20240835/*"
+#PICKLE_PATH = "pickle_jar/result_Jul11st_2024_0928/*"
+PICKLE_PATH = "pickle_jar/result_Jul10th_2024_1421_mu1e3/*"
 #PICKLE_PATH = "pickle_jar/cluster/*"
-PICKLE_PATH = "pickle_jar/*"
+#PICKLE_PATH = "pickle_jar/*"
 #KEYWORDS = "cavity"
 
 rad_profile_list = []
@@ -56,6 +56,9 @@ for j, KEYWORDS in enumerate(["cavity", "free"]):
             result = pickle.load(handle)
 
         atoms = result["atoms"]
+        print(atoms.N_atoms)
+        print(result["temperature"])
+
         Afield = result["probe_field"]
         cave_field = result["cavity_field"]
 
