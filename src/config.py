@@ -11,7 +11,7 @@ import utilities.reduced_parameter as red
 seed1 = 1
 seed2 = 1507
 
-L = 2e7
+L = 3e7
 cell_width = 1e4
 
 h = 1e-2
@@ -20,7 +20,7 @@ K_temp = 292
 
 probe_kvector = np.array(EM_mode_generate3(min_n = 1, max_n = 300), dtype = np.float64)
 
-N_atom_pairs = 512
+N_atom_pairs = 128
 
 mu0 = red.mu0 * 1e3
 

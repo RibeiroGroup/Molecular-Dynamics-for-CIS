@@ -41,7 +41,7 @@ amplitude1 = np.vstack([
     for i in range(len(k_vector1))
     ]) * 0e-1 * np.sqrt(L**3)
 
-possible_cavity_k = [0] + list(range(62,100)) 
+possible_cavity_k = [0] + list(range(62,82)) 
 k_vector2 = np.array(
         EM_mode_generate(possible_cavity_k, vector_per_kval = 3, max_kval = 100),
         dtype=np.float64)

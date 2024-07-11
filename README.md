@@ -29,6 +29,7 @@ $python src/simulation_monte.py
 ```
 
 ### Experiments so far:
+- T = 292K, 256 of total atoms per run @ 13:19, July 11st, 2024. mu0 multiplier: 1e3
 - T = 1000K, 256 of total atoms per run @ 09:28, July 11st, 2024. mu0 multiplier: 1e3  
 - T = 15000K, 512 of total atoms per run @ 14:21, July 10th, 2024. mu0 multiplier: 1e3  
 
