@@ -1,10 +1,8 @@
 import time
 import pickle
 import os, sys
-from tqdm import tqdm
 
 import numpy as np
-import matplotlib.pyplot as plt
 
 from calculator.calculator import Calculator
 
@@ -15,21 +13,20 @@ from field.electromagnetic import FreeVectorPotential,CavityVectorPotential
 from field.utils import EM_mode_generate_,EM_mode_generate, EM_mode_generate3
 
 import utilities.reduced_parameter as red
+import config
 
             ########################
             ########################
             ### EMPTY PARAMETERS ###
             ########################
             ########################
-L = 5e6
-cell_width = 1e4
-
 t = 0
-h = 1e-3
+h = config.h
+L = config.L
 
-np.random.seed(1)
+np.random.seed(config.seed1)
 
-K_temp = 10000
+K_temp = config.K_temp
 
             ##########################
             ##########################
@@ -37,19 +34,16 @@ K_temp = 10000
             ##########################
             ##########################
 
-k_vector1 = EM_mode_generate3(min_n = 1, max_n = 250)\
-    * (2 * np.pi / L)
-
-print(len(k_vector1))
+k_vector1 = config.probe_kvector* (2 * np.pi / L)
 
 amplitude1 = np.vstack([
     np.random.uniform(size = 2) * 1 + np.random.uniform(size = 2) * 1j
     for i in range(len(k_vector1))
     ]) * 0e-1 * np.sqrt(L**3)
 
-possible_cavity_k = [0] + list(range(50,100)) 
+possible_cavity_k = [0] + list(range(62,100)) 
 k_vector2 = np.array(
-        EM_mode_generate(possible_cavity_k, vector_per_kval = 1, max_kval = 100),
+        EM_mode_generate(possible_cavity_k, vector_per_kval = 3, max_kval = 100),
         dtype=np.float64)
 print(len(k_vector2))
 
@@ -83,36 +77,11 @@ probe_field = FreeVectorPotential(
             ### INITIATE ATOMS BOX ###
             ##########################
             ##########################
-np.random.seed(1507)
-N_atom_pairs = 64
+np.random.seed(config.seed2)
+N_atom_pairs = config.N_atom_pairs
 
-def initiate_atoms_box():
-    atoms = AtomsInBox(
-        box_length = L, cell_width = cell_width, 
-        mass_dict = red.mass_dict)
-    # Generate a matrix of LJ potential parameter
-    # e.g. matrix P with Pij is LJ parameter for i- and j-th atoms
-    idxAr = [1]*N_atom_pairs + [0]*N_atom_pairs # atoms.element_idx(element = "Xe")
-    idxXe = [0]*N_atom_pairs + [1]*N_atom_pairs # atoms.element_idx(element = "Ar")
-    epsilon_mat, sigma_mat = red.generate_LJparam_matrix(idxAr = idxAr, idxXe = idxXe)
-
-    # calculator to the atoms object
-    atoms.add_calculator(
-        calculator_class = Calculator, N_atoms = N_atom_pairs * 2,
-        calculator_kwargs = {
-            "epsilon": epsilon_mat, "sigma" : sigma_mat, 
-            "positive_atom_idx" : idxXe, "negative_atom_idx" : idxAr,
-            "mu0" : red.mu0 * 1e3, "d" : red.d0, "a" : red.a, "d7": red.d7
-        })
-
-    return atoms
-
-#sampler for atoms configurations
-sampler = AllInOneSampler(
-        N_atom_pairs=N_atom_pairs, angle_range=np.pi/4, L=L,
-        d_ar_xe=3,red_temp_unit=red.temp, K_temp=K_temp,
-        ar_mass=red.mass_dict["Ar"], xe_mass=red.mass_dict["Xe"]
-        )
+sampler = config.sampler
+initiate_atoms_box = config.initiate_atoms_box
 
             ############################
             ############################
@@ -175,7 +144,10 @@ for i in range(10):
         elif dipole > atoms.observable["total_dipole"][-2]:
             dipole_drop_flag = False
 
-    result = {"atoms":atoms, "cavity_field":cavity_field, "probe_field":probe_field}
+    result = {
+            "atoms":atoms, "cavity_field":cavity_field, "probe_field":probe_field,
+            "temperature":K_temp, "mu0" : config.mu0
+            }
     with open("pickle_jar/result_cavity_{}.pkl".format(i),"wb") as handle:
         pickle.dump(result, handle)
 

@@ -1,8 +1,7 @@
 import numpy as np
-import matplotlib.pyplot as plt
 
 import scipy.constants as scicon
-from scipy.constants import physical_constants, Avogadro, e as e_charge #1.6e-19 C
+from scipy.constants import physical_constants, Avogadro, e as e_charge, hbar as hbar_original
 
 test = 0
 
@@ -73,6 +72,9 @@ c = 3e10 / (sigma / time_unit)
 
 temp = epsilon / boltzmann
 
+hbar = hbar_original * 1e2 ** 2 * 1e3 #convert to cgs
+hbar = hbar * time_unit / (M * sigma**2)
+
 #####################
 ### FUNCTIONALITY ###
 #####################
@@ -138,6 +140,9 @@ if test:
     print("Sigma parameters matrix ")
     print(smat)
 
+    print(hbar)
+
+    """
     fig,ax = plt.subplots(1,2,figsize = (12,4))
 
     dist_list = np.linspace(1,3,100)
@@ -170,3 +175,4 @@ if test:
     ax[0].legend()
     fig.savefig("figure/parameter_visual.jpeg",dpi = 600)
 
+    """

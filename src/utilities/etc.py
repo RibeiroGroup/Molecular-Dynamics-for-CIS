@@ -106,6 +106,27 @@ def EM_mode_generate(
 
     return np.vstack(modes_list)
 
+def binning(x,y,width):
+    bins = np.arange(x[0],x[-1],width)
+    new_x = []; new_y = []
+    for i, x1 in enumerate(bins[:-1]):
+        x2 = bins[i+1]
+        new_x.append((x1 + x2)/2)
+        new_y.append(
+                np.mean(
+                    np.where((x > x1) * (x < x2),y,0)
+                    )
+                )
+
+    return np.array(new_x), np.array(new_y)
+
+def moving_average(x, y, w):
+    x = np.convolve(x, np.ones(w), 'valid') / w
+    y = np.convolve(y, np.ones(w), 'valid') / w
+    return x,y
+
+
+
 
 """
 k_vector = EM_mode_generate(3, vector_per_kval=3, align_vector = None)# np.array([1,0,0]))
