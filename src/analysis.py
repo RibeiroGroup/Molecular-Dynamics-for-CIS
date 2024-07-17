@@ -1,167 +1,203 @@
-import warnings
-warnings.filterwarnings('ignore')
+import glob
+import tqdm
+import os, sys, pickle, copy
 
-import os, sys
-from glob import glob
-import pickle
 import numpy as np
 import matplotlib.pyplot as plt
-
-from utilities import reduced_parameter as red
-from field.utils import profiling_rad
-
+import matplotlib.animation as animation
 import utilities.reduced_parameter as red
-from utilities.etc import binning, moving_average
 
-#PICKLE_PATH = "pickle_jar/result_Jul11st_2024_0928/*"
-#PICKLE_PATH = "pickle_jar/result_Jul10th_2024_1421_mu1e3/*"
-#PICKLE_PATH = "pickle_jar/cluster/*"
+#PICKLE_PATH = "/home/ribeirogroup/code/mm_polariton_pickle_ja/result_Jul12nd_2024_0939/*"
+#PICKLE_PATH = "pickle_jar/result_Jul13th_2024_0956/*"
+#PICKLE_PATH = "pickle_jar/result_Jul15th_2024_0956/*"
 PICKLE_PATH = "pickle_jar/*"
-#KEYWORDS = "cavity"
 
-rad_profile_list = []
+fig1,ax1 = plt.subplots(2,figsize = (6,8))
+#fig2,ax2 = plt.subplots(2,figsize = (6,8))
 
-fig1, ax1 = plt.subplots(2,figsize = (6,8))
-for j, KEYWORDS in enumerate(["cavity", "free"]):
-    fig2, ax2 = plt.subplots()
-    fig3, ax3 = plt.subplots(1,2,figsize = (12,4))
-    fig4, ax4 = plt.subplots(1,2,figsize = (12,4))
+collision_time = {"cavity":[], "free":[]}
+initial_velocity_data = {
+        "cavity":{"Ar": [], "Xe":[]},
+        "free":{"Ar": [], "Xe":[]}
+        }
+traj_loc = {"cavity":[], "free":[]}
 
-    ar_velocity_dist = []
-    xe_velocity_dist = []
+for j,KEYWORDS in enumerate(["cavity","free"]):
 
-    file_list = []
-    for file in glob(PICKLE_PATH):
+    ar_angle = []
+    xe_angle = []
 
-        if os.path.isdir(file):
-            continue
-        elif "note.txt" in file:
-            continue
-        elif KEYWORDS not in file:
-            continue
+    magnitude = lambda vec: np.sqrt(np.einsum("ni,ni->n",vec,vec))
 
-        file_list.append(file)
+    for PATH in glob.glob(PICKLE_PATH):
+        
+        if KEYWORDS not in PATH: continue
 
-    file_list =sorted(file_list)
-    final_time = 0
-    initial_times = 0
-    profilefile = None
-    for i,file in enumerate(file_list):
-
-        if i >= 10: break
-
-        print(file)
-
-        with open(file,"rb") as handle:
+        with open(PATH,"rb") as handle:
             result = pickle.load(handle)
 
-        atoms = result["atoms"]
-        print("Total number of atoms: ",atoms.N_atoms)
-        print("Temperature",result["temperature"])
+        atoms = copy.deepcopy(result["atoms"])
+        time = np.array(atoms.trajectory["t"])
+        N_pairs = int(atoms.N_atoms / 2)
+        mu0 = result["mu0"]
 
-        Afield = result["probe_field"]
-        cave_field = result["cavity_field"]
+        traj_len = len(atoms.trajectory["r"])
 
-        total_energy = np.array(atoms.observable["kinetic"]) + np.array(atoms.observable["potential"]) \
-                + np.sum(Afield.history["energy"],axis = 1) 
-        if KEYWORDS == "cavity":
-            total_energy += np.sum(cave_field.history["energy"],axis = 1)
-            print("cavity energy")
-            print(np.sum(cave_field.history["energy"],axis = 1)[-1])
-            print(np.sum(cave_field.history["energy"],axis = 1)[0])
+        dipole_vs_time = []
+        for i in range(traj_len):
+            r = atoms.trajectory["r"][i]
 
-        print("total energy")
-        print(total_energy[0])
-        print(total_energy[1])
-        print("Probe field energy")
-        print(np.sum(Afield.history["energy"],axis = 1)[0])
-        print(np.sum(Afield.history["energy"],axis = 1)[-1])
+            r_ar = r[0:N_pairs]
+            r_xe = r[N_pairs:]
+            dvec = (r_ar - r_xe)
 
-        print("Kinetic energy")
-        print(np.array(atoms.observable["kinetic"])[0])
+            d = np.sqrt(np.einsum("ni,ni->n",dvec,dvec))
 
-        time = np.array(atoms.observable["t"]) * red.time_unit * 1e12
+            dipole = mu0 * np.exp(-red.a * (d - red.d0)) - red.d7/d**7
 
-        for i, e in enumerate(atoms.elements):
+            dipole_vs_time.append(dipole)
 
-            v = atoms.trajectory["r_dot"][0][i]
-            v = np.sqrt(np.sum(v * v))
-            v = v * red.velocity_unit * 1e-2 * 1e-3
+        dipole_vs_time = np.array(dipole_vs_time)
 
-            if e == "Ar":
-                ar_velocity_dist.append(v)
-            elif e == "Xe":
-                xe_velocity_dist.append(v)
+        initial_velocity_data[KEYWORDS]["Ar"] += \
+                list(magnitude(atoms.trajectory["r_dot"][0][:N_pairs]))
+        initial_velocity_data[KEYWORDS]["Xe"] += \
+                list(magnitude(atoms.trajectory["r_dot"][0][N_pairs:]))
 
-        total_dipole = np.array(atoms.observable["total_dipole"])
+        for i in range(dipole_vs_time.shape[1]):
+            t = time[dipole_vs_time[:,i] > 1e-3]
 
-        rad_energy = np.array(Afield.history["energy"]) * red.epsilon * 6.242e11 
-        #rad_energy *= 8065.56 # convert from eV to cm^-1
+            if len(t) > 0:
+                dt = t[-1] - t[0]
+            else: dt = 0
 
-        omega = Afield.k_val / red.sigma
-        omega /= 2*np.pi
-        if np.isclose(Afield.history["t"][0], 0):
-            initialfile = file
-            omega_profile, initial_rad_profile = profiling_rad(omega, rad_energy[0])
+            collision_time[KEYWORDS].append(dt)
 
-        if Afield.history["t"][-1] > final_time:
+            traj_loc[KEYWORDS].append((PATH, i))
 
-            profilefile = file
+initial_arvelocity = initial_velocity_data["cavity"]["Ar"]
+initial_xevelocity = initial_velocity_data["cavity"]["Xe"]
 
-            final_time = Afield.history["t"][-1]
-            omega_profile, final_rad_profile = profiling_rad(omega, rad_energy[-1])
+delta_collision_time = np.array(collision_time["cavity"])\
+    - np.array(collision_time["free"])
 
-        ax2.plot(time, total_dipole)
-        ax2.set_ylabel("Total dipole")
+ax1[0].scatter(initial_arvelocity,delta_collision_time)
+ax1[1].scatter(initial_xevelocity,delta_collision_time)
 
-        ax4[0].plot(time, np.sum(rad_energy,axis=1))
-        ax4[0].set_ylabel("Radiation energy (eV)")
+fig1.savefig("figure2/delta_collision_time.jpeg",dpi=600)
 
-    print(initialfile)
-    print(profilefile)
-    rad_profile = np.array(final_rad_profile) - np.array(initial_rad_profile)
+time_sorted_cavtraj = np.argsort(collision_time["cavity"])
 
-    """
-    for i, o in enumerate(omega_profile):
-        print(i+1,o)
-    """
+for j in [1,2,3]:
+    PATH, i = traj_loc["cavity"][time_sorted_cavtraj[-j]]
+    print(PATH)
 
-    n,_,_ = ax3[1].hist(xe_velocity_dist, bins = np.arange(0,10,0.1))
-    ax3[0].hist(ar_velocity_dist, bins = np.arange(0,10,0.1))
-    ax3[0].set_ylim(0, np.max(n))
-    ax3[0].set_ylabel("Frequency")
-    ax3[0].set_xlabel("Argon velocity (km/s)")
-    ax3[1].set_xlabel("Xenon velocity (km/s)")
+    with open(PATH,"rb") as handle:
+        result = pickle.load(handle)
 
-    ax4[0].set_xlabel("Time (ps)")
+    PATH = PATH.replace('cavity','free')
+    print(PATH)
 
-    o, r = moving_average(omega_profile, rad_profile,20)
-    ax4[1].scatter(omega_profile, rad_profile, s = 5)
-    ax4[1].plot(o, r)
+    with open(PATH,"rb") as handle:
+        result0 = pickle.load(handle)
 
-    ax4[1].set_xlabel("Wavenumber (cm^-1)")
-    ax4[1].set_ylabel("Final energy (cm^-1)")
+    atoms = result["atoms"]
+    traj_len = len(atoms.trajectory["r"])
 
-    ax1[0].scatter(omega_profile, rad_profile, s = 5, label = KEYWORDS, alpha = 0.5)
-    ax1[0].plot(o, r)
-    rad_profile_list.append(rad_profile)
+    atoms0 = result0["atoms"]
+    traj_len0 = len(atoms0.trajectory["r"])
 
-    fig2.savefig("figure/full_simulation_dipole_"+KEYWORDS+".jpeg",dpi = 600,bbox_inches="tight")
-    fig3.savefig("figure/full_simulation_velocity_profile_"+KEYWORDS+".jpeg",dpi = 600,bbox_inches="tight")
-    fig4.savefig("figure/full_simulation_radiation_"+KEYWORDS+".jpeg",dpi = 600,bbox_inches="tight")
+    fig, ax = plt.subplots(2,2,figsize = (12,12))
 
-ax1[0].set_xlabel("Wavenumber (cm^-1)")
-ax1[0].set_ylabel("Final energy (cm^-1)")
-ax1[0].legend()
+    x_ar = atoms.trajectory["r"][0][i][0]
+    y_ar = atoms.trajectory["r"][0][i][1]
+    z_ar = atoms.trajectory["r"][0][i][2]
+    ar_posxy, = ax[0][0].plot([x_ar], [y_ar], 'ro', markersize = 5)
+    ar_posyz, = ax[0][1].plot([y_ar], [z_ar], 'ro', markersize = 5)
 
-profile_diff = (rad_profile_list[0] - rad_profile_list[1])
-ax1[1].scatter(omega_profile, profile_diff, 
-        s = 5, label = "Spectra in cavity \n- 'free space", alpha = 0.5)
-o,r = moving_average(omega_profile, profile_diff, 20)
-ax1[1].plot(o,r)
+    x_xe = atoms.trajectory["r"][0][i+N_pairs][0]
+    y_xe = atoms.trajectory["r"][0][i+N_pairs][1]
+    z_xe = atoms.trajectory["r"][0][i+N_pairs][2]
+    xe_posxy, = ax[0][0].plot([x_xe], [y_xe], 'ro', markersize = 10)
+    xe_posyz, = ax[0][1].plot([y_xe], [z_xe], 'ro', markersize = 10)
 
-lf, uf = ax1[1].get_xlim()
-ax1[1].plot(np.linspace(lf,uf,10), [0]*10, linestyle="dashed", linewidth = 0.5,color="gray")
-ax1[1].legend()
+    ax[0][0].set_xlim(np.min([x_ar,x_xe]) - 5, np.max([x_ar,x_xe]) + 5)
+    ax[0][0].set_ylim(np.min([y_ar,y_xe]) - 5, np.max([y_ar,y_xe]) + 5)
+    ax[0][1].set_xlim(np.min([y_ar,y_xe]) - 5, np.max([y_ar,y_xe]) + 5)
+    ax[0][1].set_ylim(np.min([z_ar,z_xe]) - 5, np.max([z_ar,z_xe]) + 5)
 
-fig1.savefig("figure/full_simulation_radiation.jpeg",dpi = 600,bbox_inches="tight")
+    x_ar = atoms0.trajectory["r"][0][i][0]
+    y_ar = atoms0.trajectory["r"][0][i][1]
+    z_ar = atoms0.trajectory["r"][0][i][2]
+    ar_posxy0, = ax[1][0].plot([x_ar], [y_ar], 'ro', markersize = 5)
+    ar_posyz0, = ax[1][1].plot([y_ar], [z_ar], 'ro', markersize = 5)
+
+    x_xe = atoms0.trajectory["r"][0][i+N_pairs][0]
+    y_xe = atoms0.trajectory["r"][0][i+N_pairs][1]
+    z_xe = atoms0.trajectory["r"][0][i+N_pairs][2]
+    xe_posxy0, = ax[1][0].plot([x_xe], [y_xe], 'ro', markersize = 10)
+    xe_posyz0, = ax[1][1].plot([y_xe], [z_xe], 'ro', markersize = 10)
+
+    ax[1][0].set_xlim(np.min([x_ar,x_xe]) - 5, np.max([x_ar,x_xe]) + 5)
+    ax[1][0].set_ylim(np.min([y_ar,y_xe]) - 5, np.max([y_ar,y_xe]) + 5)
+    ax[1][1].set_xlim(np.min([y_ar,y_xe]) - 5, np.max([y_ar,y_xe]) + 5)
+    ax[1][1].set_ylim(np.min([z_ar,z_xe]) - 5, np.max([z_ar,z_xe]) + 5)
+
+    def update(frame):
+        frame = frame * 5
+        x_ar = atoms.trajectory["r"][frame][i][0]
+        y_ar = atoms.trajectory["r"][frame][i][1]
+        z_ar = atoms.trajectory["r"][frame][i][2]
+        ar_posxy.set_xdata([x_ar])
+        ar_posxy.set_ydata([y_ar])
+
+        ar_posyz.set_xdata([y_ar])
+        ar_posyz.set_ydata([z_ar])
+
+        x_xe = atoms.trajectory["r"][frame][i+N_pairs][0]
+        y_xe = atoms.trajectory["r"][frame][i+N_pairs][1]
+        z_xe = atoms.trajectory["r"][frame][i+N_pairs][2]
+        xe_posxy.set_xdata([x_xe])
+        xe_posxy.set_ydata([y_xe])
+
+        xe_posyz.set_xdata([y_xe])
+        xe_posyz.set_ydata([z_xe])
+
+        ax[0][0].set_xlim(np.min([x_ar,x_xe]) - 5, np.max([x_ar,x_xe]) + 5)
+        ax[0][0].set_ylim(np.min([y_ar,y_xe]) - 5, np.max([y_ar,y_xe]) + 5)
+        ax[0][1].set_xlim(np.min([y_ar,y_xe]) - 5, np.max([y_ar,y_xe]) + 5)
+        ax[0][1].set_ylim(np.min([z_ar,z_xe]) - 5, np.max([z_ar,z_xe]) + 5)
+
+        frame = np.min([frame, traj_len0-1])
+
+        x_ar = atoms0.trajectory["r"][frame][i][0]
+        y_ar = atoms0.trajectory["r"][frame][i][1]
+        z_ar = atoms0.trajectory["r"][frame][i][2]
+        ar_posxy0.set_xdata([x_ar])
+        ar_posxy0.set_ydata([y_ar])
+
+        ar_posyz0.set_xdata([y_ar])
+        ar_posyz0.set_ydata([z_ar])
+
+        x_xe = atoms0.trajectory["r"][frame][i+N_pairs][0]
+        y_xe = atoms0.trajectory["r"][frame][i+N_pairs][1]
+        z_xe = atoms0.trajectory["r"][frame][i+N_pairs][2]
+        xe_posxy0.set_xdata([x_xe])
+        xe_posxy0.set_ydata([y_xe])
+
+        xe_posyz0.set_xdata([y_xe])
+        xe_posyz0.set_ydata([z_xe])
+
+        ax[1][0].set_xlim(np.min([x_ar,x_xe]) - 5, np.max([x_ar,x_xe]) + 5)
+        ax[1][0].set_ylim(np.min([y_ar,y_xe]) - 5, np.max([y_ar,y_xe]) + 5)
+        ax[1][1].set_xlim(np.min([y_ar,y_xe]) - 5, np.max([y_ar,y_xe]) + 5)
+        ax[1][1].set_ylim(np.min([z_ar,z_xe]) - 5, np.max([z_ar,z_xe]) + 5)
+
+        return (
+                ar_posxy, ar_posyz, xe_posxy, xe_posyz,
+                ar_posxy0, ar_posyz0, xe_posxy0, xe_posyz0
+                )
+
+    ani = animation.FuncAnimation(
+            fig=fig, func=update, frames=int(np.floor(traj_len/5)), interval=10)
+    ani.save(filename="figure2/trajectory_"+str(j)+".html", writer="html")

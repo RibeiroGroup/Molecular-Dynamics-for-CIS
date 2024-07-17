@@ -4,25 +4,28 @@ from calculator.calculator import Calculator
 from matter.atoms import AtomsInBox
 from matter.utils import AllInOneSampler
 
+from field.electromagnetic import FreeVectorPotential,CavityVectorPotential
 from field.utils import EM_mode_generate_,EM_mode_generate, EM_mode_generate3
 
 import utilities.reduced_parameter as red
 
-seed1 = 1
-seed2 = 1507
+seed1 = 1307 # 1998 #2024
+seed2 = 1259 # 1507 #2020
 
-L = 3e7
+L = 2e7
 cell_width = 1e4
 
 h = 1e-2
 
+num_cycles = 20
+
 K_temp = 292
 
-probe_kvector = np.array(EM_mode_generate3(min_n = 1, max_n = 300), dtype = np.float64)
+probe_kvector = np.array(EM_mode_generate3(min_n = 1, max_n = 200), dtype = np.float64)
 
 N_atom_pairs = 128
 
-mu0 = red.mu0 * 1e3
+mu0 = red.mu0
 
 def initiate_atoms_box():
     atoms = AtomsInBox(
@@ -48,7 +51,19 @@ def initiate_atoms_box():
 #sampler for atoms configurations
 sampler = AllInOneSampler(
         N_atom_pairs=N_atom_pairs, angle_range=np.pi/4, L=L,
-        d_ar_xe=3,red_temp_unit=red.temp, K_temp=K_temp,
+        d_ar_xe=4,red_temp_unit=red.temp, K_temp=K_temp,
         ar_mass=red.mass_dict["Ar"], xe_mass=red.mass_dict["Xe"]
         )
 
+VECTOR_POTENTIAL_CLASS = FreeVectorPotential
+probe_kvector = probe_kvector * (2 * np.pi / L)
+
+amplitude = np.vstack([
+    np.random.uniform(size = 2) * 1 + np.random.uniform(size = 2) * 1j
+    for i in range(len(probe_kvector))
+    ]) * 0
+
+probe_field = VECTOR_POTENTIAL_CLASS(
+        k_vector = probe_kvector, amplitude = amplitude,
+        V = L ** 3, constant_c = red.c, coupling_strength = 1
+        )

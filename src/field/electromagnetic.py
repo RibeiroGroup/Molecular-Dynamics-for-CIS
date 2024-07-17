@@ -10,7 +10,7 @@ class BaseVectorPotential:
     + C (np.array of size n_modes x 2): ampltiude of all the modes
     + constant_c (float): value of speed of light constant
     """
-    def __init__(self, k_vector, amplitude,constant_c,V):
+    def __init__(self, k_vector, amplitude,constant_c, V, coupling_strength = 1):
 
         self.n_modes = len(k_vector)
 
@@ -27,6 +27,8 @@ class BaseVectorPotential:
         self.V = V
 
         self.history = {"t":[], "C":[], "energy":[]}
+
+        self.coupling_strength = coupling_strength
 
     def update_amplitude(self, amplitude):
         assert amplitude.shape == (self.n_modes, 2)
@@ -95,7 +97,7 @@ class BaseVectorPotential:
 
         C_dot = np.einsum("mj,kimj->ki",Jk,fs)
 
-        C_dot *= (2 * np.pi * 1j / k_val)
+        C_dot *= (2 * np.pi * 1j * self.coupling_strength / k_val)
 
         return C_dot
 
@@ -187,6 +189,7 @@ class BaseVectorPotential:
         force3 = np.einsum("nj,nij->ni",force3,q)
 
         force = force1 - force2 - force3
+        force *= self.coupling_strength
         force /= self.constant_c
 
         return force
@@ -204,9 +207,9 @@ class FreeVectorPotential(BaseVectorPotential):
     + pol_vec (np.array, optional): polarization vector, SIZE N x 2 x 3 with N should be consistent
         with above arguments
     """
-    def __init__(self, k_vector, amplitude, V, constant_c, pol_vec = None):
+    def __init__(self, k_vector, amplitude, V, constant_c, pol_vec = None, coupling_strength = 1):
 
-        super().__init__(k_vector, amplitude, constant_c,V)
+        super().__init__(k_vector, amplitude, constant_c,V, coupling_strength)
 
         self.k_vector = k_vector
         self.mode_projection = None
@@ -284,7 +287,7 @@ class CavityVectorPotential(BaseVectorPotential):
     + L (float): length in z direction of the cavity
     + constant_c (float): value of speed of light constant
     """
-    def __init__(self, kappa, m, amplitude, S, L, constant_c):
+    def __init__(self, kappa, m, amplitude, S, L, constant_c, coupling_strength = 1):
 
         assert kappa.shape[0] == m.shape[0]
         assert kappa.shape[1] == 2 and len(m.shape) == 1
@@ -307,7 +310,8 @@ class CavityVectorPotential(BaseVectorPotential):
         self.S = S
         self.L = L
 
-        super().__init__(self.k_vector, amplitude, constant_c, V = S * L)
+        super().__init__(self.k_vector, amplitude, constant_c, 
+                V = S * L, coupling_strength = coupling_strength)
         #print("Warning, the volume is set to 1")
 
         # calculating unit vector

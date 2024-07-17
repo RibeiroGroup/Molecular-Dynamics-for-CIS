@@ -34,16 +34,10 @@ K_temp = config.K_temp
             ##########################
             ##########################
 
-k_vector1 = config.probe_kvector* (2 * np.pi / L)
-
-amplitude1 = np.vstack([
-    np.random.uniform(size = 2) * 1 + np.random.uniform(size = 2) * 1j
-    for i in range(len(k_vector1))
-    ]) * 0e-1 * np.sqrt(L**3)
-
-possible_cavity_k = [0] + list(range(62,82)) 
+min_cavmode = 30; max_cavmode = 65
+possible_cavity_k = [0] + list(range(min_cavmode,max_cavmode)) 
 k_vector2 = np.array(
-        EM_mode_generate(possible_cavity_k, vector_per_kval = 3, max_kval = 100),
+        EM_mode_generate(possible_cavity_k, vector_per_kval = 1, max_kval = max_cavmode),
         dtype=np.float64)
 print(len(k_vector2))
 
@@ -64,12 +58,10 @@ m = k_vector2[:,-1].reshape(-1)
 
 cavity_field = CavityVectorPotential(
     kappa = kappa, m = m, amplitude = amplitude2,
-    L = L, S = L ** 2, constant_c = red.c)
+    L = L, S = L ** 2, constant_c = red.c, coupling_strength = 1e3
+    )
 
-probe_field = FreeVectorPotential(
-        k_vector = k_vector1, amplitude = amplitude1,
-        V = L ** 3, constant_c = red.c,
-        )
+probe_field = config.probe_field
 ### CAVITY POTENTIAL END ###
 
             ##########################
@@ -89,7 +81,7 @@ initiate_atoms_box = config.initiate_atoms_box
             ############################
             ############################
 
-for i in range(10):
+for i in range(config.num_cycles):
     sample = sampler()
     r_ar, r_xe = sample["r"]
     r_dot_ar, r_dot_xe = sample["r_dot"]
@@ -108,7 +100,7 @@ for i in range(10):
     potential_drop_flag = False
     steps = 0
 
-    while not dipole_drop_flag or abs(dipole) > 1e-3 or steps < 10:
+    while (not dipole_drop_flag or abs(dipole) > 1e-5 or steps < 100) and steps < 10000:
         steps += 1
 
         em_force_func = lambda t, atoms: \
@@ -159,7 +151,8 @@ for i in range(10):
         )
 
     new_probe_field = FreeVectorPotential(
-            k_vector = k_vector1, amplitude = probe_field.C,
+            k_vector = config.probe_kvector, 
+            amplitude = probe_field.C,
             V = L ** 3, constant_c = red.c,
             )
 

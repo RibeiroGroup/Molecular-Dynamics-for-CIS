@@ -39,23 +39,12 @@ K_temp = config.K_temp
 #k_vector = np.array([[0,0,i] for i in range(1,401)], dtype = np.float64)
 k_vector = config.probe_kvector
 
-k_val2 = np.einsum("ki,ki->k",k_vector, k_vector)
-k_val2 = np.tile(k_val2[:,np.newaxis],(1,2))
-
-amplitude = np.vstack([
-    np.random.uniform(size = 2) * 1 + np.random.uniform(size = 2) * 1j
-    for i in range(len(k_vector))
-    ]) * 0 * np.sqrt(L**3) / k_val2
-
 ##################################
 ### FREE FIELD POTENTIAL BEGIN ###
 ##################################
-VECTOR_POTENTIAL_CLASS = FreeVectorPotential
-k_vector *= (2 * np.pi / L)
-Afield = VECTOR_POTENTIAL_CLASS(
-        k_vector = k_vector, amplitude = amplitude,
-        V = L ** 3, constant_c = red.c,
-        )
+
+Afield = config.probe_field
+
 ### FREE FIELD POTENTIAL END ###
 
             ##########################
@@ -76,7 +65,7 @@ initiate_atoms_box = config.initiate_atoms_box
             ############################
             ############################
 
-for i in range(10):
+for i in range(config.num_cycles):
     sample = sampler()
     r_ar, r_xe = sample["r"]
     r_dot_ar, r_dot_xe = sample["r_dot"]
@@ -94,7 +83,7 @@ for i in range(10):
     potential_drop_flag = False
     steps = 0
 
-    while not dipole_drop_flag or abs(dipole) > 1e-3 or steps < 10:
+    while (not dipole_drop_flag or abs(dipole) > 1e-5 or steps < 100) and steps < 10000:
         steps += 1
 
         em_force_func = lambda t, atoms: Afield.force(t,atoms)
@@ -135,7 +124,7 @@ for i in range(10):
             "atoms":atoms, "cavity_field":None, "probe_field":Afield,
             "temperature":K_temp, "mu0" : config.mu0
             }
-    with open("pickle_jar/result_free{}.pkl".format(i),"wb") as handle:
+    with open("pickle_jar/result_free_{}.pkl".format(i),"wb") as handle:
         pickle.dump(result, handle)
 
     del atoms
