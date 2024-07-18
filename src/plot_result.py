@@ -51,7 +51,7 @@ for j, KEYWORDS in enumerate(["cavity","free"]):
 
     for i,file in file_dict.items():
 
-        if i >= 4: continue
+        if i >= 20: continue
 
         print(file)
 

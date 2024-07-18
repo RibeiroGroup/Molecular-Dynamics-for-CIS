@@ -122,7 +122,7 @@ for i in range(config.num_cycles):
 
     result = {
             "atoms":atoms, "cavity_field":None, "probe_field":Afield,
-            "temperature":K_temp, "mu0" : config.mu0
+            "temperature":K_temp, "mu0" : config.mu0, "seed":[config.seed1, config.seed2]
             }
     with open("pickle_jar/result_free_{}.pkl".format(i),"wb") as handle:
         pickle.dump(result, handle)

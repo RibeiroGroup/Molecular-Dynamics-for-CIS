@@ -34,10 +34,10 @@ K_temp = config.K_temp
             ##########################
             ##########################
 
-min_cavmode = 30; max_cavmode = 65
+min_cavmode = 60; max_cavmode = 80
 possible_cavity_k = [0] + list(range(min_cavmode,max_cavmode)) 
 k_vector2 = np.array(
-        EM_mode_generate(possible_cavity_k, vector_per_kval = 1, max_kval = max_cavmode),
+        EM_mode_generate(possible_cavity_k, vector_per_kval = 3, max_kval = max_cavmode),
         dtype=np.float64)
 print(len(k_vector2))
 
@@ -47,7 +47,7 @@ k_val2 = np.tile(k_val2[:,np.newaxis],(1,2))
 amplitude2 = np.vstack([
     np.random.uniform(size = 2) * 1 + np.random.uniform(size = 2) * 1j
     for i in range(len(k_vector2))
-    ]) * 1e5 * np.sqrt(L**3) / k_val2
+    ]) * 1e4 * np.sqrt(L**3) / k_val2
 
 ##############################
 ### CAVITY POTENTIAL BEGIN ###
@@ -138,7 +138,7 @@ for i in range(config.num_cycles):
 
     result = {
             "atoms":atoms, "cavity_field":cavity_field, "probe_field":probe_field,
-            "temperature":K_temp, "mu0" : config.mu0
+            "temperature":K_temp, "mu0" : config.mu0, "seed":[config.seed1, config.seed2]
             }
     with open("pickle_jar/result_cavity_{}.pkl".format(i),"wb") as handle:
         pickle.dump(result, handle)

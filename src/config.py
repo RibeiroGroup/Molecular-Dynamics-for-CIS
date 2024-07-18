@@ -9,8 +9,8 @@ from field.utils import EM_mode_generate_,EM_mode_generate, EM_mode_generate3
 
 import utilities.reduced_parameter as red
 
-seed1 = 1307 # 1998 #2024
-seed2 = 1259 # 1507 #2020
+seed1 = 1807 # 1998 #2024
+seed2 = 929 # 1507 #2020
 
 L = 2e7
 cell_width = 1e4

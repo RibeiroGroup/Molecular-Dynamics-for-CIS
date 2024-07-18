@@ -38,6 +38,14 @@ Initial sampling space: Ar-Xe distance = 3 r.u., angle phi and theta = +/- np.pi
 
 Initial sampling space: Ar-Xe distance = 4 r.u., angle phi and theta = +/- np.pi/4
 - T = 200K, 512 of total atoms per run for 20 runs @ 09:02, July 15th, 2024, mu0 multiplier: 1e3
+- T = 292K, 256 of total atoms per run for 20 runs @ 09:17, July 18th, 2024, mu0 multiplier: 1, coupling strength: 1 in free space and 1e3 for cavity
+- + cavity mode: 40-80 * 2 pi / L
+- T = 292K, 256 of total atoms per run for 20 runs @ TBA
+  + cavity mode: 20-40 * 2 pi / L
+- T = 292K, 256 of total atoms per run for 20 runs @ TBA
+  + cavity mode: 40-60 * 2 pi / L
+- T = 292K, 256 of total atoms per run for 20 runs @ TBA
+  + cavity mode: 60-80 * 2 pi / L
 - T = 300K, 512 of total atoms per run for 20 runs @ 15:39, July 16th, 2024, mu0 multiplier: 1e3
 - T = 325K, 512 of total atoms per run for 20 runs @ 10:33, July 16th, 2024. mu0 multiplier: 1e3
 - T = 350K, 528 of total atoms per run for 20 runs @ 15:36, July 15th, 2024. mu0 multiplier: 1e3
