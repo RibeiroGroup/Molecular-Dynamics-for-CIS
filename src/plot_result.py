@@ -13,9 +13,10 @@ from field.utils import profiling_rad
 import utilities.reduced_parameter as red
 from utilities.etc import binning, moving_average
 
-#PICKLE_PATH = os.path.expanduser("~/code/mm_polariton_pickle_ja/result_Jul11st_2024_1319/*")
+PICKLE_PATH = os.path.expanduser("~/code/mm_polariton_pickle_ja/result_Jul16th_2024_1033/*")
+print(PICKLE_PATH)
 #PICKLE_PATH = "pickle_jar/result_Jul12nd_2024_0939/*"
-PICKLE_PATH = "pickle_jar/*"
+#PICKLE_PATH = "pickle_jar/*"
 #PICKLE_PATH = "pickle_jar/cluster/result_Jul15th_2024_1018/*"
 #KEYWORDS = "cavity"
 
