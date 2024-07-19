@@ -17,13 +17,14 @@ cell_width = 1e4
 
 h = 1e-2
 
-num_cycles = 20
+num_cycles = 1
 
 K_temp = 292
 
-probe_kvector = np.array(EM_mode_generate3(min_n = 1, max_n = 200), dtype = np.float64)
+probe_kvector_int = np.array(
+        EM_mode_generate3(min_n = 1, max_n = 200), dtype = np.float64)
 
-N_atom_pairs = 128
+N_atom_pairs = 16
 
 mu0 = red.mu0
 
@@ -56,7 +57,7 @@ sampler = AllInOneSampler(
         )
 
 VECTOR_POTENTIAL_CLASS = FreeVectorPotential
-probe_kvector = probe_kvector * (2 * np.pi / L)
+probe_kvector = probe_kvector_int * (2 * np.pi / L)
 
 amplitude = np.vstack([
     np.random.uniform(size = 2) * 1 + np.random.uniform(size = 2) * 1j

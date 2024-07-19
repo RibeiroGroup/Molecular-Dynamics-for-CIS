@@ -1,20 +1,8 @@
+import os, sys, glob
 import time
 import numpy as np
 import numpy.linalg as la
 from itertools import combinations, combinations_with_replacement, permutations
-
-def repeat_x3(array):
-    array = np.tile(
-        array[:,np.newaxis], (1,3))
-    return array
-
-def timeit(func):
-    def inner(*args, **kwargs):
-        start = time.time()
-        result = func(*args, **kwargs)
-        print("Runtime by timeit: ",time.time() - start)
-        return result
-    return inner
 
 def orthogonalize(vec, eps=1e-15):
     """
@@ -125,20 +113,25 @@ def moving_average(x, y, w):
     y = np.convolve(y, np.ones(w), 'valid') / w
     return x,y
 
+def categorizing_pickle(pickle_jar_path, KEYWORDS = ""):
+
+    file_dict = {}
+    pickle_jar_path += "/*"
+    for file in glob.glob(pickle_jar_path):
+        if os.path.isdir(file):
+            continue
+        elif KEYWORDS not in file or "result" not in file:
+            continue
+
+        number = file.split(".")[0]
+        number = number.split("_")[-1]
+        number = int(number)
+
+        file_dict[number] = file
+
+    return file_dict
 
 
 
-"""
-k_vector = EM_mode_generate(3, vector_per_kval=3, align_vector = None)# np.array([1,0,0]))
-print(k_vector)
 
-k_vector = np.array(k_vector, dtype= np.float64) 
 
-k_vector *= (2 * np.pi / 100)
-
-k_vector = np.array([
-    orthogonalize(kvec) for kvec in k_vector
-    ]) 
-
-print(k_vector[:,0,:])
-"""

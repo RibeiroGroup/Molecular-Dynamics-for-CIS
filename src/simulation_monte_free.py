@@ -13,8 +13,23 @@ from field.electromagnetic import FreeVectorPotential,CavityVectorPotential
 from field.utils import EM_mode_generate_,EM_mode_generate, EM_mode_generate3
 
 import utilities.reduced_parameter as red
+from simulation.single import single_collision_simulation
 
 import config
+
+#####################################################
+#####################################################
+#####################################################
+
+#path to the PICKLE JAR
+pickle_jar_path = "pickle_jar/" + time.strftime("%d_%b_%Y_%H%M%S", time.localtime())
+
+if os.path.isdir(pickle_jar_path):
+    prompt = input("Directory for output jar is already exist. Do you want to overwrite?[y]/n")
+    if prompt == "n":
+        raise Exception
+
+os.mkdir(pickle_jar_path)
 
             ########################
             ########################
@@ -59,6 +74,22 @@ N_atom_pairs = config.N_atom_pairs
 sampler = config.sampler
 initiate_atoms_box = config.initiate_atoms_box
 
+            ###################################
+            ###################################
+            ### WRITING SIMULATION METADATA ###
+            ###################################
+            ###################################
+
+info_dict = {
+        "type":"free", "h":h, "num_cycles":config.num_cycles,
+        "N_atoms_pairs":config.N_atom_pairs, "L_xy": config.L, "L_z": config.L,
+        "temperature":K_temp, "mu0":config.mu0, "seed":[config.seed1, config.seed2],
+        "cavity_mode_integer":None, "probe_mode_integer":config.probe_kvector_int
+        }
+
+with open(pickle_jar_path + '/' + "info.pkl","wb") as handle:
+    pickle.dump(info_dict, handle)
+
             ############################
             ############################
             ### START THE SIMULATION ###
@@ -76,54 +107,15 @@ for i in range(config.num_cycles):
 
     atoms.update_distance()
 
-    atoms.record(t)
-    Afield.record(t)
+    t, result = single_collision_simulation(
+            cycle_number = i, atoms = atoms, t0 = t, h = h,
+            probe_field = Afield, cavity_field = None, total_dipole_threshold = 1e-5, 
+            )
 
-    dipole_drop_flag = False
-    potential_drop_flag = False
-    steps = 0
-
-    while (not dipole_drop_flag or abs(dipole) > 1e-5 or steps < 100) and steps < 10000:
-        steps += 1
-
-        em_force_func = lambda t, atoms: Afield.force(t,atoms)
-
-        atoms.Verlet_update(
-                h = h, t = t,
-                field_force = em_force_func
-                )
-
-        C_dot_tp1 = Afield.dot_amplitude(t+h,atoms)
-        C_new = Afield.C + h * (C_dot_tp1)
-
-        Afield.update_amplitude(C_new)
-            
-        t += h
-
-        atoms.record(t)
-        Afield.record(t)
-
-        dipole = atoms.observable["total_dipole"][-1]
-        potential = atoms.observable["potential"][-1]
-
-        print(i,"\t",dipole, "\t", potential)
-
-        if dipole < atoms.observable["total_dipole"][-2]:
-            dipole_drop_flag = True
-        elif dipole > atoms.observable["total_dipole"][-2]:
-            dipole_drop_flag = False
-
-        """
-        if potential < atoms.observable["potential"][-2]:
-            potential_drop_flag = True
-        elif potential > atoms.observable["potential"][-2]:
-            potential_drop_flag = False
-        """
-
-    result = {
-            "atoms":atoms, "cavity_field":None, "probe_field":Afield,
+    result.update({
             "temperature":K_temp, "mu0" : config.mu0, "seed":[config.seed1, config.seed2]
-            }
+            })
+
     with open("pickle_jar/result_free_{}.pkl".format(i),"wb") as handle:
         pickle.dump(result, handle)
 

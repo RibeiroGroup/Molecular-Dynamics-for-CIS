@@ -32,19 +32,7 @@ for j, KEYWORDS in enumerate(["cavity","free"]):
     ar_velocity_dist = []
     xe_velocity_dist = []
 
-    file_dict = {}
-    for file in glob(PICKLE_PATH):
-
-        if os.path.isdir(file):
-            continue
-        elif KEYWORDS not in file or "result" not in file:
-            continue
-
-        number = file.split(".")[0]
-        number = number.split("_")[-1]
-        number = int(number)
-
-        file_dict[number] = file
+    file_dict = categorizing_pickle(PICKLE_PATH, KEYWORDS = KEYWORDS)
 
     final_time = 0
     initial_times = 0
@@ -54,14 +42,10 @@ for j, KEYWORDS in enumerate(["cavity","free"]):
 
         if i >= 20: continue
 
-        print(file)
-
         with open(file,"rb") as handle:
             result = pickle.load(handle)
 
         atoms = result["atoms"]
-        print("Total number of atoms: ",atoms.N_atoms)
-        print("Temperature",result["temperature"])
 
         Afield = result["probe_field"]
         cave_field = result["cavity_field"]
@@ -77,12 +61,6 @@ for j, KEYWORDS in enumerate(["cavity","free"]):
         print("total energy")
         print(total_energy[0])
         print(total_energy[1])
-        print("Probe field energy")
-        print(np.sum(Afield.history["energy"],axis = 1)[0])
-        print(np.sum(Afield.history["energy"],axis = 1)[-1])
-
-        print("Kinetic energy")
-        print(np.array(atoms.observable["kinetic"])[0])
 
         time = np.array(atoms.observable["t"]) * red.time_unit * 1e12
 
