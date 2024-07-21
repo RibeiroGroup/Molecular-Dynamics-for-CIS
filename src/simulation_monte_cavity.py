@@ -19,30 +19,65 @@ from simulation.single import single_collision_simulation
 
 import config
 
-#####################################################
+##############################
+##############################
+### PATH TO THE PICKLE JAR ###
+##############################
+##############################
 
-start_from_pickle_jar_path = "/home/ribeirogroup/code/mm_polariton/src/pickle_jar/19_Jul_2024_170346"
+parser = argparse.ArgumentParser()
 
-#####################################################
-#####################################################
-#####################################################
-if start_from_pickle_jar_path:
-    print("Start simulation from ", start_from_pickle_jar_path)
+parser.add_argument("seed", type = int, help = "random seed for Monte Carlo simulation")
+parser.add_argument(
+    "--date", "-d", help = "given date, start simulation from path /date_seed", 
+    default = None)
 
-    pickle_jar_path = start_from_pickle_jar_path
+args = parser.parse_args()
+
+exist_jar_flag = False
+
+if args.date == None:
+    pickle_jar_path = "pickle_jar/" + time.strftime("%Y_%b_%d_", time.localtime()) \
+        + str(args.seed)
+    if os.path.isdir(pickle_jar_path):
+        file_dict = categorizing_pickle(pickle_jar_path,KEYWORDS = "cavity")
+        if len(file_dict) == 0:
+            exist_jar_flag = False
+        else:
+            exist_jar_flag = True
+    else:
+        os.mkdir(pickle_jar_path)
+
+elif args.date:
+    pickle_jar_path = "pickle_jar/" + args.date + "_" + str(args.seed)
+    try:
+        assert os.path.isdir(pickle_jar_path)
+    except AssertionError:
+        raise Exception(
+            "There is no such folder {}! Please check the date or start a new run!".format(
+                pickle_jar_path)
+            )
     file_dict = categorizing_pickle(pickle_jar_path,KEYWORDS = "cavity")
-    print(file_dict)
+    if len(file_dict) == 0:
+        exist_jar_flag = False
+    else:
+        exist_jar_flag = True
 
-    final_pickle_path = file_dict[len(file_dict) - 1]
-    final_cycle_num = len(file_dict)
+###########
+### ETC ###
+###########
 
-    with open(final_pickle_path,"rb") as handle:
-        result = pickle.load(handle)
+initiate_atoms_box = config.initiate_atoms_box
 
-    cavity_field = result["cavity_field"]
-    probe_field = result["probe_field"]
+#####################################################
+#####################################################
+#####################################################
+if exist_jar_flag:
+    # start the simulation from certain pickle_jar if the path is provided
+    print("Start simulation from ",pickle_jar_path)
 
-    with open(pickle_jar_path+"/info.pkl","rb") as handle:
+    # load other info/metadata of the simulation 
+    with open(pickle_jar_path+"/metadata_cavity.pkl","rb") as handle:
         info = pickle.load(handle)
 
     seed_list = info["seed_list"]
@@ -52,18 +87,47 @@ if start_from_pickle_jar_path:
 
     L = info["L_xy"]
 
+    K_temp = info["temperature"]
+    sampler = info["sampler"]
+    N_atom_pairs = info["N_atom_pairs"]
+
     k_vector2 = info["cavity_mode_integer"]
     kappa = k_vector2[:,:2] * (2 * np.pi / L)
     m = k_vector2[:,-1].reshape(-1)
 
-    K_temp = info["temperature"]
+    # get dict of {"cycle numbers": path}
+    file_dict = categorizing_pickle(pickle_jar_path,KEYWORDS = "cavity")
 
-elif not start_from_pickle_jar_path:
-    #path to the PICKLE JAR
-    pickle_jar_path = "pickle_jar/" + time.strftime("%d_%b_%Y_%H%M%S", time.localtime())
+    final_cycle_num = max(file_dict.keys())
+    final_pickle_path = file_dict[final_cycle_num]
 
-    os.mkdir(pickle_jar_path)
+    with open(final_pickle_path,"rb") as handle:
+        result = pickle.load(handle)
 
+    # load the cavity field and the probe field
+    old_cavity_field = result["cavity_field"]
+
+    cavity_field = CavityVectorPotential(
+        kappa = kappa, m = m, 
+        L = old_cavity_field.L, S = old_cavity_field.L ** 2,
+        amplitude = old_cavity_field.C, constant_c = red.c,
+        coupling_strength = info["coupling_strength"]["cavity"]
+        )
+
+    del old_cavity_field
+
+    old_probe_field = result["probe_field"]
+
+    probe_field = FreeVectorPotential(
+            k_vector = config.probe_kvector, amplitude = old_probe_field.C,
+            V = L ** 3, constant_c = red.c,
+            coupling_strength = info["coupling_strength"]["probe"]
+            )
+
+    del old_probe_field
+
+
+elif not exist_jar_flag:
                 ########################
                 ########################
                 ### EMPTY PARAMETERS ###
@@ -73,13 +137,12 @@ elif not start_from_pickle_jar_path:
     h = config.h
     L = config.L
 
-    np.random.seed(config.seed1)
+    np.random.seed(args.seed)
 
     K_temp = config.K_temp
 
-    final_cycle_num = 0
+    final_cycle_num = -1
 
-    np.random.seed(config.seed2)
     seed_list = np.random.randint(low = 0, high = 1000, size = 1000)
 
                 ##########################
@@ -88,7 +151,7 @@ elif not start_from_pickle_jar_path:
                 ##########################
                 ##########################
 
-    min_cavmode = 60; max_cavmode = 80
+    min_cavmode = 62; max_cavmode = 81
     possible_cavity_k = [0] + list(range(min_cavmode,max_cavmode)) 
     k_vector2 = np.array(
             EM_mode_generate(possible_cavity_k, vector_per_kval = 3, max_kval = max_cavmode),
@@ -114,22 +177,22 @@ elif not start_from_pickle_jar_path:
 
     cavity_field = CavityVectorPotential(
         kappa = kappa, m = m, amplitude = amplitude2,
-        L = L, S = L ** 2, constant_c = red.c, coupling_strength = 1e3
+        L = L, S = L ** 2, constant_c = red.c, 
+        coupling_strength = config.cavity_coupling_strength
         )
 
     probe_field = config.probe_field
-    ### CAVITY POTENTIAL END ###
+    ### FIELD END ###
 
-            ##########################
-            ##########################
-            ### INITIATE ATOMS BOX ###
-            ##########################
-            ##########################
-np.random.seed(seed_list[0])
-N_atom_pairs = config.N_atom_pairs
+                ##########################
+                ##########################
+                ### INITIATE ATOMS BOX ###
+                ##########################
+                ##########################
+    np.random.seed(seed_list[0])
+    N_atom_pairs = config.N_atom_pairs
 
-sampler = config.sampler
-initiate_atoms_box = config.initiate_atoms_box
+    sampler = config.sampler
 
             ############################
             ############################
@@ -137,7 +200,7 @@ initiate_atoms_box = config.initiate_atoms_box
             ############################
             ############################
 
-for i in range(final_cycle_num, final_cycle_num + config.num_cycles):
+for i in range(final_cycle_num + 1, final_cycle_num + 1 + config.num_cycles):
     np.random.seed(seed_list[i])
 
     sample = sampler()
@@ -152,7 +215,7 @@ for i in range(final_cycle_num, final_cycle_num + config.num_cycles):
 
     t, result = single_collision_simulation(
             cycle_number = i, atoms = atoms, t0 = t, h = h,
-            probe_field = probe_field, cavity_field = cavity_field, total_dipole_threshold = 1e-5, 
+            probe_field = probe_field, cavity_field = cavity_field, total_dipole_threshold = 1e-4, 
             )
 
     with open(pickle_jar_path + '/' + "result_cavity_{}.pkl".format(i),"wb") as handle:
@@ -167,12 +230,14 @@ for i in range(final_cycle_num, final_cycle_num + config.num_cycles):
         L = cavity_field.L, S = cavity_field.L ** 2,
         amplitude = cavity_field.C,
         constant_c = red.c,
+        coupling_strength = config.cavity_coupling_strength
         )
 
     new_probe_field = FreeVectorPotential(
             k_vector = config.probe_kvector, 
             amplitude = probe_field.C,
             V = L ** 3, constant_c = red.c,
+            coupling_strength = config.probe_coupling_strength
             )
 
     del probe_field
@@ -189,12 +254,15 @@ for i in range(final_cycle_num, final_cycle_num + config.num_cycles):
 
 info_dict = {
         "type":"cavity","h":h, "num_cycles":config.num_cycles,
-        "N_atoms_pairs":config.N_atom_pairs, "L_xy": config.L, "L_z": config.L,
+        "N_atom_pairs":config.N_atom_pairs, "L_xy": config.L, "L_z": config.L,
         "temperature":K_temp, "mu0":config.mu0, 
         "cavity_mode_integer":k_vector2, "probe_mode_integer":config.probe_kvector_int,
-        "seed":[config.seed1, config.seed2], "seed_list":seed_list, "t_final":t
+        "seed":args.seed, "seed_list":seed_list, "t_final":t,
+        "sampler":sampler, 
+        "coupling_strength":{"cavity":config.cavity_coupling_strength, "probe":config.probe_coupling_strength}
         }
 
-with open(pickle_jar_path + '/' + "info.pkl".format(i),"wb") as handle:
+with open(pickle_jar_path + '/' + "metadata_cavity.pkl".format(i),"wb") as handle:
     pickle.dump(info_dict, handle)
 
+print("Simulation finish, save to:",pickle_jar_path)

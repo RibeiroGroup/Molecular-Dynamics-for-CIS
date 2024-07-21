@@ -1,6 +1,7 @@
 import warnings
 warnings.filterwarnings('ignore')
 
+import argparse
 import os, sys
 from glob import glob
 import pickle
@@ -11,14 +12,18 @@ from utilities import reduced_parameter as red
 from field.utils import profiling_rad
 
 import utilities.reduced_parameter as red
-from utilities.etc import binning, moving_average
+from utilities.etc import binning, moving_average, categorizing_pickle
 
-PICKLE_PATH = os.path.expanduser("~/code/mm_polariton_pickle_ja/result_Jul16th_2024_1033/*")
-print(PICKLE_PATH)
-#PICKLE_PATH = "pickle_jar/result_Jul12nd_2024_0939/*"
-#PICKLE_PATH = "pickle_jar/*"
-#PICKLE_PATH = "pickle_jar/cluster/result_Jul15th_2024_1018/*"
-#KEYWORDS = "cavity"
+"""
+ROOT = "/Users/macbook/OneDrive - Emory/Research data/mm_polariton/pickle_jar"
+PICKLE_PATH = {
+    "cavity": ROOT + "/result_Jul13th_2024_0956",
+    "free": ROOT + "/result_Jul13th_2024_0956"
+    }
+"""
+
+ROOT = "/Users/macbook/code/mm_polariton/src/pickle_jar"
+PICKLE_PATH = ROOT + "/2024_Jul_21_1"
 
 rad_profile_list = []
 
@@ -26,6 +31,7 @@ fig1, ax1 = plt.subplots(2,figsize = (6,8))
 fig2, ax2 = plt.subplots(2,figsize = (6,8))
 
 for j, KEYWORDS in enumerate(["cavity","free"]):
+
     fig3, ax3 = plt.subplots(1,2,figsize = (12,4))
     fig4, ax4 = plt.subplots(1,2,figsize = (12,4))
 
@@ -33,6 +39,7 @@ for j, KEYWORDS in enumerate(["cavity","free"]):
     xe_velocity_dist = []
 
     file_dict = categorizing_pickle(PICKLE_PATH, KEYWORDS = KEYWORDS)
+    print(os.listdir(PICKLE_PATH))
 
     final_time = 0
     initial_times = 0
@@ -40,7 +47,7 @@ for j, KEYWORDS in enumerate(["cavity","free"]):
 
     for i,file in file_dict.items():
 
-        if i >= 20: continue
+        if i >= 5: continue
 
         with open(file,"rb") as handle:
             result = pickle.load(handle)
@@ -52,15 +59,20 @@ for j, KEYWORDS in enumerate(["cavity","free"]):
 
         total_energy = np.array(atoms.observable["kinetic"]) + np.array(atoms.observable["potential"]) \
                 + np.sum(Afield.history["energy"],axis = 1) 
+        print(j)
         if KEYWORDS == "cavity":
             total_energy += np.sum(cave_field.history["energy"],axis = 1)
-            print("cavity energy")
-            print(np.sum(cave_field.history["energy"],axis = 1)[-1])
-            print(np.sum(cave_field.history["energy"],axis = 1)[0])
+            print("cavity energy @start: {:.6f}, @end: {:.6f}".format(
+                np.sum(cave_field.history["energy"],axis = 1)[0],
+                np.sum(cave_field.history["energy"],axis = 1)[-1]
+                ))
 
-        print("total energy")
-        print(total_energy[0])
-        print(total_energy[1])
+        print("free field energy @start: {:.8f}, @end: {:.8f}".format(
+            np.sum(Afield.history["energy"],axis = 1)[0],
+            np.sum(Afield.history["energy"],axis = 1)[-1]
+            ))
+        print("total energy @start: {:.6f}, @end: {:.6f}".format(
+            total_energy[0], total_energy[-1]))
 
         time = np.array(atoms.observable["t"]) * red.time_unit * 1e12
 
@@ -131,22 +143,26 @@ for j, KEYWORDS in enumerate(["cavity","free"]):
     fig3.savefig("figure/full_simulation_velocity_profile_"+KEYWORDS+".jpeg",dpi = 600,bbox_inches="tight")
     fig4.savefig("figure/full_simulation_radiation_"+KEYWORDS+".jpeg",dpi = 600,bbox_inches="tight")
 
-ax1[0].set_xlabel("Wavenumber (cm^-1)")
-ax1[0].set_ylabel("Final energy (cm^-1)")
-ax1[0].legend()
+if comparison_plot_flag:
+    ax1[0].set_xlabel("Wavenumber (cm^-1)")
+    ax1[0].set_ylabel("Final energy (cm^-1)")
+    ax1[0].legend()
 
-profile_diff = (rad_profile_list[0] - rad_profile_list[1])
-#ax1[1].scatter(omega_profile, profile_diff, 
-#        s = 5, alpha = 0.5)
-o,r = moving_average(omega_profile, profile_diff, 20)
-ax1[1].plot(o,r, label = "Spectra in cavity \n- 'free space")
+    profile_diff = (rad_profile_list[0] - rad_profile_list[1])
+    #ax1[1].scatter(omega_profile, profile_diff, 
+    #        s = 5, alpha = 0.5)
+    o,r = moving_average(omega_profile, profile_diff, 20)
+    ax1[1].plot(o,r, label = "Spectra in cavity \n- 'free space")
 
-lf, uf = ax1[1].get_xlim()
-ax1[1].plot(np.linspace(lf,uf,10), [0]*10, linestyle="dashed", linewidth = 0.5,color="gray")
-ax1[1].legend()
+    lf, uf = ax1[1].get_xlim()
+    ax1[1].plot(np.linspace(lf,uf,10), [0]*10, linestyle="dashed", linewidth = 0.5,color="gray")
+    ax1[1].legend()
 
-fig1.savefig("figure/full_simulation_radiation.jpeg",dpi = 600,bbox_inches="tight")
+    fig1.savefig("figure/full_simulation_radiation.jpeg",dpi = 600,bbox_inches="tight")
 
-ax2[0].annotate('cavity',xy = (0.80,0.95), xycoords='axes fraction')
-ax2[1].annotate('free',xy = (0.80,0.95), xycoords='axes fraction')
-fig2.savefig("figure/full_simulation_dipole.jpeg",dpi = 600,bbox_inches="tight")
+    ax2[0].annotate('cavity',xy = (0.80,0.95), xycoords='axes fraction')
+    ax2[1].annotate('free',xy = (0.80,0.95), xycoords='axes fraction')
+    fig2.savefig("figure/full_simulation_dipole.jpeg",dpi = 600,bbox_inches="tight")
+
+else: 
+    print("Not enough data for comparison plot!")

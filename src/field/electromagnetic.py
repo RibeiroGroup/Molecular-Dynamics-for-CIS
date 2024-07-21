@@ -10,7 +10,7 @@ class BaseVectorPotential:
     + C (np.array of size n_modes x 2): ampltiude of all the modes
     + constant_c (float): value of speed of light constant
     """
-    def __init__(self, k_vector, amplitude,constant_c, V, coupling_strength = 1):
+    def __init__(self, k_vector, amplitude,constant_c, V, coupling_strength):
 
         self.n_modes = len(k_vector)
 
@@ -207,7 +207,7 @@ class FreeVectorPotential(BaseVectorPotential):
     + pol_vec (np.array, optional): polarization vector, SIZE N x 2 x 3 with N should be consistent
         with above arguments
     """
-    def __init__(self, k_vector, amplitude, V, constant_c, pol_vec = None, coupling_strength = 1):
+    def __init__(self, k_vector, amplitude, V, constant_c, coupling_strength, pol_vec = None):
 
         super().__init__(k_vector, amplitude, constant_c,V, coupling_strength)
 
@@ -287,7 +287,7 @@ class CavityVectorPotential(BaseVectorPotential):
     + L (float): length in z direction of the cavity
     + constant_c (float): value of speed of light constant
     """
-    def __init__(self, kappa, m, amplitude, S, L, constant_c, coupling_strength = 1):
+    def __init__(self, kappa, m, amplitude, S, L, constant_c, coupling_strength):
 
         assert kappa.shape[0] == m.shape[0]
         assert kappa.shape[1] == 2 and len(m.shape) == 1

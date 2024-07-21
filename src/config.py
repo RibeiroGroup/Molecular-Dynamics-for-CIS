@@ -9,10 +9,10 @@ from field.utils import EM_mode_generate_,EM_mode_generate, EM_mode_generate3
 
 import utilities.reduced_parameter as red
 
-seed1 = 1807 # 1998 #2024
-seed2 = 929 # 1507 #2020
+#seed1 = 2024 #1807 # 1998 #2024
+#seed2 = 2020 #929 # 1507 #2020
 
-L = 2e7
+L = 3e7
 cell_width = 1e4
 
 h = 1e-2
@@ -22,9 +22,9 @@ num_cycles = 1
 K_temp = 292
 
 probe_kvector_int = np.array(
-        EM_mode_generate3(min_n = 1, max_n = 200), dtype = np.float64)
+        EM_mode_generate3(min_n = 1, max_n = 300), dtype = np.float64)
 
-N_atom_pairs = 16
+N_atom_pairs = 64
 
 mu0 = red.mu0
 
@@ -58,6 +58,8 @@ sampler = AllInOneSampler(
 
 VECTOR_POTENTIAL_CLASS = FreeVectorPotential
 probe_kvector = probe_kvector_int * (2 * np.pi / L)
+probe_coupling_strength = 1e3 
+cavity_coupling_strength = 1e3
 
 amplitude = np.vstack([
     np.random.uniform(size = 2) * 1 + np.random.uniform(size = 2) * 1j
@@ -66,5 +68,6 @@ amplitude = np.vstack([
 
 probe_field = VECTOR_POTENTIAL_CLASS(
         k_vector = probe_kvector, amplitude = amplitude,
-        V = L ** 3, constant_c = red.c, coupling_strength = 1
+        V = L ** 3, constant_c = red.c, 
+        coupling_strength = probe_coupling_strength
         )

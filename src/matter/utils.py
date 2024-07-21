@@ -131,12 +131,13 @@ class AllInOneSampler:
         L = self.L
 
         r_ar = np.random.uniform(-L/2,L/2,size = (N_atom_pairs,3))
-        phi = np.random.uniform(0, 2 * np.pi, size = N_atom_pairs)
-        theta = np.random.uniform(0, np.pi, size = N_atom_pairs)
+
+        phi = np.arccos(1 - 2 * np.random.uniform(0, 1, size = N_atom_pairs))
+        theta = 2 * np.pi * np.random.uniform(0, 1, size = N_atom_pairs)
         r_xe = r_ar + np.array([
-            self.d_ar_xe * np.sin(theta) * np.cos(phi),
-            self.d_ar_xe * np.sin(theta) * np.sin(phi),
-            self.d_ar_xe * np.cos(theta)
+            self.d_ar_xe * np.sin(phi) * np.cos(theta),
+            self.d_ar_xe * np.sin(phi) * np.sin(theta),
+            self.d_ar_xe * np.cos(phi)
             ]).T
 
         r_dot_ar_sqrt = self.sampler_ar(N = N_atom_pairs)

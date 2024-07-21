@@ -1,6 +1,7 @@
 import time
 import pickle
-import os, sys
+import os, sys, glob
+import argparse
 
 import numpy as np
 
@@ -13,82 +14,137 @@ from field.electromagnetic import FreeVectorPotential,CavityVectorPotential
 from field.utils import EM_mode_generate_,EM_mode_generate, EM_mode_generate3
 
 import utilities.reduced_parameter as red
+from utilities.etc import categorizing_pickle
 from simulation.single import single_collision_simulation
 
 import config
 
-#####################################################
-#####################################################
-#####################################################
+##############################
+##############################
+### PATH TO THE PICKLE JAR ###
+##############################
+##############################
 
-#path to the PICKLE JAR
-pickle_jar_path = "pickle_jar/" + time.strftime("%d_%b_%Y_%H%M%S", time.localtime())
+parser = argparse.ArgumentParser()
 
-if os.path.isdir(pickle_jar_path):
-    prompt = input("Directory for output jar is already exist. Do you want to overwrite?[y]/n")
-    if prompt == "n":
-        raise Exception
+parser.add_argument("seed", type = int, help = "random seed for Monte Carlo simulation")
+parser.add_argument(
+    "--date", "-d", help = "given date, start simulation from path /date_seed", 
+    default = None)
 
-os.mkdir(pickle_jar_path)
+args = parser.parse_args()
 
-            ########################
-            ########################
-            ### EMPTY PARAMETERS ###
-            ########################
-            ########################
-t = 0
-h = config.h
+if args.date == None:
+    pickle_jar_path = "pickle_jar/" + time.strftime("%Y_%b_%d_", time.localtime()) \
+        + str(args.seed)
+    if os.path.isdir(pickle_jar_path):
+        file_dict = categorizing_pickle(pickle_jar_path,KEYWORDS = "free")
+        if len(file_dict) == 0:
+            exist_jar_flag = False
+        else:
+            exist_jar_flag = True
+    else:
+        os.mkdir(pickle_jar_path)
 
-L = config.L
+elif args.date:
+    pickle_jar_path = "pickle_jar/" + args.date + "_" + str(args.seed)
+    try:
+        assert os.path.isdir(pickle_jar_path)
+    except AssertionError:
+        raise Exception(
+            "There is no such folder {}! Please check the date or start a new run!".format(
+                pickle_jar_path)
+            )
+    file_dict = categorizing_pickle(pickle_jar_path,KEYWORDS = "free")
+    if len(file_dict) == 0:
+        exist_jar_flag = False
+    else:
+        exist_jar_flag = True
 
-np.random.seed(config.seed1)
 
-K_temp = config.K_temp
+###########
+### ETC ###
+###########
 
-            ##########################
-            ##########################
-            ### INITIATE THE FIELD ###
-            ##########################
-            ##########################
-
-#k_vector = np.array([[0,0,i] for i in range(1,401)], dtype = np.float64)
-k_vector = config.probe_kvector
-
-##################################
-### FREE FIELD POTENTIAL BEGIN ###
-##################################
-
-Afield = config.probe_field
-
-### FREE FIELD POTENTIAL END ###
-
-            ##########################
-            ##########################
-            ### INITIATE ATOMS BOX ###
-            ##########################
-            ##########################
-np.random.seed(config.seed2)
-
-N_atom_pairs = config.N_atom_pairs
-
-sampler = config.sampler
 initiate_atoms_box = config.initiate_atoms_box
 
-            ###################################
-            ###################################
-            ### WRITING SIMULATION METADATA ###
-            ###################################
-            ###################################
+#####################################################
+#####################################################
+#####################################################
+if exist_jar_flag:
+    # start the simulation from certain pickle_jar if the path is provided
+    print("Start simulation from ",pickle_jar_path)
 
-info_dict = {
-        "type":"free", "h":h, "num_cycles":config.num_cycles,
-        "N_atoms_pairs":config.N_atom_pairs, "L_xy": config.L, "L_z": config.L,
-        "temperature":K_temp, "mu0":config.mu0, "seed":[config.seed1, config.seed2],
-        "cavity_mode_integer":None, "probe_mode_integer":config.probe_kvector_int
-        }
+    # load other info/metadata of the simulation 
+    with open(pickle_jar_path+"/metadata_free.pkl","rb") as handle:
+        info = pickle.load(handle)
 
-with open(pickle_jar_path + '/' + "info.pkl","wb") as handle:
-    pickle.dump(info_dict, handle)
+    seed_list = info["seed_list"]
+
+    t = info["t_final"]
+    h = info["h"]
+
+    L = info["L_xy"]
+
+    K_temp = info["temperature"]
+    sampler = info["sampler"]
+    N_atom_pairs = info["N_atom_pairs"]
+
+    # get dict of {"cycle numbers": path}
+
+    final_cycle_num = max(file_dict.keys())
+    final_pickle_path = file_dict[final_cycle_num]
+
+    with open(final_pickle_path,"rb") as handle:
+        result = pickle.load(handle)
+
+    old_probe_field = result["probe_field"]
+
+    probe_field = FreeVectorPotential(
+            k_vector = config.probe_kvector, amplitude = old_probe_field.C,
+            V = L ** 3, constant_c = red.c,
+            coupling_strength = info["coupling_strength"]["probe"]
+            )
+
+    del old_probe_field
+
+
+elif not exist_jar_flag:
+                ########################
+                ########################
+                ### EMPTY PARAMETERS ###
+                ########################
+                ########################
+    t = 0
+    h = config.h
+    L = config.L
+
+    np.random.seed(args.seed)
+
+    K_temp = config.K_temp
+
+    final_cycle_num = -1
+
+    seed_list = np.random.randint(low = 0, high = 1000, size = 1000)
+
+                ##########################
+                ##########################
+                ### INITIATE THE FIELD ###
+                ##########################
+                ##########################
+
+    probe_field = config.probe_field
+    ### FIELD END ###
+
+                ##########################
+                ##########################
+                ### INITIATE ATOMS BOX ###
+                ##########################
+                ##########################
+    np.random.seed(seed_list[0])
+    N_atom_pairs = config.N_atom_pairs
+
+    sampler = config.sampler
 
             ############################
             ############################
@@ -96,7 +152,9 @@ with open(pickle_jar_path + '/' + "info.pkl","wb") as handle:
             ############################
             ############################
 
-for i in range(config.num_cycles):
+for i in range(final_cycle_num + 1, final_cycle_num + 1 + config.num_cycles):
+    np.random.seed(seed_list[i])
+
     sample = sampler()
     r_ar, r_xe = sample["r"]
     r_dot_ar, r_dot_xe = sample["r_dot"]
@@ -109,22 +167,43 @@ for i in range(config.num_cycles):
 
     t, result = single_collision_simulation(
             cycle_number = i, atoms = atoms, t0 = t, h = h,
-            probe_field = Afield, cavity_field = None, total_dipole_threshold = 1e-5, 
+            probe_field = probe_field, cavity_field = None, total_dipole_threshold = 1e-4, 
             )
 
-    result.update({
-            "temperature":K_temp, "mu0" : config.mu0, "seed":[config.seed1, config.seed2]
-            })
-
-    with open("pickle_jar/result_free_{}.pkl".format(i),"wb") as handle:
+    with open(pickle_jar_path + '/' + "result_free_{}.pkl".format(i),"wb") as handle:
         pickle.dump(result, handle)
 
-    del atoms
-    new_Afield = FreeVectorPotential(
-        k_vector = k_vector, V = L ** 3, 
-        amplitude = Afield.C,
-        constant_c = red.c,
-        )
+    probe_field = result["probe_field"] 
 
-    del Afield
-    Afield = new_Afield
+    del atoms
+
+    new_probe_field = FreeVectorPotential(
+            k_vector = config.probe_kvector, 
+            amplitude = probe_field.C,
+            V = L ** 3, constant_c = red.c,
+            coupling_strength = config.probe_coupling_strength
+            )
+
+    del probe_field
+    probe_field = new_probe_field
+
+            ###################################
+            ###################################
+            ### WRITING SIMULATION METADATA ###
+            ###################################
+            ###################################
+
+info_dict = {
+        "type":"free","h":h, "num_cycles":config.num_cycles,
+        "N_atom_pairs":config.N_atom_pairs, "L_xy": config.L, "L_z": config.L,
+        "temperature":K_temp, "mu0":config.mu0, 
+        "cavity_mode_integer":None, "probe_mode_integer":config.probe_kvector_int,
+        "seed":args.seed, "seed_list":seed_list, "t_final":t,
+        "sampler":sampler, 
+        "coupling_strength":{"cavity":None, "probe":config.probe_coupling_strength}
+        }
+
+with open(pickle_jar_path + '/' + "metadata_free.pkl".format(i),"wb") as handle:
+    pickle.dump(info_dict, handle)
+
+print("Simulation finish, save to:",pickle_jar_path)
