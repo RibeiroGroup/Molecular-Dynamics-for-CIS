@@ -75,10 +75,10 @@ elif args.continue_from:
 initiate_atoms_box = config.initiate_atoms_box
 
 #####################################################
-#####################################################
-#####################################################
 if exist_jar_flag:
-    # start the simulation from certain pickle_jar if the path is provided
+    ########################################################################
+    # start the simulation from certain pickle_jar if the path is provided #
+    ########################################################################
     print("Start simulation from ",pickle_jar_path)
 
     # load other info/metadata of the simulation 
@@ -132,7 +132,7 @@ if exist_jar_flag:
 
     del old_probe_field
 
-
+#####################################################
 elif not exist_jar_flag:
                 ########################
                 ########################
@@ -170,7 +170,7 @@ elif not exist_jar_flag:
     amplitude2 = np.vstack([
         np.random.uniform(size = 2) * 1 + np.random.uniform(size = 2) * 1j
         for i in range(len(k_vector2))
-        ]) * 1e4 * np.sqrt(L**3) / k_val2
+        ]) * np.sqrt(L**3) / k_val2 * config.cavity_amplitude_scaling
 
             ##############################
             ##############################

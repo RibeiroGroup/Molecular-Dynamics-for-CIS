@@ -114,6 +114,17 @@ def moving_average(x, y, w):
     return x,y
 
 def categorizing_pickle(pickle_jar_path, KEYWORDS = ""):
+    """
+    Get and categorize all pickle files corresponding to either 'pickled' 
+    monte_carlo simulation in the cavity or the free field.
+    Args:
+    + pickle_jar_path (str): path to directory of all pickle files. Just the path
+        to the directory. No need *
+    + KEYWORDS (str): either 'free' or 'cavity'
+    Returns:
+    + file_dict (Python dictionary): keys is the number of the cycle that is pickled 
+        and value is the path to the pickle file
+    """
 
     file_dict = {}
     pickle_jar_path += "/*"
@@ -123,6 +134,7 @@ def categorizing_pickle(pickle_jar_path, KEYWORDS = ""):
         elif KEYWORDS not in file or "result" not in file:
             continue
 
+        # the format of the pickle file to be e.g result_cavity_5.pkl
         number = file.split(".")[0]
         number = number.split("_")[-1]
         number = int(number)

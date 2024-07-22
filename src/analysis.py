@@ -7,6 +7,8 @@ import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 import utilities.reduced_parameter as red
 
+from analyze_tools.monte_carlo import get_colliding_time
+
 #PICKLE_PATH = "/home/ribeirogroup/code/mm_polariton_pickle_ja/result_Jul12nd_2024_0939/*"
 #PICKLE_PATH = "pickle_jar/result_Jul13th_2024_0956/*"
 #PICKLE_PATH = "pickle_jar/result_Jul15th_2024_0956/*"
@@ -37,43 +39,20 @@ for j,KEYWORDS in enumerate(["cavity","free"]):
             result = pickle.load(handle)
 
         atoms = copy.deepcopy(result["atoms"])
-        time = np.array(atoms.trajectory["t"])
-        N_pairs = int(atoms.N_atoms / 2)
         mu0 = result["mu0"]
 
         traj_len = len(atoms.trajectory["r"])
-
-        dipole_vs_time = []
-        for i in range(traj_len):
-            r = atoms.trajectory["r"][i]
-
-            r_ar = r[0:N_pairs]
-            r_xe = r[N_pairs:]
-            dvec = (r_ar - r_xe)
-
-            d = np.sqrt(np.einsum("ni,ni->n",dvec,dvec))
-
-            dipole = mu0 * np.exp(-red.a * (d - red.d0)) - red.d7/d**7
-
-            dipole_vs_time.append(dipole)
-
-        dipole_vs_time = np.array(dipole_vs_time)
 
         initial_velocity_data[KEYWORDS]["Ar"] += \
                 list(magnitude(atoms.trajectory["r_dot"][0][:N_pairs]))
         initial_velocity_data[KEYWORDS]["Xe"] += \
                 list(magnitude(atoms.trajectory["r_dot"][0][N_pairs:]))
 
-        for i in range(dipole_vs_time.shape[1]):
-            t = time[dipole_vs_time[:,i] > 1e-3]
+        t = get_colliding_time(atoms, mu0 = mu0, dipole_threshold = 1e-3)
 
-            if len(t) > 0:
-                dt = t[-1] - t[0]
-            else: dt = 0
+        collision_time[KEYWORDS] = t
 
-            collision_time[KEYWORDS].append(dt)
-
-            traj_loc[KEYWORDS].append((PATH, i))
+        traj_loc[KEYWORDS].append((PATH, i))
 
 initial_arvelocity = initial_velocity_data["cavity"]["Ar"]
 initial_xevelocity = initial_velocity_data["cavity"]["Xe"]
@@ -102,7 +81,6 @@ for j in [1,2,3]:
         result0 = pickle.load(handle)
 
     atoms = result["atoms"]
-    traj_len = len(atoms.trajectory["r"])
 
     atoms0 = result0["atoms"]
     traj_len0 = len(atoms0.trajectory["r"])
