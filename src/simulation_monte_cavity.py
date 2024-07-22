@@ -170,7 +170,7 @@ elif not exist_jar_flag:
     amplitude2 = np.vstack([
         np.random.uniform(size = 2) * 1 + np.random.uniform(size = 2) * 1j
         for i in range(len(k_vector2))
-        ]) * np.sqrt(L**3) / k_val2 * config.cavity_amplitude_scaling
+        ]) * np.sqrt(L**3) * config.cavity_amplitude_scaling / k_val2
 
             ##############################
             ##############################

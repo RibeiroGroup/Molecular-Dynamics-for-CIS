@@ -85,4 +85,4 @@ probe_field = VECTOR_POTENTIAL_CLASS(
         )
 
 cavity_coupling_strength = 1e3
-cavity_amplitude_scaling = 1e4
+cavity_amplitude_scaling = 1e5
