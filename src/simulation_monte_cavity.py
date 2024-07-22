@@ -109,6 +109,7 @@ if exist_jar_flag:
     with open(final_pickle_path,"rb") as handle:
         result = pickle.load(handle)
 
+    print(info["coupling_strength"])
     # load the cavity field and the probe field
     old_cavity_field = result["cavity_field"]
 
@@ -156,7 +157,7 @@ elif not exist_jar_flag:
                 ##########################
                 ##########################
 
-    min_cavmode = 62; max_cavmode = 81
+    min_cavmode = args.min_cav_mode; max_cavmode = args.max_cav_mode
     possible_cavity_k = [0] + list(range(min_cavmode,max_cavmode)) 
     k_vector2 = np.array(
             EM_mode_generate(possible_cavity_k, vector_per_kval = 3, max_kval = max_cavmode),

@@ -15,16 +15,16 @@ import utilities.reduced_parameter as red
 L = 3e7
 cell_width = 1e4
 
-h = 1e-2
+h = 1e-3
 
-num_cycles = 1
+num_cycles = 10
 
 K_temp = 292
 
 probe_kvector_int = np.array(
         EM_mode_generate3(min_n = 1, max_n = 300), dtype = np.float64)
 
-N_atom_pairs = 16
+N_atom_pairs = 256
 
 mu0 = red.mu0
 

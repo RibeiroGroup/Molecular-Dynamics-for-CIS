@@ -68,6 +68,7 @@ for j, KEYWORDS in enumerate(["cavity","free"]):
     xe_velocity_dist = []
 
     file_dict = categorizing_pickle(PICKLE_PATH, KEYWORDS = KEYWORDS)
+    print(file_dict)
 
     final_time = 0
     initial_times = 0
@@ -122,9 +123,6 @@ for j, KEYWORDS in enumerate(["cavity","free"]):
 
         omega = Afield.k_val / red.sigma
         omega /= 2*np.pi
-        if np.isclose(Afield.history["t"][0], 0):
-            initialfile = file
-            omega_profile, initial_rad_profile = profiling_rad(omega, rad_energy[0])
 
         if Afield.history["t"][-1] > final_time:
 
@@ -139,9 +137,8 @@ for j, KEYWORDS in enumerate(["cavity","free"]):
         ax4[0].plot(time, np.sum(rad_energy,axis=1))
         ax4[0].set_ylabel("Radiation energy (eV)")
 
-    print(initialfile)
     print(profilefile)
-    rad_profile = np.array(final_rad_profile) - np.array(initial_rad_profile)
+    rad_profile = np.array(final_rad_profile)
 
     """
     for i, o in enumerate(omega_profile):
