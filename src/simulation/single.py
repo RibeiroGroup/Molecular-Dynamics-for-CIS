@@ -21,7 +21,8 @@ def single_collision_simulation(
     t = t0
     atoms.record(t)
 
-    probe_field.record(t)
+    if probe_field:
+        probe_field.record(t)
 
     if cavity_field:
         cavity_field.record(t)
@@ -34,12 +35,13 @@ def single_collision_simulation(
             and steps < max_steps:
         steps += 1
 
-        if cavity_field is not None:
+        if cavity_field is not None and probe_field is not None:
             em_force_func = lambda t, atoms: \
                 cavity_field.force(t,atoms) + probe_field.force(t,atoms)
-        else: 
+        elif probe_field is not None:
             em_force_func = lambda t, atoms: \
                 probe_field.force(t,atoms)
+        else: em_force_func = None
 
         atoms.record(t)
         atoms.Verlet_update(
@@ -47,11 +49,13 @@ def single_collision_simulation(
                 field_force = em_force_func
                 )
         
-        probe_field.record(t)
-        C_dot_tp1 = probe_field.dot_amplitude(t+h,atoms)
-        C_new = probe_field.C + h * (C_dot_tp1)
+        if probe_field:
+            probe_field.record(t)
+            C_dot_tp1 = probe_field.dot_amplitude(t+h,atoms)
+            C_new = probe_field.C + h * (C_dot_tp1)
 
-        probe_field.update_amplitude(C_new)
+            probe_field.update_amplitude(C_new)
+        else: probe_field = None
 
         if cavity_field:
             cavity_field.record(t)

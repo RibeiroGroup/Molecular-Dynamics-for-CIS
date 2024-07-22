@@ -78,8 +78,9 @@ for j, KEYWORDS in enumerate(["cavity","free"]):
     ar_velocity_dist = []
     xe_velocity_dist = []
 
-    file_dict = categorizing_pickle(PICKLE_PATH, KEYWORDS = KEYWORDS)
-    print(file_dict)
+    file_dict = categorizing_pickle(
+        PICKLE_PATH[KEYWORDS], 
+        KEYWORDS = KEYWORDS)
 
     final_time = 0
     initial_times = 0

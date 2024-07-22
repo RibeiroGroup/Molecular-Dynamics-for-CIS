@@ -117,15 +117,6 @@ elif not exist_jar_flag:
 
                 ##########################
                 ##########################
-                ### INITIATE THE FIELD ###
-                ##########################
-                ##########################
-
-    probe_field = config.probe_field
-    ### FIELD END ###
-
-                ##########################
-                ##########################
                 ### INITIATE ATOMS BOX ###
                 ##########################
                 ##########################
@@ -155,25 +146,11 @@ for i in range(final_cycle_num + 1, final_cycle_num + 1 + config.num_cycles):
 
     t, result = single_collision_simulation(
             cycle_number = i, atoms = atoms, t0 = t, h = h,
-            probe_field = probe_field, cavity_field = None, total_dipole_threshold = 1e-4, 
+            probe_field = None, cavity_field = None, total_dipole_threshold = 1e-4, 
             )
 
     with open(pickle_jar_path + '/' + "result_free_{}.pkl".format(i),"wb") as handle:
         pickle.dump(result, handle)
-
-    probe_field = result["probe_field"] 
-
-    del atoms
-
-    new_probe_field = FreeVectorPotential(
-            k_vector = config.probe_kvector, 
-            amplitude = probe_field.C,
-            V = L ** 3, constant_c = red.c,
-            coupling_strength = config.probe_coupling_strength
-            )
-
-    del probe_field
-    probe_field = new_probe_field
 
             ###################################
             ###################################
@@ -185,13 +162,13 @@ info_dict = {
         "type":"free","h":h, "num_cycles":config.num_cycles,
         "N_atom_pairs":config.N_atom_pairs, "L_xy": config.L, "L_z": config.L,
         "temperature":K_temp, "mu0":config.mu0, 
-        "cavity_mode_integer":None, "probe_mode_integer":config.probe_kvector_int,
+        "cavity_mode_integer":None, "probe_mode_integer":None,
         "seed":args.seed, "seed_list":seed_list, "t_final":t,
         "sampler":sampler, 
-        "coupling_strength":{"cavity":None, "probe":config.probe_coupling_strength}
+        "coupling_strength":{"cavity":None, "probe":None}
         }
 
-with open(pickle_jar_path + '/' + "metadata_free.pkl".format(i),"wb") as handle:
+with open(pickle_jar_path + '/' + "metadata_nofield.pkl".format(i),"wb") as handle:
     pickle.dump(info_dict, handle)
 
 print("Simulation finish, save to:",pickle_jar_path)
