@@ -40,19 +40,30 @@ parser.add_argument(
 parser.add_argument(
     "--N_atom_pairs", "-N", type = int,  help = "number of pairs of atoms"
         )
+parser.add_argument(
+    "--free_jar_path", "-f", help = "path to pickle file for monte carlo simulation in free field"
+    )
 
 args = parser.parse_args()
 
+PICKLE_PATH = {}
+ROOT = "pickle_jar/"
 if args.plot_from:
     jar = args.plot_from
-    PICKLE_PATH = "pickle_jar/" + jar
+    jar_path = ROOT  + jar
 else:
     jar = str(args.temperature) + "_" + str(args.N_atom_pairs) + "_" \
             + str(args.min_cav_mode) + "_" + str(args.max_cav_mode)+ "_" + str(args.seed)
-    PICKLE_PATH = "pickle_jar/" + jar
+    jar_path = ROOT + jar
 
 if not os.path.isdir("figure/" + jar):
     os.mkdir("figure/" + jar)
+
+PICKLE_PATH.update({"cavity":jar_path})
+if args.free_jar_path:
+    PICKLE_PATH.update({"free":ROOT + args.free_jar_path})
+else:
+    PICKLE_PATH.update({"free":jar_path})
 
 rad_profile_list = []
 
