@@ -43,6 +43,9 @@ parser.add_argument(
 parser.add_argument(
     "--free_jar_path", "-f", help = "path to pickle file for monte carlo simulation in free field"
     )
+parser.add_argument(
+    "--limit", "-l", type = int, help = "limit to file to read"
+    )
 
 args = parser.parse_args()
 
@@ -88,7 +91,8 @@ for j, KEYWORDS in enumerate(["cavity","free"]):
 
     for i,file in file_dict.items():
 
-        if i >= 5: continue
+        if args.limit and i >= args.limit: 
+            continue
 
         with open(file,"rb") as handle:
             result = pickle.load(handle)
