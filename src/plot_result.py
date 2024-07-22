@@ -22,8 +22,37 @@ PICKLE_PATH = {
     }
 """
 
-ROOT = "/Users/macbook/code/mm_polariton/src/pickle_jar"
-PICKLE_PATH = ROOT + "/2024_Jul_21_1"
+parser = argparse.ArgumentParser()
+
+parser.add_argument(
+    "--plot_from", "-c", help = "given the directory path, continue simulation from the last pickle file", 
+    default = None)
+parser.add_argument("--seed", "-s", type = int, help = "random seed for Monte Carlo simulation")
+parser.add_argument(
+    "--min_cav_mode", "-m", type = int,  help = "minimum cavity mode integer"
+        )
+parser.add_argument(
+    "--max_cav_mode", "-x", type = int,  help = "maximum cavity mode integer"
+        )
+parser.add_argument(
+    "--temperature", "-t", type = int,  help = "temperature"
+        )
+parser.add_argument(
+    "--N_atom_pairs", "-N", type = int,  help = "number of pairs of atoms"
+        )
+
+args = parser.parse_args()
+
+if args.plot_from:
+    jar = args.plot_from
+    PICKLE_PATH = "pickle_jar/" + jar
+else:
+    jar = str(args.temperature) + "_" + str(args.N_atom_pairs) + "_" \
+            + str(args.min_cav_mode) + "_" + str(args.max_cav_mode)+ "_" + str(args.seed)
+    PICKLE_PATH = "pickle_jar/" + jar
+
+if not os.path.isdir("figure/" + jar):
+    os.mkdir("figure/" + jar)
 
 rad_profile_list = []
 
@@ -39,7 +68,6 @@ for j, KEYWORDS in enumerate(["cavity","free"]):
     xe_velocity_dist = []
 
     file_dict = categorizing_pickle(PICKLE_PATH, KEYWORDS = KEYWORDS)
-    print(os.listdir(PICKLE_PATH))
 
     final_time = 0
     initial_times = 0
@@ -140,29 +168,26 @@ for j, KEYWORDS in enumerate(["cavity","free"]):
     ax1[0].plot(o, r, label = KEYWORDS)
     rad_profile_list.append(rad_profile)
 
-    fig3.savefig("figure/full_simulation_velocity_profile_"+KEYWORDS+".jpeg",dpi = 600,bbox_inches="tight")
-    fig4.savefig("figure/full_simulation_radiation_"+KEYWORDS+".jpeg",dpi = 600,bbox_inches="tight")
+    fig3.savefig("figure/"+jar+"/full_simulation_velocity_profile_"+KEYWORDS+".jpeg",dpi = 600,bbox_inches="tight")
+    fig4.savefig("figure/"+jar+"/full_simulation_radiation_"+KEYWORDS+".jpeg",dpi = 600,bbox_inches="tight")
 
-if comparison_plot_flag:
-    ax1[0].set_xlabel("Wavenumber (cm^-1)")
-    ax1[0].set_ylabel("Final energy (cm^-1)")
-    ax1[0].legend()
+ax1[0].set_xlabel("Wavenumber (cm^-1)")
+ax1[0].set_ylabel("Final energy (cm^-1)")
+ax1[0].legend()
 
-    profile_diff = (rad_profile_list[0] - rad_profile_list[1])
-    #ax1[1].scatter(omega_profile, profile_diff, 
-    #        s = 5, alpha = 0.5)
-    o,r = moving_average(omega_profile, profile_diff, 20)
-    ax1[1].plot(o,r, label = "Spectra in cavity \n- 'free space")
+profile_diff = (rad_profile_list[0] - rad_profile_list[1])
+#ax1[1].scatter(omega_profile, profile_diff, 
+#        s = 5, alpha = 0.5)
+o,r = moving_average(omega_profile, profile_diff, 20)
+ax1[1].plot(o,r, label = "Spectra in cavity \n- 'free space")
 
-    lf, uf = ax1[1].get_xlim()
-    ax1[1].plot(np.linspace(lf,uf,10), [0]*10, linestyle="dashed", linewidth = 0.5,color="gray")
-    ax1[1].legend()
+lf, uf = ax1[1].get_xlim()
+ax1[1].plot(np.linspace(lf,uf,10), [0]*10, linestyle="dashed", linewidth = 0.5,color="gray")
+ax1[1].legend()
 
-    fig1.savefig("figure/full_simulation_radiation.jpeg",dpi = 600,bbox_inches="tight")
+fig1.savefig("figure/"+jar+"/full_simulation_radiation.jpeg",dpi = 600,bbox_inches="tight")
 
-    ax2[0].annotate('cavity',xy = (0.80,0.95), xycoords='axes fraction')
-    ax2[1].annotate('free',xy = (0.80,0.95), xycoords='axes fraction')
-    fig2.savefig("figure/full_simulation_dipole.jpeg",dpi = 600,bbox_inches="tight")
+ax2[0].annotate('cavity',xy = (0.80,0.95), xycoords='axes fraction')
+ax2[1].annotate('free',xy = (0.80,0.95), xycoords='axes fraction')
+fig2.savefig("figure/"+jar+"/full_simulation_dipole.jpeg",dpi = 600,bbox_inches="tight")
 
-else: 
-    print("Not enough data for comparison plot!")

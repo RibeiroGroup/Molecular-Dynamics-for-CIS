@@ -27,16 +27,22 @@ import config
 
 parser = argparse.ArgumentParser()
 
-parser.add_argument("seed", type = int, help = "random seed for Monte Carlo simulation")
+parser.add_argument("--seed", "-s", type = int, help = "random seed for Monte Carlo simulation")
 parser.add_argument(
-    "--date", "-d", help = "given date, start simulation from path /date_seed", 
+    "--continue_from", "-c", help = "given the directory path, continue simulation from the last pickle file", 
     default = None)
+parser.add_argument(
+    "--min_cav_mode", "-m", type = int,  help = "minimum cavity mode integer"
+        )
+parser.add_argument(
+    "--max_cav_mode", "-x", type = int,  help = "maximum cavity mode integer"
+        )
 
 args = parser.parse_args()
 
-if args.date == None:
-    pickle_jar_path = "pickle_jar/" + time.strftime("%Y_%b_%d_", time.localtime()) \
-        + str(args.seed)
+if args.continue_from == None:
+    pickle_jar_path = "pickle_jar/" + str(config.K_temp) + "_" + str(config.N_atom_pairs) + "_" \
+            + str(args.min_cav_mode) + "_" + str(args.max_cav_mode)+ "_" + str(args.seed)
     if os.path.isdir(pickle_jar_path):
         file_dict = categorizing_pickle(pickle_jar_path,KEYWORDS = "free")
         if len(file_dict) == 0:
@@ -45,9 +51,10 @@ if args.date == None:
             exist_jar_flag = True
     else:
         os.mkdir(pickle_jar_path)
+        exist_jar_flag = False
 
-elif args.date:
-    pickle_jar_path = "pickle_jar/" + args.date + "_" + str(args.seed)
+elif args.continue_from:
+    pickle_jar_path = "pickle_jar/" + args.continue_from
     try:
         assert os.path.isdir(pickle_jar_path)
     except AssertionError:
