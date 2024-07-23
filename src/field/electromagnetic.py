@@ -62,7 +62,7 @@ class BaseVectorPotential:
         + np.array: SIZE M x 3 with M specified in R argument
         """
 
-        C = self.C if amplitude is None else amplitude
+        C = deepcopy(self.C) if amplitude is None else amplitude
         C /= np.sqrt(self.V)
 
         f_R = self.mode_function(t, R)
