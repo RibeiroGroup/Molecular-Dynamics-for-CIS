@@ -109,9 +109,13 @@ def binning(x,y,width):
     return np.array(new_x), np.array(new_y)
 
 def moving_average(x, y, w):
-    x = np.convolve(x, np.ones(w), 'valid') / w
-    y = np.convolve(y, np.ones(w), 'valid') / w
-    return x,y
+    #x = np.convolve(x, np.ones(w), 'valid') / w
+    y_new = np.convolve(y, np.ones(w), 'valid') / w
+    halfw = int(w/2)
+    y_new = np.hstack(
+        [y[halfw], y_new, y[len(x) + 1 - halfw]]
+        )
+    return x,y_new
 
 def categorizing_pickle(pickle_jar_path, KEYWORDS = ""):
     """
