@@ -79,6 +79,13 @@ def sample_velocity(N,max_velocity,min_velocity):
     return r_dot
 
 class MaxwellSampler:
+    """
+    Sampling velocities' magnitudes based on MAXWELL distribution
+    Args:
+    + mass (np.array): mass of atoms whose velocities are sampled
+    + red_temp_unit (float): unit of reduced temperature
+    + K_temp (float): temperature in Kelvin
+    """
 
     def __init__(self,mass, red_temp_unit, K_temp):
 
@@ -102,6 +109,19 @@ class MaxwellSampler:
         return r_dot_squared
 
 class AllInOneSampler:
+    """
+    Class for sampling everything
+    Args:
+    + N_atom_pairs (int): number of pairs of Argon and Xenon atoms
+    + angle_range (float): is a where velocity angle are sampled in range of
+        theta +/- a  and phi +/- a
+    + L (float): length of the simulated box
+    + d_ar_xe (float): initial distance between Argon and Xenon atoms
+    + red_temp_unit (float): unit of reduced temperature
+    + K_temp (float): temperature in Kelvin
+    + ar_mass (float): (reduced) mass of Argon
+    + xe_mass (float): (reduced) mass of Xenon
+    """
     def __init__(
             self, N_atom_pairs, angle_range, L,
             d_ar_xe, red_temp_unit, K_temp,
@@ -126,6 +146,13 @@ class AllInOneSampler:
                 K_temp = K_temp)
 
     def __call__(self):
+        """
+        Sampling and return position and velocity of all Xenons, Argons
+        Return:
+        + Python dictionary: 
+            - "r" (tuple of 2 np.array): position array of Argon and Xenon
+            - "r_dot" (tuple of 2 np.array): velocities array of Argon and Xenon
+        """
         N_atom_pairs = self.N_atom_pairs
         offset = self.angle_range
         L = self.L

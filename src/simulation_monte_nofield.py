@@ -44,7 +44,7 @@ if args.continue_from == None:
     pickle_jar_path = "pickle_jar/" + str(config.K_temp) + "_" + str(config.N_atom_pairs) + "_" \
             + str(args.min_cav_mode) + "_" + str(args.max_cav_mode)+ "_" + str(args.seed)
     if os.path.isdir(pickle_jar_path):
-        file_dict = categorizing_pickle(pickle_jar_path,KEYWORDS = "free")
+        file_dict = categorizing_pickle(pickle_jar_path,KEYWORDS = "nofield")
         if len(file_dict) == 0:
             exist_jar_flag = False
         else:
@@ -62,7 +62,7 @@ elif args.continue_from:
             "There is no such folder {}! Please check the date or start a new run!".format(
                 pickle_jar_path)
             )
-    file_dict = categorizing_pickle(pickle_jar_path,KEYWORDS = "free")
+    file_dict = categorizing_pickle(pickle_jar_path,KEYWORDS = "nofield")
     if len(file_dict) == 0:
         exist_jar_flag = False
     else:
@@ -83,7 +83,7 @@ if exist_jar_flag:
     print("Start simulation from ",pickle_jar_path)
 
     # load other info/metadata of the simulation 
-    with open(pickle_jar_path+"/metadata_free.pkl","rb") as handle:
+    with open(pickle_jar_path+"/metadata_nofield.pkl","rb") as handle:
         info = pickle.load(handle)
 
     seed_list = info["seed_list"]
@@ -96,6 +96,9 @@ if exist_jar_flag:
     K_temp = info["temperature"]
     sampler = info["sampler"]
     N_atom_pairs = info["N_atom_pairs"]
+
+    final_cycle_num = max(file_dict.keys())
+    final_pickle_path = file_dict[final_cycle_num]
 
 elif not exist_jar_flag:
                 ########################
@@ -149,7 +152,7 @@ for i in range(final_cycle_num + 1, final_cycle_num + 1 + config.num_cycles):
             probe_field = None, cavity_field = None, total_dipole_threshold = 1e-4, 
             )
 
-    with open(pickle_jar_path + '/' + "result_free_{}.pkl".format(i),"wb") as handle:
+    with open(pickle_jar_path + '/' + "result_nofield_{}.pkl".format(i),"wb") as handle:
         pickle.dump(result, handle)
 
             ###################################
@@ -159,7 +162,7 @@ for i in range(final_cycle_num + 1, final_cycle_num + 1 + config.num_cycles):
             ###################################
 
 info_dict = {
-        "type":"free","h":h, "num_cycles":config.num_cycles,
+        "type":"nofield","h":h, "num_cycles":config.num_cycles,
         "N_atom_pairs":config.N_atom_pairs, "L_xy": config.L, "L_z": config.L,
         "temperature":K_temp, "mu0":config.mu0, 
         "cavity_mode_integer":None, "probe_mode_integer":None,

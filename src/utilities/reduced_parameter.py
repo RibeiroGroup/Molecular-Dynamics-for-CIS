@@ -1,3 +1,4 @@
+from copy import deepcopy
 import numpy as np
 
 import scipy.constants as scicon
@@ -80,6 +81,10 @@ hbar = hbar * time_unit / (M * sigma**2)
 #####################
 
 def generate_LJparam_matrix(idxAr, idxXe):
+    """
+    Generate matrix of Lennard-Jones parameters for evaluating 
+    force
+    """
     epsilon_mat = (np.outer(idxAr,idxAr) * epsilon_Ar_Ar \
         + np.outer(idxAr, idxXe) * epsilon_Ar_Xe \
         + np.outer(idxXe, idxAr) * epsilon_Ar_Xe \
@@ -91,6 +96,18 @@ def generate_LJparam_matrix(idxAr, idxXe):
         + np.outer(idxXe, idxXe) * sigma_Xe_Xe) 
 
     return epsilon_mat, sigma_mat
+
+def convert_energy(array, unit):
+    array = deepcopy(array) * (epsilon * 6.242e11)
+    if unit == "ev":
+        return array
+    elif unit == "cm-1":
+        array *= 8065.56
+        return array
+
+def convert_wavenumber(array):
+    array = deepcopy(array) / (sigma * 2 * np.pi)
+    return array
 
 if test:
     import os, sys

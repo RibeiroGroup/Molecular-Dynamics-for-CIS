@@ -1,4 +1,5 @@
 import os, sys, glob
+import pickle
 import time
 import numpy as np
 import numpy.linalg as la
@@ -113,7 +114,7 @@ def moving_average(x, y, w):
     y_new = np.convolve(y, np.ones(w), 'valid') / w
     halfw = int(w/2)
     y_new = np.hstack(
-        [y[halfw], y_new, y[len(x) + 1 - halfw]]
+        [y[:halfw], y_new, y[len(x) + 1 - halfw:]]
         )
     return x,y_new
 
@@ -147,7 +148,38 @@ def categorizing_pickle(pickle_jar_path, KEYWORDS = ""):
 
     return file_dict
 
+def categorizing_result(pickle_jar_path, KEYWORDS = ""):
+    """
+    Get and categorize all pickle files corresponding to either 'pickled' 
+    monte_carlo simulation in the cavity or the free field.
+    Args:
+    + pickle_jar_path (str): path to directory of all pickle files. Just the path
+        to the directory. No need *
+    + KEYWORDS (str): either 'free' or 'cavity'
+    Returns:
+    + file_dict (Python dictionary): keys is the number of the cycle that is pickled 
+        and value is the path to the pickle file
+    """
 
+    result_dict = {}
+    pickle_jar_path += "/*"
+    for file in glob.glob(pickle_jar_path):
+        if os.path.isdir(file):
+            continue
+        elif KEYWORDS not in file or "result" not in file:
+            continue
+
+        with open(file,"rb") as handle:
+            result = pickle.load(handle)
+
+        # the format of the pickle file to be e.g result_cavity_5.pkl
+        number = file.split(".")[0]
+        number = number.split("_")[-1]
+        number = int(number)
+
+        result_dict[number] = result
+
+    return result_dict
 
 
 

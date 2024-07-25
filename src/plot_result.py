@@ -50,7 +50,8 @@ parser.add_argument(
 args = parser.parse_args()
 
 PICKLE_PATH = {}
-ROOT = "pickle_jar/"
+#ROOT = "pickle_jar/"
+ROOT = "/Users/macbook/OneDrive - Emory/Research data/mm_polariton/pickle_jar/"
 if args.plot_from:
     jar = args.plot_from
     jar_path = ROOT  + jar
@@ -75,8 +76,8 @@ fig2, ax2 = plt.subplots(2,figsize = (6,8))
 
 for j, KEYWORDS in enumerate(["cavity","free"]):
 
-    fig3, ax3 = plt.subplots(1,2,figsize = (12,4))
-    fig4, ax4 = plt.subplots(1,2,figsize = (12,4))
+    fig3, ax3 = plt.subplots(2,figsize = (6,8))
+    fig4, ax4 = plt.subplots(2,figsize = (6,8))
 
     ar_velocity_dist = []
     xe_velocity_dist = []
@@ -104,7 +105,7 @@ for j, KEYWORDS in enumerate(["cavity","free"]):
 
         total_energy = np.array(atoms.observable["kinetic"]) + np.array(atoms.observable["potential"]) \
                 + np.sum(Afield.history["energy"],axis = 1) 
-        print(j)
+        print(i)
         if KEYWORDS == "cavity":
             total_energy += np.sum(cave_field.history["energy"],axis = 1)
             print("cavity energy @start: {:.6f}, @end: {:.6f}".format(
@@ -174,8 +175,8 @@ for j, KEYWORDS in enumerate(["cavity","free"]):
     ax4[1].scatter(omega_profile, rad_profile, s = 5)
     ax4[1].plot(o, r)
 
-    ax4[1].set_xlabel("Wavenumber (cm^-1)")
-    ax4[1].set_ylabel("Final energy (cm^-1)")
+    ax4[1].set_xlabel("Wavenumber (1/cm)")
+    ax4[1].set_ylabel("Final energy (1/cm)")
 
     #ax1[0].scatter(omega_profile, rad_profile, s = 5, alpha = 0.5)
     ax1[0].plot(o, r, label = KEYWORDS)
@@ -184,8 +185,8 @@ for j, KEYWORDS in enumerate(["cavity","free"]):
     fig3.savefig("figure/"+jar+"/full_simulation_velocity_profile_"+KEYWORDS+".jpeg",dpi = 600,bbox_inches="tight")
     fig4.savefig("figure/"+jar+"/full_simulation_radiation_"+KEYWORDS+".jpeg",dpi = 600,bbox_inches="tight")
 
-ax1[0].set_xlabel("Wavenumber (cm^-1)")
-ax1[0].set_ylabel("Final energy (cm^-1)")
+ax1[0].set_xlabel("Wavenumber (1/cm)")
+ax1[0].set_ylabel("Final energy (1/cm)")
 ax1[0].legend()
 
 profile_diff = (rad_profile_list[0] - rad_profile_list[1])
