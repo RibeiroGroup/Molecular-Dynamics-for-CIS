@@ -50,8 +50,8 @@ parser.add_argument(
 args = parser.parse_args()
 
 PICKLE_PATH = {}
-#ROOT = "pickle_jar/"
-ROOT = "/Users/macbook/OneDrive - Emory/Research data/mm_polariton/pickle_jar/"
+ROOT = "pickle_jar/"
+#ROOT = "/Users/macbook/OneDrive - Emory/Research data/mm_polariton/pickle_jar/"
 if args.plot_from:
     jar = args.plot_from
     jar_path = ROOT  + jar

@@ -31,7 +31,7 @@ cell_width = 1e4
 ##############
 
 N_atom_pairs = 512
-K_temp = 200
+K_temp = 400
 
 mu0 = red.mu0
 
