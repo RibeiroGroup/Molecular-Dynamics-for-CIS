@@ -28,7 +28,7 @@ class DistanceCalculator:
             to only the upper triangular matrix, and, by assuming that the matrix is symmetric, the lower 
             triangular part of the matrix can be deduced.
     """
-    def __init__(self,N , box_length  = None):
+    def __init__(self,N,Lxy,Lz):
         """
         Args:
         + N (int): number of particles
@@ -38,7 +38,8 @@ class DistanceCalculator:
         """
         self.N = N
 
-        self.L = box_length
+        self.Lxy = Lxy
+        self.Lz = Lz
 
 		# Pre-generate boolean matrix for masking position-matrix
         # -> accelerating distance calculation
@@ -117,8 +118,7 @@ class DistanceCalculator:
 
         d_vec = R_mat2 - R_mat1 # r1 - r2, r1 - r3, ... , r2 - r3, ...
 
-        if self.L is not None:
-            d_vec = PBC_wrapping(d_vec, self.L)
+        d_vec = PBC_wrapping(d_vec, Lxy=self.Lxy, Lz=self.Lz)
 
         return d_vec
 

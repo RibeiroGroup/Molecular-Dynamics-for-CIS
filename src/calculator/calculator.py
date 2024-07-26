@@ -29,11 +29,11 @@ class Calculator(DistanceCalculator):
         + d(float): d parameter
     """
     def __init__(
-        self, N, box_length, epsilon, sigma, 
+        self, N, Lxy, Lz, epsilon, sigma, 
         positive_atom_idx, negative_atom_idx, mu0, a, d, d7
         ):
 
-        super().__init__(N, box_length)
+        super().__init__(N, Lxy=Lxy, Lz=Lz)
 
         assert epsilon.shape == (self.N, self.N)
         self.epsilon = epsilon
@@ -56,7 +56,7 @@ class Calculator(DistanceCalculator):
     def calculate_distance(self, R, neighborlist = None, update_attr = True):
         """
         Calculating all relevant distances and distances vector.
-        Note: ALways running this method to update all distances matrix 
+        Note: Always running this method to update all distances matrix 
         before calculating dipole or force/ potential.
         Args:
         + R (np.array): list of all atoms' positions

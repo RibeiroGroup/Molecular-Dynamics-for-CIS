@@ -8,14 +8,6 @@ def repeat_x3(array):
         array[:,np.newaxis], (1,3))
     return array
 
-def timeit(func):
-    def inner(*args, **kwargs):
-        start = time.time()
-        result = func(*args, **kwargs)
-        print("Runtime by timeit: ",time.time() - start)
-        return result
-    return inner
-
 def orthogonalize(vec, eps=1e-15):
     """
     Orthogonalizes the matrix U (d x n) using Gram-Schmidt Orthogonalization.
@@ -53,11 +45,9 @@ def orthogonalize(vec, eps=1e-15):
     V[0] = vec
     return V
 
-def EM_mode_generate(
+def EM_mode_exhaust(
         possible_kval_list,
-        vector_per_kval=None,
         max_kval = None,
-        align_vector = None
         ):
 
     """
@@ -65,9 +55,9 @@ def EM_mode_generate(
     """
 
     all_combs = combinations_with_replacement(
-            possible_kval_list, 3
+            possible_kval_list, 2
             )
-    #generate all combinations of sorted integers, e.g. (0,1,2) or (1,1,2)
+    #generate all combinations of sorted integers, e.g. (0,1) or (1,1)
 
     modes_list = []
 
@@ -79,37 +69,35 @@ def EM_mode_generate(
         comb_modes_list = []
 
         if np.sum(comb) < 1: 
+            # skip (0,0) 
             continue
 
         comb_val = np.sum(np.array(comb)**2)
         if max_kval and comb_val > max_kval**2:
+            # skipp combination that are above certain threshold
             continue
 
-        if comb[0] == comb[1] and comb[1] == comb[2]:
-            # [1,1,1] -> [-1,1,1]
-            comb[0] = - comb[0]
-
-        perm = set(permutations(comb))
-
-        for mode in perm:
-            comb_modes_list.append(np.array(mode))
+        comb_modes_list.append(np.array(comb))
+        if comb[0] == comb[1]:
+            pass
+        else:
+            comb_modes_list.append(
+                    np.array([comb[1], comb[0]])
+                    )
+        #perm = set(permutations(comb))
 
         comb_modes_list = np.array(comb_modes_list)
 
-        if align_vector is not None:
-            alignment = list(map(
-                    lambda x: x @ align_vector, comb_modes_list))
-
-            sort_idx = np.argsort(alignment)[::-1]
-
-            comb_modes_list = comb_modes_list[sort_idx,:]
-
-        if vector_per_kval:
-            comb_modes_list = comb_modes_list[:vector_per_kval,:]
-
         modes_list.append(comb_modes_list)
 
-    return np.vstack(modes_list)
+    modes_list = np.vstack(modes_list)
+    modes_list = np.hstack([
+        modes_list, np.zeros((len(modes_list),1))])
+
+    return modes_list
+
+foo = EM_mode_exhaust([0,1,2,3,4,5,6])
+print(foo)
 
 def EM_mode_generate_(max_n, n_vec_per_kz = 1, min_n = 1):
     modes_list = []

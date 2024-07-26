@@ -283,11 +283,12 @@ class CavityVectorPotential(BaseVectorPotential):
         SIZE: N with N consistent with above definition
     + amplitude (np.array): ampltitude of both the TE and TM mode
         SIZE: N x 2 with N consistent with above definition
-    + S (float): xy cross-section of the cavity
-    + L (float): length in z direction of the cavity
+    + Lxy (float): length in the x and y direction of the cavity
+        assume x and y direction are the same
+    + Lz (float): length in z direction of the cavity
     + constant_c (float): value of speed of light constant
     """
-    def __init__(self, kappa, m, amplitude, S, L, constant_c, coupling_strength):
+    def __init__(self, kappa, m, amplitude, Lxy, Lz, constant_c, coupling_strength):
 
         assert kappa.shape[0] == m.shape[0]
         assert kappa.shape[1] == 2 and len(m.shape) == 1
@@ -298,20 +299,20 @@ class CavityVectorPotential(BaseVectorPotential):
                 np.einsum("ki,ki->k",self.kappa_vec,self.kappa_vec)
                 )
         # kz 
-        self.kz = 2 * np.pi * m / L
+        self.kz = np.pi * m / Lz
 
         #k_vector in general
         self.k_vector = np.hstack([kappa, self.kz[:,np.newaxis] ])
         
         # cavity geometry
-        assert isinstance(S, float)
-        assert isinstance(L, float)
+        assert isinstance(Lxy, float)
+        assert isinstance(Lz, float)
 
-        self.S = S
-        self.L = L
+        self.Lxy = Lxy
+        self.Lz = Lz
 
         super().__init__(self.k_vector, amplitude, constant_c, 
-                V = S * L, coupling_strength = coupling_strength)
+                V = Lxy * Lxy * Lz, coupling_strength = coupling_strength)
         #print("Warning, the volume is set to 1")
 
         # calculating unit vector

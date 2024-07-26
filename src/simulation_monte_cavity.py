@@ -39,6 +39,9 @@ parser.add_argument(
         )
 
 args = parser.parse_args()
+assert isinstance(parser.seed, int)
+assert isinstance(parser.min_cav_mode, int) and isinstance(parser.max_cav_mode, int)
+assert parser.min_cav_mode < parser.max_cav_mode
 
 if args.continue_from == None:
     pickle_jar_path = "pickle_jar/" + str(config.K_temp) + "_" + str(config.N_atom_pairs) + "_" \
@@ -76,6 +79,10 @@ initiate_atoms_box = config.initiate_atoms_box
 
 #####################################################
 if exist_jar_flag:
+    """
+    Load the last pickle in the existing jar. The simulation metadata and field amplitude are
+    load and use as input for the simulation
+    """
     ########################################################################
     # start the simulation from certain pickle_jar if the path is provided #
     ########################################################################
@@ -85,51 +92,58 @@ if exist_jar_flag:
     with open(pickle_jar_path+"/metadata_cavity.pkl","rb") as handle:
         info = pickle.load(handle)
 
+    # seed list for sampling atoms position/velocities
     seed_list = info["seed_list"]
 
+    # get last time of the loaded simulation and time step
     t = info["t_final"]
     h = info["h"]
 
-    L = info["L_xy"]
+    # loaded simulated space geometry
+    Lxy = info["L_xy"]
+    Lz = info["L_z"]
 
+    # loaded temperature and atomic sampler
     K_temp = info["temperature"]
     sampler = info["sampler"]
     N_atom_pairs = info["N_atom_pairs"]
 
+    # loaded integers for k vector for the cavity 
     k_vector2 = info["cavity_mode_integer"]
-    kappa = k_vector2[:,:2] * (2 * np.pi / L)
+    # which is splitted in kappa (only xy direction)
+    kappa = k_vector2[:,:2] * (2 * np.pi / Lxy)
+    # and integer m for determining kz
     m = k_vector2[:,-1].reshape(-1)
 
-    # get dict of {"cycle numbers": path}
+    # get dict of {"cycle numbers": path to pickle}
     file_dict = categorizing_pickle(pickle_jar_path,KEYWORDS = "cavity")
 
+    # get pickle that is the final simulation
     final_cycle_num = max(file_dict.keys())
     final_pickle_path = file_dict[final_cycle_num]
 
+    # read the last pickle file
     with open(final_pickle_path,"rb") as handle:
         result = pickle.load(handle)
 
-    print(info["coupling_strength"])
-    # load the cavity field and the probe field
+    # load the cavity field
     old_cavity_field = result["cavity_field"]
-
     cavity_field = CavityVectorPotential(
-        kappa = kappa, m = m, 
-        L = old_cavity_field.L, S = old_cavity_field.L ** 2,
-        amplitude = old_cavity_field.C, constant_c = red.c,
+        kappa = kappa, m = m, constant_c = red.c,
+        Lxy = old_cavity_field.Lxy, Lz = old_cavity_field.Lz, 
+        amplitude = old_cavity_field.C, 
         coupling_strength = info["coupling_strength"]["cavity"]
         )
-
     del old_cavity_field
 
+    # load the probe field
     old_probe_field = result["probe_field"]
-
     probe_field = FreeVectorPotential(
-            k_vector = config.probe_kvector, amplitude = old_probe_field.C,
-            V = L ** 3, constant_c = red.c,
+            k_vector = old_probe_field.kvector, 
+            amplitude = old_probe_field.C,
+            V = old_probe_field.V, constant_c = red.c,
             coupling_strength = info["coupling_strength"]["probe"]
             )
-
     del old_probe_field
 
 #####################################################
@@ -141,7 +155,6 @@ elif not exist_jar_flag:
                 ########################
     t = 0
     h = config.h
-    L = config.L
 
     np.random.seed(args.seed)
 
@@ -157,12 +170,13 @@ elif not exist_jar_flag:
                 ##########################
                 ##########################
 
+    # get the minimum and maximum integer for generating the cavity modes
     min_cavmode = args.min_cav_mode; max_cavmode = args.max_cav_mode
     possible_cavity_k = [0] + list(range(min_cavmode,max_cavmode)) 
     k_vector2 = np.array(
             EM_mode_generate(possible_cavity_k, vector_per_kval = 3, max_kval = max_cavmode),
             dtype=np.float64)
-    print(len(k_vector2))
+    print("There are {} cavity mode".format(len(k_vector2)))
 
     k_val2 = np.einsum("ki,ki->k",k_vector2, k_vector2)
     k_val2 = np.tile(k_val2[:,np.newaxis],(1,2))
@@ -170,24 +184,31 @@ elif not exist_jar_flag:
     amplitude2 = np.vstack([
         np.random.uniform(size = 2) * 1 + np.random.uniform(size = 2) * 1j
         for i in range(len(k_vector2))
-        ]) * np.sqrt(L**3) * config.cavity_amplitude_scaling / k_val2
+        ]) * np.sqrt(config.Lxy * config.Lxy * config.Lz) * config.cavity_amplitude_scaling / k_val2
 
             ##############################
             ##############################
             ### CAVITY POTENTIAL BEGIN ###
             ##############################
             ##############################
-    kappa = k_vector2[:,:2] * (2 * np.pi / L)
+    kappa = k_vector2[:,:2] * (2 * np.pi / config.Lxy)
 
     m = k_vector2[:,-1].reshape(-1)
 
     cavity_field = CavityVectorPotential(
         kappa = kappa, m = m, amplitude = amplitude2,
-        L = L, S = L ** 2, constant_c = red.c, 
+        Lxy = config.Lxy, Lz = config.Lz, constant_c = red.c, 
         coupling_strength = config.cavity_coupling_strength
         )
 
-    probe_field = config.probe_field
+    probe_field = FreeVectorPotential(
+            k_vector = config.probe_kvector, 
+            amplitude = np.zeros(
+                (len(config.probe_kvector), 2), dtype = np.complex128),
+            V = config.Lxy * config.Lxy * config.Lz, 
+            constant_c = red.c, 
+            coupling_strength = config.probe_coupling_strength
+            )
     ### FIELD END ###
 
                 ##########################
@@ -213,7 +234,7 @@ for i in range(final_cycle_num + 1, final_cycle_num + 1 + config.num_cycles):
     r_ar, r_xe = sample["r"]
     r_dot_ar, r_dot_xe = sample["r_dot"]
 
-    atoms = initiate_atoms_box()
+    atoms = initiate_atoms_box(config.Lxy, config.Lz)
     atoms.add(elements = ["Ar"]*N_atom_pairs,r = r_ar,r_dot = r_dot_ar)
     atoms.add(elements = ["Xe"]*N_atom_pairs,r = r_xe,r_dot = r_dot_xe)
 
@@ -233,16 +254,15 @@ for i in range(final_cycle_num + 1, final_cycle_num + 1 + config.num_cycles):
     del atoms
     new_cavity_field = CavityVectorPotential(
         kappa = kappa, m = m, 
-        L = cavity_field.L, S = cavity_field.L ** 2,
-        amplitude = cavity_field.C,
-        constant_c = red.c,
+        Lxy = cavity_field.Lxy, Lz = cavity_field.Lz, 
+        amplitude = cavity_field.C,constant_c = red.c,
         coupling_strength = config.cavity_coupling_strength
         )
 
     new_probe_field = FreeVectorPotential(
             k_vector = config.probe_kvector, 
             amplitude = probe_field.C,
-            V = L ** 3, constant_c = red.c,
+            V = probe_field.V, constant_c = red.c,
             coupling_strength = config.probe_coupling_strength
             )
 
@@ -260,7 +280,8 @@ for i in range(final_cycle_num + 1, final_cycle_num + 1 + config.num_cycles):
 
 info_dict = {
         "type":"cavity","h":h, "num_cycles":config.num_cycles,
-        "N_atom_pairs":config.N_atom_pairs, "L_xy": config.L, "L_z": config.L,
+        "N_atom_pairs":config.N_atom_pairs, 
+        "L_xy": config.Lxy, "L_z": config.Lz,
         "temperature":K_temp, "mu0":config.mu0, 
         "cavity_mode_integer":k_vector2, 
         "probe_mode_integer":config.probe_kvector_int,

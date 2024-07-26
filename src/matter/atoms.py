@@ -8,13 +8,15 @@ class AtomsInBox:
     """
     Class for collections of atoms
     """
-    def __init__(self, box_length, mass_dict, cell_width = None):
+    def __init__(self, Lxy, Lz, mass_dict, cell_width = None):
         """
         Args:
         + box_length (float): the length of the box that contains atoms
         """
         
-        self.L = box_length
+        self.Lxy = Lxy
+        self.Lz = Lz
+
         self.cell_width = cell_width
 
         self.calculator = None
@@ -48,7 +50,7 @@ class AtomsInBox:
             assert element == "Ar" or element == "Xe"
 
         assert r.shape == (len(elements), 3)
-        assert not np.any(r > self.L)
+        assert not np.any(r[:,:2] > self.Lxy) and not np.any(r[:,-1] > self.Lz)
         assert r_dot.shape == (len(elements), 3)
 
         mass = np.array(
@@ -71,6 +73,12 @@ class AtomsInBox:
             self.mass = np.hstack([mass,self.mass])
 
     def record(self, t):
+        """
+        Add current position, velocity to trajectory dict and energy, dipole
+        to observable dict
+        Args:
+        + t (float): time
+        """
         self.trajectory["t"].append(t)
         self.trajectory["r"].append(deepcopy(self.r))
         self.trajectory["r_dot"].append(deepcopy(self.r_dot))
@@ -93,8 +101,12 @@ class AtomsInBox:
             elements += [el] * n_atoms
             total_natoms += n_atoms
 
-        r = np.random.uniform(
-                low = 0, high = self.L, size = (total_natoms, 3))
+        r = np.hstack([
+            np.random.uniform(
+                low = 0, high = self.Lxy, size = (total_natoms, 2)),
+            np.random.uniform(
+                low = 0, high = self.Lz, size = (total_natoms, 1))
+            ])
 
         r_dot = sample_velocity(total_natoms, max_velocity, min_velocity)
 
@@ -105,7 +117,8 @@ class AtomsInBox:
         assert self.N_atoms == self.calculator.N
 
         if self.cell_width is not None:
-            neighborlist = neighborlist_mask(self.r, L = self.L, cell_width = self.cell_width)
+            neighborlist = neighborlist_mask(
+                    self.r, Lxy = self.Lxy, Lz = self.Lz, cell_width = self.cell_width)
             self.calculator.calculate_distance(self.r, neighborlist)
         else:
             self.calculator.calculate_distance(self.r)
@@ -114,7 +127,7 @@ class AtomsInBox:
         
         assert self.N_atoms == self.calculator.N
 
-        self.r = PBC_wrapping(r,self.L)
+        self.r = PBC_wrapping(r,Lxy=self.Lxy,Lz=self.Lz)
         self.r_dot = r_dot
 
         if update_distance:
@@ -139,7 +152,7 @@ class AtomsInBox:
         N_atoms = self.N_atoms if N_atoms is None else N_atoms
 
         self.calculator = calculator_class(
-                N = N_atoms, box_length =  self.L, **calculator_kwargs)
+                N = N_atoms, Lxy = self.Lxy, Lz = self.Lz, **calculator_kwargs)
 
     def acceleration(self, t = None, field_force = None):
         force = self.calculator.force()
