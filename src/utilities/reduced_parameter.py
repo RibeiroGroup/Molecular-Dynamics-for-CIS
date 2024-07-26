@@ -98,15 +98,30 @@ def generate_LJparam_matrix(idxAr, idxXe):
     return epsilon_mat, sigma_mat
 
 def convert_energy(array, unit):
+    """
+    Convert energy array from r.u. to unit of choice
+    Args: 
+    + array (np.array): array of energy
+    + unit (str): either 'ev' or 'cm-1'
+    """
     array = deepcopy(array) * (epsilon * 6.242e11)
     if unit == "ev":
         return array
     elif unit == "cm-1":
         array *= 8065.56
         return array
+    else:
+        raise Exception(
+            'The specified unit is not supported. Please specify either "ev" or "cm-1"!')
 
 def convert_wavenumber(array):
+    # convert wavenumber array from r.u. to 1/cm
     array = deepcopy(array) / (sigma * 2 * np.pi)
+    return array
+
+def convert_time(array):
+    # convert time array in r.u. to ps
+    array = deepcopy(array) * time_unit * 1e12
     return array
 
 if test:

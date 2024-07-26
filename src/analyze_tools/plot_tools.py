@@ -29,18 +29,16 @@ class Plot:
             self.fig_dip, self.ax_dip = plt.subplots(
                 n_dipole_plots, figsize = (6,4 * n_dipole_plots)
                 )
-            self.dipole_plot_flag = True
-        else:
-            self.dipole_plot_flag = False
 
-        assert n_spec_plots > 0
-        self.fig_spec, self.ax_spec = plt.subplots(
-            n_spec_plots, figsize = (6,4 * n_spec_plots)
-            )
+        if n_spec_plots > 0:
+            self.fig_spec, self.ax_spec = plt.subplots(
+                n_spec_plots, figsize = (6,4 * n_spec_plots)
+                )
 
-    def add_dipole_plot(self, i, t, dipole, color_idx):
+    def add_dipole_plot(self, i, t, dipole, index):
         ax = self.ax_dip[i] if self.n_dipole_plots > 1 else self.ax_dip
-        self.ax_dip[i].plot(t, dipole, mcolors_list[i]) 
+        color_index = index % len(mcolors_list)
+        self.ax_dip[i].plot(t, dipole, mcolors_list[i], c = mcolors_list[color_index]) 
 
     def add_spec_plot(
         self, i, wavenumber, energy, ma_w = 10, scatter = True,
@@ -56,14 +54,16 @@ class Plot:
             ax.plot(w, e, label = line_label)
 
     def add_label(self, i, spec_label = None, dip_label = None):
-        if spec_label is not None:
-            xlabel , ylabel = spec_label
-        elif spec_label == None:
-            xlabel, ylabel = "Wavenumber (1/cm)", "Radiation mode energy (eV)"
-
-        ax = self.ax_spec[i] if self.n_spec_plots > 1 else self.ax_spec
-        ax.set_xlabel(xlabel)
-        ax.set_ylabel(ylabel)
+        if self.n_spec_plots < 1: 
+            pass
+        else:
+            if spec_label is not None:
+                xlabel , ylabel = spec_label
+            elif spec_label == None:
+                xlabel, ylabel = "Wavenumber (1/cm)", "Radiation mode energy (eV)"
+            ax = self.ax_spec[i] if self.n_spec_plots > 1 else self.ax_spec
+            ax.set_xlabel(xlabel)
+            ax.set_ylabel(ylabel)
 
         if dip_label:
             ax = self.ax_dip[i] if self.n_dip_plots > 1 else self.ax_dip
@@ -82,10 +82,11 @@ class Plot:
             self.ax_spec[i].annotate(
                 annotate[i], xy = (0.05,0.9), xycoords = 'axes fraction')
 
-    def savefig(self, path):
+    def savefig(self, root, spec_append = '', dip_append = ''):
         
-        self.fig_spec.savefig(path + "spectrum.jpeg",dpi=600,bbox_inches = "tight")
-        if self.dipole_plot_flag:
+        if self.n_spec_plots > 0:
+            self.fig_spec.savefig(path + "spectrum.jpeg",dpi=600,bbox_inches = "tight")
+        if self.n_dipole_plots > 0:
             self.fig_dip.savefig(path + "total_dipole.jpeg",dpi=600,bbox_inches = "tight")
 
 
