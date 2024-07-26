@@ -1,4 +1,3 @@
-import time
 import pickle
 import os, sys, glob
 import argparse

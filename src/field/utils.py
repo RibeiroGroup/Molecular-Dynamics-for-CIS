@@ -96,8 +96,6 @@ def EM_mode_exhaust(
 
     return modes_list
 
-foo = EM_mode_exhaust([0,1,2,3,4,5,6])
-print(foo)
 
 def EM_mode_generate_(max_n, n_vec_per_kz = 1, min_n = 1):
     modes_list = []
