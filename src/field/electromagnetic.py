@@ -1,6 +1,6 @@
 from copy import deepcopy
 import numpy as np
-from .utils import orthogonalize, timeit, repeat_x3
+from .utils import orthogonalize, repeat_x3
 
 class BaseVectorPotential:
     """
@@ -198,21 +198,32 @@ class FreeVectorPotential(BaseVectorPotential):
     """
     Class for vector potential of the electromagnetic field in free (e.g. not confined) field
     Args:
-    + k_vector (np.array): wavevector, SIZE: N x 3 with N is arbitrary number of modes
+    + k_vector_int (np.array): integer for constructing wavevector, 
+        i.e. (n_x, n_y, n_z) for (2*pi*n_x/Lxy, 2*pi*n_y/Lxy, 2*pi*n_z/Lz)
+        SIZE: N x 3 with N is arbitrary number of modes
     + amplitude (np.array): amplitude of the vector potential for each mode, thus, it should
         have SIZE: N x 2 with N is the number of modes and should be consistent with the number
         of wavevector
-    + V (float): volume
+    + Lxy (float): dimension of the box along the x AND y direction. It is assumed that the 
+        box dimensions along x and y are identical
+    + Lz (float): dimension of the box along the z direction
     + constant_c (float): speed of light constant
     + pol_vec (np.array, optional): polarization vector, SIZE N x 2 x 3 with N should be consistent
         with above arguments
     """
-    def __init__(self, k_vector, amplitude, V, constant_c, coupling_strength, pol_vec = None):
+    def __init__(
+        self, k_vector_int, amplitude, Lxy, Lz, constant_c, coupling_strength, pol_vec = None
+        ):
 
-        super().__init__(k_vector, amplitude, constant_c,V, coupling_strength)
-
-        self.k_vector = k_vector
+        self.k_vector_int = k_vector_int
+        self.k_vector = np.hstack([
+            k_vector_int[:,:2] * 2 * np.pi / Lxy,
+            k_vector_int[:,-1].reshape(-1,1) * 2 * np.pi / Lz , 
+            ])
         self.mode_projection = None
+
+        self.Lxy = Lxy
+        self.Lz  = Lz
 
         if pol_vec is None:
             # if no polarization vector is provided, a set of orthonormal
@@ -226,6 +237,9 @@ class FreeVectorPotential(BaseVectorPotential):
 
         else:
             self.pol_vec = pol_vec
+
+        V = Lxy * Lxy * Lz
+        super().__init__(self.k_vector, amplitude, constant_c, V, coupling_strength)
 
         assert self.pol_vec.shape == (self.n_modes, 2, 3)
 
@@ -288,26 +302,23 @@ class CavityVectorPotential(BaseVectorPotential):
     + Lz (float): length in z direction of the cavity
     + constant_c (float): value of speed of light constant
     """
-    def __init__(self, kappa, m, amplitude, Lxy, Lz, constant_c, coupling_strength):
+    def __init__(self, k_vector_int, amplitude, Lxy, Lz, constant_c, coupling_strength):
 
-        assert kappa.shape[0] == m.shape[0]
-        assert kappa.shape[1] == 2 and len(m.shape) == 1
+        self.k_vector_int = k_vector_int
 
-        # kappa vector 
-        self.kappa_vec = np.hstack([kappa, np.zeros((len(kappa),1))])
-        self.kappa = np.sqrt(
-                np.einsum("ki,ki->k",self.kappa_vec,self.kappa_vec)
-                )
+        # in-plane wavevector kappa vector 
+        kappa_vec = k_vector_int[:,:2] * 2 * np.pi / Lxy 
+        # magnitude of the in-plane wavevector
+        self.kappa = np.sqrt(np.einsum("ki,ki->k",kappa_vec,kappa_vec))
         # kz 
-        self.kz = np.pi * m / Lz
+        self.kz = k_vector_int[:,-1] * np.pi / Lz
 
         #k_vector in general
-        self.k_vector = np.hstack([kappa, self.kz[:,np.newaxis] ])
+        self.k_vector = np.hstack([kappa_vec, self.kz[:,np.newaxis] ])
         
         # cavity geometry
         assert isinstance(Lxy, float)
         assert isinstance(Lz, float)
-
         self.Lxy = Lxy
         self.Lz = Lz
 
@@ -322,8 +333,9 @@ class CavityVectorPotential(BaseVectorPotential):
         self.kappa_unit = [] # unit vector along kappa
         self.eta = []        # unit vector kappa x z_vec (cross product)
 
-        for i, k in enumerate(self.kappa_vec):
+        for i, k in enumerate(kappa_vec):
             if self.kappa[i] == 0.0:
+                # if x and y entries of k vector are zeroes, 
                 self.kappa_unit.append(np.array([1,0,0]))
                 self.eta.append(np.array([0,1,0]))
             else:
@@ -336,14 +348,24 @@ class CavityVectorPotential(BaseVectorPotential):
 
                 self.eta.append(eta)
 
+        # stacking the list of kappa_unit vector just computed
         self.kappa_unit = np.vstack(self.kappa_unit)
+        # add the last column of zeroes
+        self.kappa_unit = np.hstack([
+            self.kappa_unit,np.zeros((len(self.kappa_unit),1))])
+        # stacking the list of eta vector just computed
         self.eta = np.vstack(self.eta)
 
     def mode_function(self, t, R):
+        # generate kappa vector that is (kx,ky,0)
+        kappa_vec = np.hstack([
+            self.k_vector[:,:2], np.zeros((len(self.k_vector),1))
+            ])
+
         omega = np.tile(self.omega[:,np.newaxis],(1,len(R)))
 
         expkz = np.exp(
-            1j * np.einsum("kj,mj->km",self.kappa_vec,R) - 1j * omega * t
+            1j * np.einsum("kj,mj->km",kappa_vec,R) - 1j * omega * t
             )
 
         # TE mode  
@@ -387,6 +409,10 @@ class CavityVectorPotential(BaseVectorPotential):
         |Az.kx   Az.ky   Az.kz|    |dAz/dx   dAz/dy   dAz/dz|
         """
         k_vec = self.k_vector
+        kappa_vec = np.hstack([
+            self.k_vector[:,:2], np.zeros((len(self.k_vector),1))
+            ])
+
         kz = np.tile(self.kz[:,np.newaxis], (1,len(R)))
 
         C = self.C / np.sqrt(self.V)
@@ -398,11 +424,11 @@ class CavityVectorPotential(BaseVectorPotential):
 
         # calculating the gradient along the x and y axis (kappa vector) 
         # l = 2 as differentiating along the z axis is ommitted
-        gradf_R = np.einsum("kimj,kl->lkimj", gradf_R, 1j * self.kappa_vec[:,:2] )
+        gradf_R = np.einsum("kimj,kl->lkimj", gradf_R, 1j * kappa_vec[:,:2] )
 
         #calculating the gradient along the z axis
         expkz = np.exp(
-            1j * np.einsum("kj,mj->km",self.kappa_vec,R) - 1j * omega * t
+            1j * np.einsum("kj,mj->km",kappa_vec,R) - 1j * omega * t
             )
 
         # differentiating TE mode  

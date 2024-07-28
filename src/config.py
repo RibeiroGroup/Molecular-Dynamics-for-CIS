@@ -5,7 +5,7 @@ from matter.atoms import AtomsInBox
 from matter.utils import AllInOneSampler
 
 from field.electromagnetic import FreeVectorPotential,CavityVectorPotential
-from field.utils import EM_mode_generate_,EM_mode_generate, EM_mode_generate3
+#from field.utils import EM_mode_generate_,EM_mode_generate, EM_mode_generate3
 
 import utilities.reduced_parameter as red
 
@@ -16,7 +16,7 @@ import utilities.reduced_parameter as red
 #seed1 = 2024 #1807 # 1998 #2024
 #seed2 = 2020 #929 # 1507 #2020
 
-num_cycles = 1
+num_cycles = 10
 if num_cycles != 10: print("Warning, number of cycles is not 10!")
 
 h = 1e-2
@@ -75,13 +75,12 @@ probe_kvector_int = np.array(
        +[[0,i,0] for i in range(1,200)]
         )
 
-probe_kvector = probe_kvector_int * (2 * np.pi / Lxy)
 probe_coupling_strength = 1e0
 
 amplitude = np.vstack([
     np.random.uniform(size = 2) * 1 + np.random.uniform(size = 2) * 1j
-    for i in range(len(probe_kvector))
+    for i in range(len(probe_kvector_int))
     ]) * 0
 
 cavity_coupling_strength = 1e0
-cavity_amplitude_scaling = 1e5
+cavity_amplitude_scaling = 1e4
