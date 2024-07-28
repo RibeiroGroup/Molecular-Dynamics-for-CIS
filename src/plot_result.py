@@ -84,7 +84,7 @@ for j, KEYWORDS in enumerate(["cavity","free"]):
 
     file_dict = categorizing_pickle(
         PICKLE_PATH[KEYWORDS], 
-        KEYWORDS = KEYWORDS)
+        KEYWORDS = "")
 
     final_time = 0
     initial_times = 0
@@ -101,7 +101,7 @@ for j, KEYWORDS in enumerate(["cavity","free"]):
         atoms = result["atoms"]
 
         Afield = result["probe_field"]
-        cave_field = result["cavity_field"]
+        cave_field = result["external_field"]
 
         total_energy = np.array(atoms.observable["kinetic"]) + np.array(atoms.observable["potential"]) \
                 + np.sum(Afield.history["energy"],axis = 1) 

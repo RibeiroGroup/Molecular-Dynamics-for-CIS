@@ -14,7 +14,7 @@ import numpy as np
 
 def single_collision_simulation(
         cycle_number, t0, h, atoms, probe_field,
-        cavity_field = None, total_dipole_threshold = 1e-5, 
+        external_field = None, total_dipole_threshold = 1e-5, 
         min_steps = 100, max_steps = 10000
         ):
 
@@ -24,8 +24,8 @@ def single_collision_simulation(
     if probe_field:
         probe_field.record(t)
 
-    if cavity_field:
-        cavity_field.record(t)
+    if external_field:
+        external_field.record(t)
 
     dipole_drop_flag = False
     potential_drop_flag = False
@@ -35,9 +35,9 @@ def single_collision_simulation(
             and steps < max_steps:
         steps += 1
 
-        if cavity_field is not None and probe_field is not None:
+        if external_field is not None and probe_field is not None:
             em_force_func = lambda t, atoms: \
-                cavity_field.force(t,atoms) + probe_field.force(t,atoms)
+                external_field.force(t,atoms) + probe_field.force(t,atoms)
         elif probe_field is not None:
             em_force_func = lambda t, atoms: \
                 probe_field.force(t,atoms)
@@ -57,13 +57,13 @@ def single_collision_simulation(
             probe_field.update_amplitude(C_new)
         else: probe_field = None
 
-        if cavity_field:
-            cavity_field.record(t)
-            C_dot_tp1 = cavity_field.dot_amplitude(t+h,atoms)
-            C_new = cavity_field.C + h * (C_dot_tp1)
+        if external_field:
+            external_field.record(t)
+            C_dot_tp1 = external_field.dot_amplitude(t+h,atoms)
+            C_new = external_field.C + h * (C_dot_tp1)
 
-            cavity_field.update_amplitude(C_new)
-        else: cavity_field = None
+            external_field.update_amplitude(C_new)
+        else: external_field = None
 
         t += h
 
@@ -79,7 +79,7 @@ def single_collision_simulation(
             dipole_drop_flag = False
 
     result = {
-            "atoms":atoms, "cavity_field":cavity_field, "probe_field":probe_field
+            "atoms":atoms, "external_field":external_field, "probe_field":probe_field
             }
 
     return t, result

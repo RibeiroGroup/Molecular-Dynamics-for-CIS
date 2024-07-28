@@ -25,7 +25,8 @@ h = 1e-2
 ### BOX SIZE ### 
 ################
 
-L_free = 3e7
+Lxy_free = 3e7
+Lz_free = 3e7
 Lxy = 3e7
 Lz  = 5e2
 cell_width = 100
@@ -82,5 +83,5 @@ amplitude = np.vstack([
     for i in range(len(probe_kvector_int))
     ]) * 0
 
-cavity_coupling_strength = 1e0
-cavity_amplitude_scaling = 1e4
+external_coupling_strength = 1e0
+external_amplitude_scaling = 1e4

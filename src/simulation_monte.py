@@ -27,7 +27,11 @@ import config
 parser = argparse.ArgumentParser()
 
 parser.add_argument("--seed", "-s", type = int, help = "random seed for Monte Carlo simulation")
-parser.add_argument("--type","-t", type = str, help = "Simulation type, include only 'cavity', 'free','nofield'")
+#parser.add_argument("--type","-t", type = str, help = "Simulation type, include only 'external', 'free','nofield'")
+parser.add_argument("--external","-x", type = str, 
+    help = "External field, include only 'external', 'free', None", default = None)
+parser.add_argument("--probe","-p", type = int, 
+    help = "Probe field, 0 for no probe field and 1 for free field")
 parser.add_argument(
     "--continue_from", "-c", help = "given the directory path, continue simulation from the last pickle file", 
     default = None)
@@ -35,50 +39,39 @@ parser.add_argument(
     "--min_mode", "-m", type = int,  help = "minimum external laser mode integer"
         )
 parser.add_argument(
-    "--max_mode", "-x", type = int,  help = "maximum external laser mode integer"
+    "--max_mode", "-n", type = int,  help = "maximum external laser mode integer"
         )
 
 args = parser.parse_args()
 assert isinstance(args.seed, int)
-assert args.type == 'cavity' or args.type == 'free' or args.type == 'nofield'
+assert args.external == 'cavity' or args.external == 'free' or args.external == None
 
-if args.type == 'cavity':
+if args.external:
     assert isinstance(args.min_mode, int) and isinstance(args.max_mode, int)
     assert args.min_mode < args.max_mode
 
-if args.continue_from == None:
-    """
-    Create directory in case of starting brand new simulation
-    """
-    pickle_jar_path = "pickle_jar/" + args.type + '-' + str(config.K_temp)\
-        + "_" + str(config.N_atom_pairs) + "_" + str(args.seed)
-    if args.type == "cavity":
-        pickle_jar_path += "_"  + str(args.min_mode) + "_" + str(args.max_mode)
-    if os.path.isdir(pickle_jar_path):
-        # check if there are pickle file in the existing directory
-        file_dict = categorizing_pickle(pickle_jar_path,KEYWORDS = "cavity")
-        if len(file_dict) == 0:
-            exist_jar_flag = False
-        else:
-            exist_jar_flag = True
-    else:
-        os.mkdir(pickle_jar_path)
-        exist_jar_flag = False
+"""
+Directory management
+"""
+sim_type = 'probe' if args.probe else 'nofield'
 
-elif args.continue_from:
-    pickle_jar_path = "pickle_jar/" + args.continue_from
-    try:
-        assert os.path.isdir(pickle_jar_path)
-    except AssertionError:
-        raise Exception(
-            "There is no such folder {}! Please check the path or start a new run!".format(
-                pickle_jar_path)
-            )
-    file_dict = categorizing_pickle(pickle_jar_path,KEYWORDS = "cavity")
+pickle_jar_path = "pickle_jar/" + sim_type + '-' + str(config.K_temp)\
+    + "_" + str(config.N_atom_pairs) + "_" + str(args.seed)
+
+if args.external:
+    pickle_jar_path += "_"  + args.external + "_"  + str(args.min_mode) + "_" + str(args.max_mode)
+
+if os.path.isdir(pickle_jar_path):
+    # check if there are pickle file in the existing directory
+    file_dict = categorizing_pickle(pickle_jar_path,KEYWORDS = "")
     if len(file_dict) == 0:
         exist_jar_flag = False
     else:
         exist_jar_flag = True
+else:
+    # Create directory in case of starting brand new simulation
+    os.mkdir(pickle_jar_path)
+    exist_jar_flag = False
 
 ###########
 ### ETC ###
@@ -109,17 +102,13 @@ if exist_jar_flag:
     t = info["t_final"]
     h = info["h"]
 
-    # loaded simulated space geometry
-    Lxy = info["L_xy"]
-    Lz = info["L_z"]
-
     # loaded temperature and atomic sampler
-    K_temp = info["temperature"]
     sampler = info["sampler"]
-    N_atom_pairs = info["N_atom_pairs"]
+    Lxy = info["Lxy"]; Lz = info["Lz"]
+    ExternalVectorPotential = info["ExternalVectorPotential"]
 
     # get dict of {"cycle numbers": path to pickle}
-    file_dict = categorizing_pickle(pickle_jar_path,KEYWORDS = "cavity")
+    file_dict = categorizing_pickle(pickle_jar_path,KEYWORDS = "")
 
     # get pickle that is the final simulation
     final_cycle_num = max(file_dict.keys())
@@ -129,29 +118,29 @@ if exist_jar_flag:
     with open(final_pickle_path,"rb") as handle:
         result = pickle.load(handle)
 
-    # load the cavity field
-    if args.type == 'cavity':
-        print('Load cavity vector potential field.')
-        old_cavity_field = result["cavity_field"]
-        cavity_field = CavityVectorPotential(
-            k_vector_int = old_cavity_field.k_vector_int, 
+    # load the external field
+    if args.external:
+        print('Load external vector potential field.')
+        old_external_field = result["external_field"]
+        external_field = CavityVectorPotential(
+            k_vector_int = old_external_field.k_vector_int, 
             constant_c = red.c,
-            Lxy = old_cavity_field.Lxy, Lz = old_cavity_field.Lz, 
-            amplitude = old_cavity_field.C, 
-            coupling_strength = info["coupling_strength"]["cavity"]
+            Lxy = old_external_field.Lxy, Lz = old_external_field.Lz, 
+            amplitude = old_external_field.C, 
+            coupling_strength = old_external_field.coupling_strength
             )
-        del old_cavity_field
-    else: cavity_field = None
+        del old_external_field
+    else: external_field = None
 
     # load the probe field
-    if args.type == 'cavity' or args.type == 'free':
+    if args.probe:
         print('Load probe (free) vector potential field.')
         old_probe_field = result["probe_field"]
         probe_field = FreeVectorPotential(
                 k_vector_int = old_probe_field.k_vector_int, 
                 amplitude = old_probe_field.C, constant_c = red.c,
                 Lxy = old_probe_field.Lxy, Lz = old_probe_field.Lz, 
-                coupling_strength = info["coupling_strength"]["probe"]
+                coupling_strength = old_probe_field.coupling_strength
                 )
         del old_probe_field
 
@@ -184,45 +173,56 @@ elif not exist_jar_flag:
                 ##########################
                 ##########################
 
-    if args.type == 'cavity':
+    if args.external:
     ### START CAVITY MODE SPECS ###
-        print("Initiate cavity vector field")
-        # get the minimum and maximum integer for generating the cavity modes
-        possible_cavity_k = [0] + list(range(args.min_mode,args.max_mode)) 
-        cave_mode_int = np.array(
-            EM_mode_exhaust(possible_cavity_k, max_kval = args.max_mode), dtype=np.float64)
-        print("There are {} cavity mode".format(len(cave_mode_int)))
+        print("Initiate external vector field")
+        if args.external == 'cavity':
+            ExternalVectorPotential = CavityVectorPotential
+            Lxy = config.Lxy; Lz = config.Lz
+        elif args.external == 'free':
+            ExternalVectorPotential = FreeVectorPotential
+            Lxy = config.Lxy_free; Lz = config.Lz_free
+
+        # get the minimum and maximum integer for generating the external modes
+        possible_external_k = [0] + list(range(args.min_mode,args.max_mode)) 
+        ext_mode_int = np.array(
+            EM_mode_exhaust(possible_external_k, max_kval = args.max_mode), dtype=np.float64)
+        print("There are {} external mode".format(len(ext_mode_int)))
 
         # calculate the magnitude of the wavevector for normalizing the energy
-        k_val = np.sqrt(np.einsum("ki,ki->k",cave_mode_int, cave_mode_int))
+        k_val = np.sqrt(np.einsum("ki,ki->k",ext_mode_int, ext_mode_int))
         k_val = np.tile(k_val[:,np.newaxis],(1,2))
 
         amplitude2 = np.vstack([
             #np.ones( 2) + np.ones(2) * 1j
             np.random.uniform(size = 2) * 1 + np.random.uniform(size = 2) * 1j
-            for i in range(len(cave_mode_int))
-            ]) * np.sqrt(config.Lxy * config.Lxy * config.Lz) / k_val \
-            * config.cavity_amplitude_scaling 
+            for i in range(len(ext_mode_int))
+            ]) * np.sqrt(Lxy * Lxy * Lz) / k_val \
+            * config.external_amplitude_scaling 
 
         # in-plane wavevector
         # integer for generating kz (see field.electromagnetic.CavityVectorPotential module)
 
-        cavity_field = CavityVectorPotential(
-            k_vector_int = cave_mode_int, amplitude = amplitude2,
-            Lxy = config.Lxy, Lz = config.Lz, constant_c = red.c, 
-            coupling_strength = config.cavity_coupling_strength
+        external_field = ExternalVectorPotential(
+            k_vector_int = ext_mode_int, amplitude = amplitude2,
+            Lxy = Lxy, Lz = Lz, constant_c = red.c, 
+            coupling_strength = config.external_coupling_strength
             )
-    else: cavity_field = None
+    else: 
+        ExternalVectorPotential = None
+        external_field = None
+        print("Warning, Lxy and Lz are not defined for no external field case, default value are used")
+        Lxy = config.Lxy; Lz = config.Lz
     ### END CAVITY MODE SPECS ###
 
-    if args.type == 'cavity' or args.type == 'free':
+    if args.probe:
     ### START FREE MODE SPECS ###
         print("Initiate Probe (Free) vector field:")
         probe_field = FreeVectorPotential(
                 k_vector_int = config.probe_kvector_int, 
                 amplitude = np.zeros(
                     (len(config.probe_kvector_int), 2), dtype = np.complex128),
-                Lxy = config.Lxy, Lz = config.Lz, 
+                Lxy = Lxy, Lz = Lz, 
                 constant_c = red.c, 
                 coupling_strength = config.probe_coupling_strength
                 )
@@ -252,35 +252,35 @@ for i in range(final_cycle_num + 1, final_cycle_num + 1 + config.num_cycles):
     r_ar, r_xe = sample["r"]
     r_dot_ar, r_dot_xe = sample["r_dot"]
 
-    atoms = initiate_atoms_box(config.Lxy, config.Lz)
-    atoms.add(elements = ["Ar"]*N_atom_pairs,r = r_ar,r_dot = r_dot_ar)
-    atoms.add(elements = ["Xe"]*N_atom_pairs,r = r_xe,r_dot = r_dot_xe)
+    atoms = initiate_atoms_box(Lxy, Lz)
+    atoms.add(elements = ["Ar"]*len(r_ar),r = r_ar,r_dot = r_dot_ar)
+    atoms.add(elements = ["Xe"]*len(r_xe),r = r_xe,r_dot = r_dot_xe)
 
     atoms.update_distance()
 
     t, result = single_collision_simulation(
             cycle_number = i, atoms = atoms, t0 = t, h = h,
-            probe_field = probe_field, cavity_field = cavity_field, total_dipole_threshold = 1e-4, 
+            probe_field = probe_field, external_field = external_field, total_dipole_threshold = 1e-4, 
             )
 
-    with open(pickle_jar_path + '/' + "result_cavity_{}.pkl".format(i),"wb") as handle:
+    with open(pickle_jar_path + '/' + "result_{}.pkl".format(i),"wb") as handle:
         pickle.dump(result, handle)
 
     del atoms
 
-    if args.type == 'cavity':
-        cavity_field = result["cavity_field"] 
-        new_cavity_field = CavityVectorPotential(
-            k_vector_int = cavity_field.k_vector_int,
-            Lxy = cavity_field.Lxy, Lz = cavity_field.Lz, 
-            amplitude = cavity_field.C,constant_c = red.c,
-            coupling_strength = config.cavity_coupling_strength
+    if args.external:
+        external_field = result["external_field"] 
+        new_external_field = ExternalVectorPotential(
+            k_vector_int = external_field.k_vector_int,
+            Lxy = external_field.Lxy, Lz = external_field.Lz, 
+            amplitude = external_field.C,constant_c = red.c,
+            coupling_strength = config.external_coupling_strength
             )
 
-        del cavity_field
-        cavity_field = new_cavity_field
+        del external_field
+        external_field = new_external_field
 
-    if args.type == 'cavity' or args.type == 'free':
+    if args.probe:
         probe_field = result["probe_field"] 
         new_probe_field = FreeVectorPotential(
                 k_vector_int = config.probe_kvector_int, 
@@ -299,25 +299,22 @@ for i in range(final_cycle_num + 1, final_cycle_num + 1 + config.num_cycles):
             ###################################
 if first_run_flag:
     info_dict = {
-            "type":args.type,"h":h, 
-            "num_cycles":config.num_cycles,
-            "N_atom_pairs":config.N_atom_pairs, 
-            "L_xy": config.Lxy, "L_z": config.Lz,
+            "t_final":t, "h":h, "num_cycles":config.num_cycles,
             "temperature":K_temp, "mu0":config.mu0, 
             "seed":args.seed, "seed_list":seed_list, 
-            "t_final":t,
-            "sampler":sampler, 
-            "coupling_strength":{},
+            "sampler":sampler, "coupling_strength":{},
+            "ExternalVectorPotential": ExternalVectorPotential,
+            "Lxy":Lxy, "Lz":Lz
             }
 
-    if args.type =='cavity':
+    if args.external:
         info_dict["coupling_strength"].update(
-            {"cavity":config.cavity_coupling_strength}
+            {"external":config.external_coupling_strength}
             )
         info_dict.update({
-            "cavity_mode_integer":cave_mode_int
+            "external_mode_integer":ext_mode_int
             })
-    if args.type == 'cavity' or args.type == 'free':
+    if args.probe:
         info_dict["coupling_strength"].update(
             {"probe":config.probe_coupling_strength}
             )
