@@ -27,19 +27,6 @@ parser = argparse.ArgumentParser()
 parser.add_argument(
     "--plot_from", "-c", help = "given the directory path, continue simulation from the last pickle file", 
     default = None)
-parser.add_argument("--seed", "-s", type = int, help = "random seed for Monte Carlo simulation")
-parser.add_argument(
-    "--min_cav_mode", "-m", type = int,  help = "minimum cavity mode integer"
-        )
-parser.add_argument(
-    "--max_cav_mode", "-x", type = int,  help = "maximum cavity mode integer"
-        )
-parser.add_argument(
-    "--temperature", "-t", type = int,  help = "temperature"
-        )
-parser.add_argument(
-    "--N_atom_pairs", "-N", type = int,  help = "number of pairs of atoms"
-        )
 parser.add_argument(
     "--free_jar_path", "-f", help = "path to pickle file for monte carlo simulation in free field"
     )
@@ -52,27 +39,27 @@ args = parser.parse_args()
 PICKLE_PATH = {}
 ROOT = "pickle_jar/"
 #ROOT = "/Users/macbook/OneDrive - Emory/Research data/mm_polariton/pickle_jar/"
+#ROOT = os.path.expanduser("~/code/mm_polariton_pickle_ja/")
 if args.plot_from:
     jar = args.plot_from
     jar_path = ROOT  + jar
 else:
-    jar = str(args.temperature) + "_" + str(args.N_atom_pairs) + "_" \
-            + str(args.min_cav_mode) + "_" + str(args.max_cav_mode)+ "_" + str(args.seed)
-    jar_path = ROOT + jar
+    jar = args.free_jar_path
 
 if not os.path.isdir("figure/" + jar):
     os.mkdir("figure/" + jar)
 
-PICKLE_PATH.update({"cavity":jar_path})
+if args.plot_from:
+    PICKLE_PATH.update({"cavity":jar_path})
 if args.free_jar_path:
     PICKLE_PATH.update({"free":ROOT + args.free_jar_path})
-else:
-    PICKLE_PATH.update({"free":jar_path})
 
 rad_profile_list = []
 
 fig1, ax1 = plt.subplots(2,figsize = (6,8))
 fig2, ax2 = plt.subplots(2,figsize = (6,8))
+
+Lz_cave = 1
 
 for j, KEYWORDS in enumerate(["cavity","free"]):
 
@@ -82,9 +69,12 @@ for j, KEYWORDS in enumerate(["cavity","free"]):
     ar_velocity_dist = []
     xe_velocity_dist = []
 
-    file_dict = categorizing_pickle(
-        PICKLE_PATH[KEYWORDS], 
-        KEYWORDS = "")
+    try:
+        file_dict = categorizing_pickle(
+            PICKLE_PATH[KEYWORDS], 
+            KEYWORDS = "")
+    except:
+        continue
 
     final_time = 0
     initial_times = 0
@@ -135,8 +125,15 @@ for j, KEYWORDS in enumerate(["cavity","free"]):
 
         total_dipole = np.array(atoms.observable["total_dipole"])
 
+        if KEYWORDS == 'cavity':
+            Lz_cave = Afield.Lz
+            scale = 1
+        elif KEYWORDS == 'free':
+            scale = np.sqrt(Afield.Lz / Lz_cave)
+
         rad_energy = np.array(Afield.history["energy"]) * red.epsilon * 6.242e11 
-        #rad_energy *= 8065.56 # convert from eV to cm^-1
+        rad_energy *= scale
+        rad_energy *= 8065.56 # convert from eV to cm^-1
 
         omega = Afield.k_val / red.sigma
         omega /= 2*np.pi
@@ -160,7 +157,7 @@ for j, KEYWORDS in enumerate(["cavity","free"]):
     """
     for i, o in enumerate(omega_profile):
         print(i+1,o)
-    """
+    #"""
 
     n,_,_ = ax3[1].hist(xe_velocity_dist, bins = np.arange(0,10,0.1))
     ax3[0].hist(ar_velocity_dist, bins = np.arange(0,10,0.1))
@@ -171,7 +168,7 @@ for j, KEYWORDS in enumerate(["cavity","free"]):
 
     ax4[0].set_xlabel("Time (ps)")
 
-    o, r = moving_average(omega_profile, rad_profile,20)
+    o, r = moving_average(omega_profile, rad_profile,6)
     ax4[1].scatter(omega_profile, rad_profile, s = 5)
     ax4[1].plot(o, r)
 
@@ -179,7 +176,7 @@ for j, KEYWORDS in enumerate(["cavity","free"]):
     ax4[1].set_ylabel("Final energy (1/cm)")
 
     #ax1[0].scatter(omega_profile, rad_profile, s = 5, alpha = 0.5)
-    ax1[0].plot(o, r, label = KEYWORDS)
+    ax1[0].plot(o, r, label = KEYWORDS, linestyle = "--" if KEYWORDS == 'free' else None)
     rad_profile_list.append(rad_profile)
 
     fig3.savefig("figure/"+jar+"/full_simulation_velocity_profile_"+KEYWORDS+".jpeg",dpi = 600,bbox_inches="tight")
@@ -189,11 +186,13 @@ ax1[0].set_xlabel("Wavenumber (1/cm)")
 ax1[0].set_ylabel("Final energy (1/cm)")
 ax1[0].legend()
 
-profile_diff = (rad_profile_list[0] - rad_profile_list[1])
-#ax1[1].scatter(omega_profile, profile_diff, 
-#        s = 5, alpha = 0.5)
-o,r = moving_average(omega_profile, profile_diff, 20)
-ax1[1].plot(o,r, label = "Spectra in cavity \n- 'free space")
+try:
+    profile_diff = (rad_profile_list[0] - rad_profile_list[1])
+    #ax1[1].scatter(omega_profile, profile_diff, 
+    #        s = 5, alpha = 0.5)
+    o,r = moving_average(omega_profile, profile_diff, 6)
+    ax1[1].plot(o,r, label = "Spectra in cavity \n- 'free space")
+except: pass
 
 lf, uf = ax1[1].get_xlim()
 ax1[1].plot(np.linspace(lf,uf,10), [0]*10, linestyle="dashed", linewidth = 0.5,color="gray")

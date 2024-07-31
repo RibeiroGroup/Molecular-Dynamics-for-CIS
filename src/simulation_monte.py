@@ -29,12 +29,9 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--seed", "-s", type = int, help = "random seed for Monte Carlo simulation")
 #parser.add_argument("--type","-t", type = str, help = "Simulation type, include only 'external', 'free','nofield'")
 parser.add_argument("--external","-x", type = str, 
-    help = "External field, include only 'external', 'free', None", default = None)
+        help = "External field, valid argument: 'external', 'free', None", default = None)
 parser.add_argument("--probe","-p", type = int, 
     help = "Probe field, 0 for no probe field and 1 for free field")
-parser.add_argument(
-    "--continue_from", "-c", help = "given the directory path, continue simulation from the last pickle file", 
-    default = None)
 parser.add_argument(
     "--min_mode", "-m", type = int,  help = "minimum external laser mode integer"
         )
@@ -122,7 +119,7 @@ if exist_jar_flag:
     if args.external:
         print('Load external vector potential field.')
         old_external_field = result["external_field"]
-        external_field = CavityVectorPotential(
+        external_field = ExternalVectorPotential(
             k_vector_int = old_external_field.k_vector_int, 
             constant_c = red.c,
             Lxy = old_external_field.Lxy, Lz = old_external_field.Lz, 
@@ -195,10 +192,10 @@ elif not exist_jar_flag:
 
         amplitude2 = np.vstack([
             #np.ones( 2) + np.ones(2) * 1j
-            np.random.uniform(size = 2) * 1 + np.random.uniform(size = 2) * 1j
+            np.random.uniform(low=config.C-config.dC, high=config.C+config.dC, size = 2) * 1 \
+                    + np.random.uniform(low=config.C-config.dC, high=config.C+config.dC,size = 2) * 1j
             for i in range(len(ext_mode_int))
             ]) * np.sqrt(Lxy * Lxy * Lz) / k_val \
-            * config.external_amplitude_scaling 
 
         # in-plane wavevector
         # integer for generating kz (see field.electromagnetic.CavityVectorPotential module)
@@ -208,11 +205,14 @@ elif not exist_jar_flag:
             Lxy = Lxy, Lz = Lz, constant_c = red.c, 
             coupling_strength = config.external_coupling_strength
             )
+        ####################################
+        #print(external_field.hamiltonian())
+        #raise Exception
     else: 
         ExternalVectorPotential = None
         external_field = None
-        print("Warning, Lxy and Lz are not defined for no external field case, default value are used")
-        Lxy = config.Lxy; Lz = config.Lz
+        #print("Warning, Lxy and Lz are not defined for no external field case, default value are used")
+        Lxy = config.Lxy_free; Lz = config.Lz_free
     ### END CAVITY MODE SPECS ###
 
     if args.probe:

@@ -17,6 +17,7 @@ class AtomsInBox:
         self.Lxy = Lxy
         self.Lz = Lz
 
+        assert isinstance(cell_width, tuple) and len(cell_width) == 2
         self.cell_width = cell_width
 
         self.calculator = None
@@ -117,8 +118,11 @@ class AtomsInBox:
         assert self.N_atoms == self.calculator.N
 
         if self.cell_width is not None:
+            cell_width_xy, cell_width_z = self.cell_width
             neighborlist = neighborlist_mask(
-                    self.r, Lxy = self.Lxy, Lz = self.Lz, cell_width = self.cell_width)
+                    self.r, Lxy = self.Lxy, Lz = self.Lz, 
+                    cell_width_xy = cell_width_xy, 
+                    cell_width_z = cell_width_z)
             self.calculator.calculate_distance(self.r, neighborlist)
         else:
             self.calculator.calculate_distance(self.r)

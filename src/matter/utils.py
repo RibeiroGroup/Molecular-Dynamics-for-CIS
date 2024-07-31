@@ -21,7 +21,7 @@ def PBC_wrapping(r, Lxy, Lz):
 
     return r
 
-def neighborlist_mask(R_all, Lxy, Lz, cell_width):
+def neighborlist_mask(R_all, Lxy, Lz, cell_width_xy, cell_width_z):
     """
     Class for generating neighborlist mask for accelerating calculation of distance
     Args:
@@ -30,11 +30,11 @@ def neighborlist_mask(R_all, Lxy, Lz, cell_width):
     + cell_width (float): dimension of cell
     """
 
-    assert cell_width < Lxy and cell_width < Lz
+    assert cell_width_xy < Lxy and cell_width_z < Lz
 
     #binning the cubic box width to cells width
-    Lxy_bin = np.arange(-Lxy/2,Lxy/2+1,cell_width)
-    Lz_bin = np.arange(-Lz/2,Lz/2+1,cell_width)
+    Lxy_bin = np.arange(-Lxy/2,Lxy/2+1,cell_width_xy)
+    Lz_bin = np.arange(-Lz/2,Lz/2+1,cell_width_z)
 
     #calculate the center of the cell
     cell_xycenter_list = np.array(

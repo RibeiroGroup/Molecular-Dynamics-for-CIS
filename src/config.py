@@ -16,8 +16,8 @@ import utilities.reduced_parameter as red
 #seed1 = 2024 #1807 # 1998 #2024
 #seed2 = 2020 #929 # 1507 #2020
 
-num_cycles = 10
-if num_cycles != 10: print("Warning, number of cycles is not 10!")
+num_cycles = 5
+if num_cycles != 5: print("Warning, number of cycles is not 10!")
 
 h = 1e-2
 
@@ -25,17 +25,17 @@ h = 1e-2
 ### BOX SIZE ### 
 ################
 
-Lxy_free = 3e7
-Lz_free = 3e7
-Lxy = 3e7
-Lz  = 5e2
-cell_width = 100
+l = 2.5
+Lxy_free = l *1e7
+Lz_free = l * 1e7
+Lxy = l * 1e7
+Lz  = l * 1e1
 
 ##############
 ### MATTER ###
 ##############
 
-N_atom_pairs = 16 #512
+N_atom_pairs = 1024
 K_temp = 292
 
 mu0 = red.mu0
@@ -46,9 +46,11 @@ sampler = AllInOneSampler(
         ar_mass=red.mass_dict["Ar"], xe_mass=red.mass_dict["Xe"]
         )
 
+cw_get = lambda L: np.max((L/1e2, 10))
+
 def initiate_atoms_box(Lxy, Lz):
     atoms = AtomsInBox(
-        Lxy = Lxy, Lz= Lz, cell_width = cell_width, 
+        Lxy = Lxy, Lz= Lz, cell_width = (cw_get(Lxy), cw_get(Lz)), 
         mass_dict = red.mass_dict)
     # Generate a matrix of LJ potential parameter
     # e.g. matrix P with Pij is LJ parameter for i- and j-th atoms
@@ -84,4 +86,5 @@ amplitude = np.vstack([
     ]) * 0
 
 external_coupling_strength = 1e0
-external_amplitude_scaling = 1e4
+C = 1e4
+dC = 1e3
