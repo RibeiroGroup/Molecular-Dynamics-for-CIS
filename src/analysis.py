@@ -8,6 +8,7 @@ import matplotlib.animation as animation
 import utilities.reduced_parameter as red
 
 from analyze_tools.monte_carlo import get_colliding_time
+from utilities.etc import categorizing_result
 
 #PICKLE_PATH = "/home/ribeirogroup/code/mm_polariton_pickle_ja/result_Jul12nd_2024_0939/*"
 #PICKLE_PATH = "pickle_jar/result_Jul13th_2024_0956/*"
@@ -17,42 +18,39 @@ PICKLE_PATH = "pickle_jar/*"
 fig1,ax1 = plt.subplots(2,figsize = (6,8))
 #fig2,ax2 = plt.subplots(2,figsize = (6,8))
 
-collision_time = {"cavity":[], "free":[]}
+collision_time = {}
 initial_velocity_data = {
         "cavity":{"Ar": [], "Xe":[]},
         "free":{"Ar": [], "Xe":[]}
         }
-traj_loc = {"cavity":[], "free":[]}
 
-for j,KEYWORDS in enumerate(["cavity","free"]):
+temperature = 150; N_atoms = 1024; seed = 293
 
-    ar_angle = []
-    xe_angle = []
+ar_angle = []
+xe_angle = []
 
-    magnitude = lambda vec: np.sqrt(np.einsum("ni,ni->n",vec,vec))
+result_dict = categorizing_result(
+        ROOT2 + "probe-{}_{}_{}_cavity_43_75".format(temperature, N_atoms, seed))
+result_dict_list.append(result_dict)
 
-    for PATH in glob.glob(PICKLE_PATH):
-        
-        if KEYWORDS not in PATH: continue
+magnitude = lambda vec: np.sqrt(np.einsum("ni,ni->n",vec,vec))
 
-        with open(PATH,"rb") as handle:
-            result = pickle.load(handle)
+for i, result in result_dict.items():
+    
+    atoms = copy.deepcopy(result["atoms"])
+    mu0 = red.mu0
+    N_pairs = int(len(atoms.r) / 2)
 
-        atoms = copy.deepcopy(result["atoms"])
-        mu0 = result["mu0"]
+    traj_len = len(atoms.trajectory["r"])
 
-        traj_len = len(atoms.trajectory["r"])
+    initial_velocity_data[KEYWORDS]["Ar"] += \
+            list(magnitude(atoms.trajectory["r_dot"][0][:N_pairs]))
+    initial_velocity_data[KEYWORDS]["Xe"] += \
+            list(magnitude(atoms.trajectory["r_dot"][0][N_pairs:]))
 
-        initial_velocity_data[KEYWORDS]["Ar"] += \
-                list(magnitude(atoms.trajectory["r_dot"][0][:N_pairs]))
-        initial_velocity_data[KEYWORDS]["Xe"] += \
-                list(magnitude(atoms.trajectory["r_dot"][0][N_pairs:]))
+    t = get_colliding_time(atoms, mu0 = mu0, dipole_threshold = 1e-3)
 
-        t = get_colliding_time(atoms, mu0 = mu0, dipole_threshold = 1e-3)
-
-        collision_time[KEYWORDS] = t
-
-        traj_loc[KEYWORDS].append((PATH, i))
+    collision_time[i] = t
 
 initial_arvelocity = initial_velocity_data["cavity"]["Ar"]
 initial_xevelocity = initial_velocity_data["cavity"]["Xe"]

@@ -34,4 +34,3 @@ def get_colliding_time(atoms, mu0, dipole_threshold):
         colliding_time.append(dt)
 
     return colliding_time
-

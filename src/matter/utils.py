@@ -142,18 +142,18 @@ class AllInOneSampler:
     + xe_mass (float): (reduced) mass of Xenon
     """
     def __init__(
-            self, N_atom_pairs, angle_range, Lxy, Lz,
-            d_ar_xe, red_temp_unit, K_temp,
+            self, N_atom_pairs, Lxy, Lz,
+            d_ar_xe, d_impact, red_temp_unit, K_temp,
             ar_mass, xe_mass
             ):
 
         self.N_atom_pairs = N_atom_pairs
 
-        self.angle_range = angle_range
-
         self.Lxy = Lxy
         self.Lz = Lz
         self.d_ar_xe = d_ar_xe
+
+        self.angle_range = np.arcsin(d_impact / d_ar_xe)
 
         self.sampler_ar = MaxwellSampler(
                 mass = ar_mass,

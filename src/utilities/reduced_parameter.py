@@ -121,7 +121,15 @@ def convert_wavenumber(array):
 
 def convert_time(array):
     # convert time array in r.u. to ps
-    array = deepcopy(array) * time_unit * 1e12
+    array = deepcopy(np.array(array)) * time_unit * 1e12
+    return array
+
+def convert_dipole(array):
+    """
+    Convert Dipole from reduced unit to Debye
+    """
+    print("FYI, this function divide the dipole by 2 to make up for duoble counting of dipole")
+    array = deepcopy(np.array(array)) * dipole_unit * 1e18
     return array
 
 if test:

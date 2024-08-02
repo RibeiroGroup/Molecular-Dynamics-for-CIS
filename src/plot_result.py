@@ -168,7 +168,7 @@ for j, KEYWORDS in enumerate(["cavity","free"]):
 
     ax4[0].set_xlabel("Time (ps)")
 
-    o, r = moving_average(omega_profile, rad_profile,6)
+    o, r = moving_average(omega_profile, rad_profile,10)
     ax4[1].scatter(omega_profile, rad_profile, s = 5)
     ax4[1].plot(o, r)
 
@@ -190,7 +190,7 @@ try:
     profile_diff = (rad_profile_list[0] - rad_profile_list[1])
     #ax1[1].scatter(omega_profile, profile_diff, 
     #        s = 5, alpha = 0.5)
-    o,r = moving_average(omega_profile, profile_diff, 6)
+    o,r = moving_average(omega_profile, profile_diff, 10)
     ax1[1].plot(o,r, label = "Spectra in cavity \n- 'free space")
 except: pass
 

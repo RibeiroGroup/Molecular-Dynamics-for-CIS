@@ -19,7 +19,7 @@ class Plot:
     histogram distrubtion of velocities,
     """
     def __init__(
-        self, n_spec_plots, n_dipole_plots = 0
+        self, n_spec_plots = 0, n_dipole_plots = 0
         ):
     
         self.n_spec_plots = n_spec_plots
@@ -27,7 +27,7 @@ class Plot:
 
         if n_dipole_plots > 0:
             self.fig_dip, self.ax_dip = plt.subplots(
-                n_dipole_plots, figsize = (6,4 * n_dipole_plots)
+                n_dipole_plots, figsize = (6,3 * n_dipole_plots)
                 )
 
         if n_spec_plots > 0:
@@ -42,7 +42,7 @@ class Plot:
 
     def add_spec_plot(
         self, i, wavenumber, energy, ma_w = 10, scatter = True,
-        line_label = None
+        line_label = None, linestyle  = None
         ):
         
         ax = self.ax_spec[i] if self.n_spec_plots > 1 else self.ax_spec
@@ -51,7 +51,7 @@ class Plot:
 
         if ma_w:
             w, e = moving_average(wavenumber, energy, w = ma_w)
-            ax.plot(w, e, label = line_label)
+            ax.plot(w, e, label = line_label, linestyle = linestyle)
 
     def add_label(self, i, spec_label = None, dip_label = None):
         if self.n_spec_plots < 1: 
@@ -66,7 +66,8 @@ class Plot:
             ax.set_ylabel(ylabel)
 
         if dip_label:
-            ax = self.ax_dip[i] if self.n_dip_plots > 1 else self.ax_dip
+            ax = self.ax_dip[i] if self.n_dipole_plots > 1 else self.ax_dip
+            xlabel, ylabel = dip_label
             ax.set_xlabel(xlabel)
             ax.set_ylabel(ylabel)
 
@@ -74,20 +75,28 @@ class Plot:
         ax = self.ax_spec[i] if self.n_spec_plots > 1 else self.ax_spec
         ax.legend()
 
-    def annotate(self):
-        if self.n_spec_plots == 1: 
-            print("No need annotation for 1 plot!")
-            return 0
-        for i in range(self.n_spec_plots):
-            self.ax_spec[i].annotate(
-                annotate[i], xy = (0.05,0.9), xycoords = 'axes fraction')
+    def annotate(self, spec_plots=None, dipole_plots=None):
+        if spec_plots:
+            if self.n_spec_plots == 1: 
+                print("No need annotation for 1 plot!")
+                return 0
+            for i in range(self.n_spec_plots):
+                self.ax_spec[i].annotate(
+                    annotate[i], xy = (0.05,0.9), xycoords = 'axes fraction')
+        if dipole_plots:
+            if self.n_dipole_plots == 1: 
+                print("No need annotation for 1 plot!")
+                return 0
+            for i in range(self.n_dipole_plots):
+                self.ax_dip[i].annotate(
+                    annotate[i], xy = (0.05,0.9), xycoords = 'axes fraction')
 
     def savefig(self, root, spec_append = '', dip_append = ''):
         
         if self.n_spec_plots > 0:
-            self.fig_spec.savefig(path + "spectrum.jpeg",dpi=600,bbox_inches = "tight")
+            self.fig_spec.savefig(root + "spectrum.jpeg",dpi=600,bbox_inches = "tight")
         if self.n_dipole_plots > 0:
-            self.fig_dip.savefig(path + "total_dipole.jpeg",dpi=600,bbox_inches = "tight")
+            self.fig_dip.savefig(root + "total_dipole.jpeg",dpi=600,bbox_inches = "tight")
 
 
 
