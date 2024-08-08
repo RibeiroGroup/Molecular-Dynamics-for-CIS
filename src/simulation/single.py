@@ -70,7 +70,7 @@ def single_collision_simulation(
         dipole = atoms.observable["total_dipole"][-1]
         potential = atoms.observable["potential"][-1]
 
-        print("Cycle: {}, iterations: {}, total dipole: {:.2E}, potential: {:.2E}".format(
+        print("Cycle: {}, iterations: {}, total dipole: {:.4E}, potential: {:.4E}".format(
             cycle_number,steps,dipole, potential))
 
         if dipole < atoms.observable["total_dipole"][-2]:

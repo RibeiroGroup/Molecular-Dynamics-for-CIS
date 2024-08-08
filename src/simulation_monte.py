@@ -186,7 +186,6 @@ elif not exist_jar_flag:
             EM_mode_exhaust(possible_external_k, max_kval = args.max_mode), dtype=np.float64)
         print("There are {} external mode".format(len(ext_mode_int)))
 
-        # calculate the magnitude of the wavevector for normalizing the energy
         k_val = np.sqrt(np.einsum("ki,ki->k",ext_mode_int, ext_mode_int))
         k_val = np.tile(k_val[:,np.newaxis],(1,2))
 
@@ -195,7 +194,13 @@ elif not exist_jar_flag:
             np.random.uniform(low=config.C-config.dC, high=config.C+config.dC, size = 2) * 1 \
                     + np.random.uniform(low=config.C-config.dC, high=config.C+config.dC,size = 2) * 1j
             for i in range(len(ext_mode_int))
-            ]) * np.sqrt(Lxy * Lxy * Lz) / k_val \
+            ])  * k_val**-1 #* np.sqrt(Lxy * Lxy * Lz)
+        """
+        # zero-point energy
+        amplitude2 = np.sqrt(red.hbar * 2 * np.pi) \
+                * np.exp(1j * 2 * np.pi * np.random.rand(len(ext_mode_int), 2))
+        amplitude2 *= np.sqrt(Lxy * Lxy * Lz)
+        #"""
 
         # in-plane wavevector
         # integer for generating kz (see field.electromagnetic.CavityVectorPotential module)

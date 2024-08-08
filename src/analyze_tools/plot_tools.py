@@ -42,12 +42,12 @@ class Plot:
 
     def add_spec_plot(
         self, i, wavenumber, energy, ma_w = 10, scatter = True,
-        line_label = None, linestyle  = None
+        line_label = None, linestyle  = None, scatter_marker = None
         ):
         
         ax = self.ax_spec[i] if self.n_spec_plots > 1 else self.ax_spec
         if scatter:
-            ax.scatter(wavenumber, energy, s = 1)
+            ax.scatter(wavenumber, energy, s = 5, marker = scatter_marker)
 
         if ma_w:
             w, e = moving_average(wavenumber, energy, w = ma_w)

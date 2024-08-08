@@ -4,29 +4,42 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from matter.atoms import AtomsInBox
+from matter.utils import AllInOneSampler
 from calculator.calculator import Calculator
 
 import utilities.reduced_parameter as red
 
 atoms = AtomsInBox(
-    box_length = 30, cell_width = 10, mass_dict = red.mass_dict
+    Lxy = 1e3, Lz = 1e3, cell_width = (1e2,1e2), mass_dict = red.mass_dict
     )
 
+sampler = AllInOneSampler(
+        N_atom_pairs=100, Lxy=1e3, Lz=1e3,
+        d_ar_xe = 4.0, d_impact = 1.5,
+        red_temp_unit=red.temp, K_temp=50,
+        ar_mass=red.mass_dict["Ar"], xe_mass=red.mass_dict["Xe"]
+        )
+
+sample = sampler()
+r_ar, r_xe = sample["r"]
+r_dot_ar, r_dot_xe = sample["r_dot"]
+
 np.random.seed(1)
-atoms.random_initialize({"Ar":60, "Xe":60}, max_velocity = 100, min_velocity = 20)
+atoms.add(elements = ["Ar"]*len(r_ar),r = r_ar,r_dot = r_dot_ar)
+atoms.add(elements = ["Xe"]*len(r_xe),r = r_xe,r_dot = r_dot_xe)
 """
 atoms.add(
         elements = ["Ar"],
-        R = np.array([[-1,-1,-1]]),
-        R_dot = np.array([[1,1,1]]),
+        r = np.array([[-1, 0, 0]]),
+        r_dot = np.array([[0.9, 0, 0]]),
         )
 
 atoms.add(
         elements = ["Xe"],
-        R = np.array([[1,1,1]]),
-        R_dot = np.array([[-1,-1,-1]]),
+        r = np.array([[1, 0, 0]]),
+        r_dot = np.array([[-0.5, 0, 0]]),
         )
-"""
+#"""
 
 idxAr = atoms.element_idx(element = "Xe")
 idxXe = atoms.element_idx(element = "Ar")
@@ -38,18 +51,22 @@ atoms.add_calculator(
     calculator_kwargs = {
     "epsilon": epsilon_mat, "sigma" : sigma_mat, 
     "positive_atom_idx" : idxXe, "negative_atom_idx" : idxAr,
-    "mu0" : red.mu0, "d" : red.d0, "a" : red.a
+    "mu0" : red.mu0, "d" : red.d0, "a" : red.a, "d7" : red.d7
     })
 
 
 t = 0
-h = 1e-4
+h = 1e-3
 
 time_list = []
 energy_list = []
 potential_list = []
 kinetic_list = []
 dipole_list = []
+
+atoms.update_distance()
+
+dipole_vec_list = []
 
 for i in tqdm(range(10000)):
     atoms.Verlet_update(h, t=t)
@@ -66,13 +83,18 @@ for i in tqdm(range(10000)):
 
     energy_list.append(total_energy)
 
-    dipole_vec = atoms.dipole(return_matrix = False)
+    dipole_vec = atoms.dipole()
     dipole_vec = np.einsum("ni,ni->n",dipole_vec,dipole_vec)
+
+    dipole_vec_list.append(dipole_vec)
+
     total_dipole = 0.5 * np.sum(dipole_vec)
 
     dipole_list.append(total_dipole)
 
     time_list.append(t)
+
+dipole_vec_list = np.array(dipole_vec_list)
 
 energy_list = np.array(energy_list)
 dipole_list = np.array(dipole_list)

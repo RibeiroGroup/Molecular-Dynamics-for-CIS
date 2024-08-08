@@ -25,25 +25,24 @@ h = 1e-2
 ### BOX SIZE ### 
 ################
 
-l = 2.5
+l = 2.0
 Lxy_free = l *1e7
 Lz_free = l * 1e7
 Lxy = l * 1e7
-Lz  = l * 1e1
+Lz  = l * 1e7
 
 ##############
 ### MATTER ###
 ##############
 
 N_atom_pairs = 256
-if N_atom_pairs != 256: print("warning, number of atom pairs is not 1024")
-K_temp = 400
+K_temp = 292
 
 mu0 = red.mu0
 
 sampler = AllInOneSampler(
-        N_atom_pairs=N_atom_pairs, Lxy=Lxy, Lz=Lz,
-        d_ar_xe = 5.0, d_impact = 1.5,
+        N_atom_pairs=N_atom_pairs, Lxy=Lxy - 6, Lz=Lz - 6,
+        d_ar_xe = 4.0, d_impact = 1.5,
         red_temp_unit=red.temp, K_temp=K_temp,
         ar_mass=red.mass_dict["Ar"], xe_mass=red.mass_dict["Xe"]
         )
@@ -76,8 +75,9 @@ def initiate_atoms_box(Lxy, Lz):
 #############
 
 probe_kvector_int = np.array(
-        [[i,0,0] for i in range(1,250)]\
-       +[[0,i,0] for i in range(1,250)]
+        [[i,0,0] for i in range(1,180)]\
+       +[[0,i,0] for i in range(1,180)]
+       #+[[0,0,i] for i in range(1,180)]
         )
 
 probe_coupling_strength = 1e0
@@ -88,5 +88,14 @@ amplitude = np.vstack([
     ]) * 0
 
 external_coupling_strength = 1e0
-C = 1e4
-dC = 1e3
+C = 1e3
+dC = 1e2
+
+"""
+amplitude2 = np.vstack([
+    #np.ones( 2) + np.ones(2) * 1j
+    np.random.uniform(low=config.C-config.dC, high=config.C+config.dC, size = 2) * 1 \
+            + np.random.uniform(low=config.C-config.dC, high=config.C+config.dC,size = 2) * 1j
+    for i in range(len(ext_mode_int))
+    ]) * np.sqrt(Lxy * Lxy * Lz) / k_val \
+"""

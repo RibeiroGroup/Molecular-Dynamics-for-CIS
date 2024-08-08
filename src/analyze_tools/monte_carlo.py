@@ -1,9 +1,14 @@
 import numpy as np
 import utilities.reduced_parameter as red
 
-def get_colliding_time(atoms, mu0, dipole_threshold):
+def get_colliding_time(
+        atoms, mu0, dipole_threshold, convert_time = True
+        ):
+
     #calculate the duration of the collision
-    time = np.array(atoms.trajectory["t"])
+    time = red.convert_time(
+            np.array(atoms.trajectory["t"]))
+
     N_pairs = int(atoms.N_atoms / 2)
     traj_len = len(atoms.trajectory["r"])
     dipole_vs_time = []

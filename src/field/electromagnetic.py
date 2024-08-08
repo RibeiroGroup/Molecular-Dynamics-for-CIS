@@ -97,7 +97,8 @@ class BaseVectorPotential:
 
         C_dot = np.einsum("mj,kimj->ki",Jk,fs)
 
-        C_dot *= (2 * np.pi * 1j * self.coupling_strength / k_val)
+        C_dot *= ( 2 * np.pi * 1j * self.coupling_strength \
+                / (k_val  * np.sqrt(self.V)))
 
         return C_dot
 
@@ -153,7 +154,7 @@ class BaseVectorPotential:
         k_sum = np.einsum("ki,ki->k",self.k_vector,self.k_vector)
         c_sum = np.einsum("ki,ki->k",self.C,np.conjugate(self.C))
 
-        H = (2*np.pi)**-1 * k_sum * c_sum / np.sqrt(self.V)
+        H = (2*np.pi)**-1 * k_sum * c_sum #/ self.V
 
         if return_sum_only:
             return np.sum(H)
