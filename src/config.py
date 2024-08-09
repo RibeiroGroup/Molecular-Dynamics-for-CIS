@@ -16,7 +16,7 @@ import utilities.reduced_parameter as red
 #seed1 = 2024 #1807 # 1998 #2024
 #seed2 = 2020 #929 # 1507 #2020
 
-num_cycles = 10
+num_cycles = 40
 if num_cycles != 10: print("Warning, number of cycles is not 10!")
 
 h = 1e-2
@@ -74,28 +74,33 @@ def initiate_atoms_box(Lxy, Lz):
 ### FIELD ### 
 #############
 
-probe_kvector_int = np.array(
+default_kvector_int = np.array(
         [[i,0,0] for i in range(1,180)]\
        +[[0,i,0] for i in range(1,180)]
-       #+[[0,0,i] for i in range(1,180)]
+       +[[0,0,i] for i in range(1,180)]
         )
 
-probe_coupling_strength = 1e0
+coupling_strength = np.sqrt(Lxy * Lxy * Lz)
 
-amplitude = np.vstack([
-    np.random.uniform(size = 2) * 1 + np.random.uniform(size = 2) * 1j
-    for i in range(len(probe_kvector_int))
-    ]) * 0
+C = 1e3 * np.sqrt(Lxy * Lxy * Lz)
+dC = C * 1e-1
 
-external_coupling_strength = 1e0
-C = 1e3
-dC = 1e2
+def generate_field_amplitude(kvector_int, mode):
+    if mode == "zero":
+        amplitude = np.zeros(
+            (len(kvector_int), 2), dtype = np.complex128)
+    elif mode == "zpve":
+        amplitude = np.sqrt(red.hbar * 2 * np.pi) * np.exp(
+                1j * 2 * np.pi * np.random.rand(len(kvector_int), 2)
+                )
+    elif mode == 'config':
+        k_val = np.sqrt(np.einsum("ki,ki->k",kvector_int, kvector_int))
+        k_val = np.tile(k_val[:,np.newaxis],(1,2))
 
-"""
-amplitude2 = np.vstack([
-    #np.ones( 2) + np.ones(2) * 1j
-    np.random.uniform(low=config.C-config.dC, high=config.C+config.dC, size = 2) * 1 \
-            + np.random.uniform(low=config.C-config.dC, high=config.C+config.dC,size = 2) * 1j
-    for i in range(len(ext_mode_int))
-    ]) * np.sqrt(Lxy * Lxy * Lz) / k_val \
-"""
+        amplitude = np.vstack([
+            np.random.uniform(low=C-dC, high=C+dC, size = 2) * 1 \
+                    + np.random.uniform(low=C-dC, high=C+dC,size = 2) * 1j
+            for i in range(len(ext_mode_int))
+            ])  * k_val**-1 
+
+    return amplitude

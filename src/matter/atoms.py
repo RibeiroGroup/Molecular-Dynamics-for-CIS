@@ -31,7 +31,10 @@ class AtomsInBox:
         self.elements = None
 
         self.trajectory = {"t":[],"r":[],"r_dot":[]}
-        self.observable = {"t":[],"kinetic":[],"potential":[],"total_dipole":[]}
+        self.observable = {
+                "t":[],"kinetic":[],"potential":[],"total_dipole":[],
+                'dipole':[], 'dipole_velocity': []
+                }
 
     def add(self, elements, r, r_dot):
         """
@@ -87,7 +90,15 @@ class AtomsInBox:
         self.observable["t"].append(t)
         self.observable["kinetic"].append(self.kinetic())
         self.observable["potential"].append(self.potential())
+
+        self.observable["dipole"].append(
+                np.sum(self.dipole(), axis = 0)
+                )
         self.observable["total_dipole"].append(self.total_dipole())
+
+        self.observable["dipole_velocity"].append(
+                np.sum(self.current_mode_projection(), axis = 0)
+                )
 
     def random_initialize(self, atoms, max_velocity, min_velocity = 0):
         """

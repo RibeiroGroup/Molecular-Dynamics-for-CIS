@@ -13,19 +13,16 @@ import numpy as np
 """
 
 def single_collision_simulation(
-        cycle_number, t0, h, atoms, probe_field,
-        external_field = None, total_dipole_threshold = 1e-5, 
+        cycle_number, t0, h, atoms,
+        field = None, total_dipole_threshold = 1e-5, 
         min_steps = 100, max_steps = 10000
         ):
 
     t = t0
     atoms.record(t)
 
-    if probe_field:
-        probe_field.record(t)
-
-    if external_field:
-        external_field.record(t)
+    if field:
+        field.record(t)
 
     dipole_drop_flag = False
     potential_drop_flag = False
@@ -35,12 +32,9 @@ def single_collision_simulation(
             and steps < max_steps:
         steps += 1
 
-        if external_field is not None and probe_field is not None:
-            em_force_func = lambda t, atoms: \
-                external_field.force(t,atoms) + probe_field.force(t,atoms)
-        elif probe_field is not None:
-            em_force_func = lambda t, atoms: \
-                probe_field.force(t,atoms)
+        if field is not None:
+            em_force_func = lambda t, atoms: field.force(t,atoms)
+
         else: em_force_func = None
 
         atoms.record(t)
@@ -49,21 +43,13 @@ def single_collision_simulation(
                 field_force = em_force_func
                 )
         
-        if probe_field:
-            probe_field.record(t)
-            C_dot_tp1 = probe_field.dot_amplitude(t+h,atoms)
-            C_new = probe_field.C + h * (C_dot_tp1)
+        if field:
+            field.record(t)
+            C_dot_tp1 = field.dot_amplitude(t+h,atoms)
+            C_new = field.C + h * (C_dot_tp1)
 
-            probe_field.update_amplitude(C_new)
-        else: probe_field = None
-
-        if external_field:
-            external_field.record(t)
-            C_dot_tp1 = external_field.dot_amplitude(t+h,atoms)
-            C_new = external_field.C + h * (C_dot_tp1)
-
-            external_field.update_amplitude(C_new)
-        else: external_field = None
+            field.update_amplitude(C_new)
+        else: field = None
 
         t += h
 
@@ -79,7 +65,7 @@ def single_collision_simulation(
             dipole_drop_flag = False
 
     result = {
-            "atoms":atoms, "external_field":external_field, "probe_field":probe_field
+            "atoms":atoms, "field":field
             }
 
     return t, result

@@ -1,6 +1,8 @@
 import numpy as np
 import utilities.reduced_parameter as red
 
+#def get_full_dipole():
+
 def get_colliding_time(
         atoms, mu0, dipole_threshold, convert_time = True
         ):

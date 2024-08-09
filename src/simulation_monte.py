@@ -17,6 +17,7 @@ from utilities.etc import categorizing_pickle
 from simulation.single import single_collision_simulation
 
 import config
+from config import generate_field_amplitude
 
 ##############################
 ##############################
@@ -26,48 +27,97 @@ import config
 
 parser = argparse.ArgumentParser()
 
-parser.add_argument("--seed", "-s", type = int, help = "random seed for Monte Carlo simulation")
-#parser.add_argument("--type","-t", type = str, help = "Simulation type, include only 'external', 'free','nofield'")
-parser.add_argument("--external","-x", type = str, 
-        help = "External field, valid argument: 'external', 'free', None", default = None)
-parser.add_argument("--probe","-p", type = int, 
-    help = "Probe field, 0 for no probe field and 1 for free field")
 parser.add_argument(
-    "--min_mode", "-m", type = int,  help = "minimum external laser mode integer"
+        "--seed", "-s", 
+        type = int, help = "random seed for Monte Carlo simulation")
+parser.add_argument(
+        "--field","-f", 
+        type = str, help = "Field, valid argument: 'cavity', 'free', None", default = None)
+parser.add_argument(
+    "--min_mode", "-m", type = int,  
+    help = "minimum field mode integer, if None provide for both this and -n, use modes from config.py",
+    default = None
         )
 parser.add_argument(
-    "--max_mode", "-n", type = int,  help = "maximum external laser mode integer"
+    "--max_mode", "-n", type = int,  
+    help = "maximum field mode integer, if None provide for both this and -m, use modes from config.py",
+    default = None
         )
+parser.add_argument(
+    "--mode_amplitude", "-a", type = str, 
+    help = "mode amplitude, accepted argument: 'zero', 'zpve', 'config', 'cont'",
+    default = 'zero'
+        )
+parser.add_argument(
+    "--coupling_strength", "-c", type = bool,
+    help = "whether to use coupling strength factor in config.py or not (coupling_strength = 1)", 
+    default = 0
+        )
+parser.add_argument(
+    "--reset", "-r", type = bool,
+    help = "reset the field between simulation cycles",
+    default = True
+        )
+parser.add_argument(
+    "--cont", type = bool,
+    help = "whether to continue simulation"
+        )
+
+######################
+# Checking arguments #
+######################
 
 args = parser.parse_args()
 assert isinstance(args.seed, int)
-assert args.external == 'cavity' or args.external == 'free' or args.external == None
+assert args.field == 'cavity' or args.field == 'free' or args.field == None
 
-if args.external:
-    assert isinstance(args.min_mode, int) and isinstance(args.max_mode, int)
-    assert args.min_mode < args.max_mode
+###########################
+# Generating modes vector #
+###########################
+
+if args.field and not args.cont:
+    if (args.min_mode is not None and args.max_mode is None) \
+            or (args.min_mode is None and args.max_mode is not None):
+        raise Exception("Exception: argument m and n have to be both None or int at the same time")
+
+    elif args.min_mode is None and args.max_mode is None:
+        print("Notice: load default k-vector integer array from config.py.")
+        kvector_int = config.default_kvector_int
+
+    else:
+        #assert isinstance(args.max_mode, float) and isinstance(args.min_mode, float)
+
+        print("Notice: exhaustively generating modes")
+        # get the minimum and maximum integer for generating the external modes
+        possible_external_k = [0] + list(range(args.min_mode,args.max_mode)) 
+        kvector_int = np.array(
+            EM_mode_exhaust(possible_external_k, max_kval = args.max_mode), dtype=np.float64)
+        print("Notice: There are {} external mode".format(len(kvector_int)))
+
+elif args.cont:
+    print("Notice: mode generating is skip, existing mode will be used!")
 
 """
 Directory management
+Sample directory name:
+    nofield-292_1024_157
+    cavity-292_1024_157-zpve_50_70
 """
-sim_type = 'probe' if args.probe else 'nofield'
+sim_type = args.field if args.field else 'nofield'
 
 pickle_jar_path = "pickle_jar/" + sim_type + '-' + str(config.K_temp)\
     + "_" + str(config.N_atom_pairs) + "_" + str(args.seed)
 
-if args.external:
-    pickle_jar_path += "_"  + args.external + "_"  + str(args.min_mode) + "_" + str(args.max_mode)
+if args.field:
+    pickle_jar_path += "-" + args.mode_amplitude
+    pickle_jar_path += "_"  + str(args.min_mode) + "_" + str(args.max_mode)
+    pickle_jar_path += "-c" + str(args.coupling_strength)
 
 if os.path.isdir(pickle_jar_path):
-    # check if there are pickle file in the existing directory
-    file_dict = categorizing_pickle(pickle_jar_path,KEYWORDS = "")
-    if len(file_dict) == 0:
-        exist_jar_flag = False
-    else:
-        exist_jar_flag = True
+    if not args.cont: 
+        raise Exception("Exception: folder existed but args.cont is not provided.")
+    exist_jar_flag = True
 else:
-    # Create directory in case of starting brand new simulation
-    os.mkdir(pickle_jar_path)
     exist_jar_flag = False
 
 ###########
@@ -90,19 +140,9 @@ if exist_jar_flag:
 
     # load other info/metadata of the simulation 
     with open(pickle_jar_path+"/metadata.pkl","rb") as handle:
-        info = pickle.load(handle)
+        info_dict = pickle.load(handle)
 
-    # seed list for sampling atoms position/velocities
-    seed_list = info["seed_list"]
-
-    # get last time of the loaded simulation and time step
-    t = info["t_final"]
-    h = info["h"]
-
-    # loaded temperature and atomic sampler
-    sampler = info["sampler"]
-    Lxy = info["Lxy"]; Lz = info["Lz"]
-    ExternalVectorPotential = info["ExternalVectorPotential"]
+    locals().update(info_dict)
 
     # get dict of {"cycle numbers": path to pickle}
     file_dict = categorizing_pickle(pickle_jar_path,KEYWORDS = "")
@@ -111,35 +151,25 @@ if exist_jar_flag:
     final_cycle_num = max(file_dict.keys())
     final_pickle_path = file_dict[final_cycle_num]
 
+    coupling_strength = info['coupling_strength']
+
     # read the last pickle file
     with open(final_pickle_path,"rb") as handle:
         result = pickle.load(handle)
 
     # load the external field
-    if args.external:
+    if args.field:
         print('Load external vector potential field.')
-        old_external_field = result["external_field"]
-        external_field = ExternalVectorPotential(
-            k_vector_int = old_external_field.k_vector_int, 
+        old_field = result["field"]
+        field = VectorPotential(
+            k_vector_int = old_field.k_vector_int, 
             constant_c = red.c,
-            Lxy = old_external_field.Lxy, Lz = old_external_field.Lz, 
-            amplitude = old_external_field.C, 
-            coupling_strength = old_external_field.coupling_strength
+            Lxy = Lxy, Lz = Lz, 
+            amplitude = old_field.C, 
+            coupling_strength = old_field.coupling_strength
             )
-        del old_external_field
-    else: external_field = None
-
-    # load the probe field
-    if args.probe:
-        print('Load probe (free) vector potential field.')
-        old_probe_field = result["probe_field"]
-        probe_field = FreeVectorPotential(
-                k_vector_int = old_probe_field.k_vector_int, 
-                amplitude = old_probe_field.C, constant_c = red.c,
-                Lxy = old_probe_field.Lxy, Lz = old_probe_field.Lz, 
-                coupling_strength = old_probe_field.coupling_strength
-                )
-        del old_probe_field
+        del old_field
+    else: field = None
 
 #####################################################
 elif not exist_jar_flag:
@@ -164,74 +194,46 @@ elif not exist_jar_flag:
 
     seed_list = np.random.randint(low = 0, high = 1000, size = 1000)
 
+    if args.coupling_strength:
+        coupling_strength = config.coupling_strength
+        print("Notice: coupling strength is applied (probably not 1, see config.py)")
+    else:
+        coupling_strength = 1
+        print("Notice: coupling strength is 1")
+
+    Lxy = config.Lxy ; Lz = config.Lz
+
+    mode_amplitude = args.mode_amplitude
+    reset = args.reset
+    num_cycles = config.num_cycles
                 ##########################
                 ##########################
                 ### INITIATE THE FIELD ###
                 ##########################
                 ##########################
 
-    if args.external:
-    ### START CAVITY MODE SPECS ###
-        print("Initiate external vector field")
-        if args.external == 'cavity':
-            ExternalVectorPotential = CavityVectorPotential
-            Lxy = config.Lxy; Lz = config.Lz
-        elif args.external == 'free':
-            ExternalVectorPotential = FreeVectorPotential
-            Lxy = config.Lxy_free; Lz = config.Lz_free
-
-        # get the minimum and maximum integer for generating the external modes
-        possible_external_k = [0] + list(range(args.min_mode,args.max_mode)) 
-        ext_mode_int = np.array(
-            EM_mode_exhaust(possible_external_k, max_kval = args.max_mode), dtype=np.float64)
-        print("There are {} external mode".format(len(ext_mode_int)))
-
-        k_val = np.sqrt(np.einsum("ki,ki->k",ext_mode_int, ext_mode_int))
-        k_val = np.tile(k_val[:,np.newaxis],(1,2))
-
-        amplitude2 = np.vstack([
-            #np.ones( 2) + np.ones(2) * 1j
-            np.random.uniform(low=config.C-config.dC, high=config.C+config.dC, size = 2) * 1 \
-                    + np.random.uniform(low=config.C-config.dC, high=config.C+config.dC,size = 2) * 1j
-            for i in range(len(ext_mode_int))
-            ])  * k_val**-1 #* np.sqrt(Lxy * Lxy * Lz)
-        """
-        # zero-point energy
-        amplitude2 = np.sqrt(red.hbar * 2 * np.pi) \
-                * np.exp(1j * 2 * np.pi * np.random.rand(len(ext_mode_int), 2))
-        amplitude2 *= np.sqrt(Lxy * Lxy * Lz)
-        #"""
-
-        # in-plane wavevector
-        # integer for generating kz (see field.electromagnetic.CavityVectorPotential module)
-
-        external_field = ExternalVectorPotential(
-            k_vector_int = ext_mode_int, amplitude = amplitude2,
-            Lxy = Lxy, Lz = Lz, constant_c = red.c, 
-            coupling_strength = config.external_coupling_strength
-            )
-        ####################################
-        #print(external_field.hamiltonian())
-        #raise Exception
-    else: 
-        ExternalVectorPotential = None
-        external_field = None
-        #print("Warning, Lxy and Lz are not defined for no external field case, default value are used")
-        Lxy = config.Lxy_free; Lz = config.Lz_free
-    ### END CAVITY MODE SPECS ###
-
-    if args.probe:
+    if args.field:
     ### START FREE MODE SPECS ###
-        print("Initiate Probe (Free) vector field:")
-        probe_field = FreeVectorPotential(
-                k_vector_int = config.probe_kvector_int, 
-                amplitude = np.zeros(
-                    (len(config.probe_kvector_int), 2), dtype = np.complex128),
+        print("Notice: Initiate vector potential field.")
+
+        if args.field == 'cavity': VectorPotential = CavityVectorPotential
+        elif args.field == 'free': VectorPotential = FreeVectorPotential
+
+        try:
+            assert mode_amplitude in ['zero', 'zpve', 'config']
+        except AssertionError:
+            raise Exception('Please revise the ampltiude arguments!')
+
+        field = VectorPotential(
+                k_vector_int = kvector_int, 
+                amplitude = generate_field_amplitude(kvector_int, mode_amplitude),
                 Lxy = Lxy, Lz = Lz, 
                 constant_c = red.c, 
-                coupling_strength = config.probe_coupling_strength
+                coupling_strength = coupling_strength
                 )
-    else: probe_field = None
+    else: 
+        field = None
+        VectorPotential = None
     ### END FREE MODE SPECS ###
 
                 ##########################
@@ -239,10 +241,39 @@ elif not exist_jar_flag:
                 ### INITIATE ATOMS BOX ###
                 ##########################
                 ##########################
+
     np.random.seed(seed_list[0])
     N_atom_pairs = config.N_atom_pairs
 
     sampler = config.sampler
+
+            ###################################
+            ###################################
+            ### WRITING SIMULATION METADATA ###
+            ###################################
+            ###################################
+
+if first_run_flag:
+    os.makedirs(pickle_jar_path)
+    info_dict = {
+            "t_final":t, "h":h, "num_cycles":config.num_cycles,
+            "temperature":K_temp, "mu0":config.mu0, 
+            "seed":args.seed, "seed_list":seed_list, 
+            "sampler":sampler, "coupling_strength": {coupling_strength},
+            "VectorPotential": VectorPotential,
+            "Lxy":Lxy, "Lz":Lz, 'reset': args.reset,
+            'mode_amplitude': args.mode_amplitude
+            }
+
+    if args.field:
+        info_dict.update({
+            "kvector_int":kvector_int
+            })
+
+    with open(pickle_jar_path + '/' + "metadata.pkl","wb") as handle:
+        pickle.dump(info_dict, handle)
+
+    print("Notice: metadata has been written to " + pickle_jar_path + '/' + "metadata.pkl")
 
             ############################
             ############################
@@ -250,7 +281,7 @@ elif not exist_jar_flag:
             ############################
             ############################
 
-for i in range(final_cycle_num + 1, final_cycle_num + 1 + config.num_cycles):
+for i in range(final_cycle_num + 1, final_cycle_num + 1 + num_cycles):
     np.random.seed(seed_list[i])
 
     sample = sampler()
@@ -265,7 +296,7 @@ for i in range(final_cycle_num + 1, final_cycle_num + 1 + config.num_cycles):
 
     t, result = single_collision_simulation(
             cycle_number = i, atoms = atoms, t0 = t, h = h,
-            probe_field = probe_field, external_field = external_field, total_dipole_threshold = 1e-4, 
+            field = field, total_dipole_threshold = 1e-4, 
             )
 
     with open(pickle_jar_path + '/' + "result_{}.pkl".format(i),"wb") as handle:
@@ -273,59 +304,25 @@ for i in range(final_cycle_num + 1, final_cycle_num + 1 + config.num_cycles):
 
     del atoms
 
-    if args.external:
-        external_field = result["external_field"] 
-        new_external_field = ExternalVectorPotential(
-            k_vector_int = external_field.k_vector_int,
-            Lxy = external_field.Lxy, Lz = external_field.Lz, 
-            amplitude = external_field.C,constant_c = red.c,
-            coupling_strength = config.external_coupling_strength
+    if args.field:
+        field = result["field"] 
+
+        if reset: 
+            new_amplitude = generate_field_amplitude(kvector_int, mode_amplitude)
+        else:
+            new_amplitude = field.C
+
+        new_field = VectorPotential(
+            k_vector_int = field.k_vector_int,
+            Lxy = Lxy, Lz = Lz, 
+            amplitude = new_amplitude,
+            constant_c = red.c,
+            coupling_strength = coupling_strength
             )
 
-        del external_field
-        external_field = new_external_field
+        del field
+        field = new_field
 
-    if args.probe:
-        probe_field = result["probe_field"] 
-        new_probe_field = FreeVectorPotential(
-                k_vector_int = config.probe_kvector_int, 
-                amplitude = probe_field.C,
-                Lxy = probe_field.Lxy, Lz = probe_field.Lz, 
-                constant_c = red.c, coupling_strength = config.probe_coupling_strength
-                )
+    info_dict['t_final'] = t
 
-        del probe_field
-        probe_field = new_probe_field
-
-            ###################################
-            ###################################
-            ### WRITING SIMULATION METADATA ###
-            ###################################
-            ###################################
-if first_run_flag:
-    info_dict = {
-            "t_final":t, "h":h, "num_cycles":config.num_cycles,
-            "temperature":K_temp, "mu0":config.mu0, 
-            "seed":args.seed, "seed_list":seed_list, 
-            "sampler":sampler, "coupling_strength":{},
-            "ExternalVectorPotential": ExternalVectorPotential,
-            "Lxy":Lxy, "Lz":Lz
-            }
-
-    if args.external:
-        info_dict["coupling_strength"].update(
-            {"external":config.external_coupling_strength}
-            )
-        info_dict.update({
-            "external_mode_integer":ext_mode_int
-            })
-    if args.probe:
-        info_dict["coupling_strength"].update(
-            {"probe":config.probe_coupling_strength}
-            )
-
-
-    with open(pickle_jar_path + '/' + "metadata.pkl".format(i),"wb") as handle:
-        pickle.dump(info_dict, handle)
-
-    print("Simulation finish, save to:",pickle_jar_path)
+print("Simulation finish, save to:",pickle_jar_path)
