@@ -10,13 +10,13 @@ from calculator.calculator import Calculator
 import utilities.reduced_parameter as red
 
 atoms = AtomsInBox(
-    Lxy = 1e3, Lz = 1e3, cell_width = (1e2,1e2), mass_dict = red.mass_dict
+    Lxy = 1e2, Lz = 1e2, cell_width = (2e1,2e1), mass_dict = red.mass_dict
     )
 
 sampler = AllInOneSampler(
-        N_atom_pairs=100, Lxy=1e3, Lz=1e3,
+        N_atom_pairs=500, Lxy=1e2, Lz=1e2,
         d_ar_xe = 4.0, d_impact = 1.5,
-        red_temp_unit=red.temp, K_temp=50,
+        red_temp_unit=red.temp, K_temp=292,
         ar_mass=red.mass_dict["Ar"], xe_mass=red.mass_dict["Xe"]
         )
 
@@ -56,7 +56,7 @@ atoms.add_calculator(
 
 
 t = 0
-h = 1e-3
+h = 1e-2
 
 time_list = []
 energy_list = []
@@ -68,7 +68,7 @@ atoms.update_distance()
 
 dipole_vec_list = []
 
-for i in tqdm(range(10000)):
+for i in tqdm(range(1000)):
     atoms.Verlet_update(h, t=t)
 
     potential = atoms.potential()

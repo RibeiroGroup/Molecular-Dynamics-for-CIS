@@ -19,7 +19,7 @@ import utilities.reduced_parameter as red
 num_cycles = 40
 if num_cycles != 10: print("Warning, number of cycles is not 10!")
 
-h = 1e-2
+h = 5e-3
 
 ################
 ### BOX SIZE ### 
