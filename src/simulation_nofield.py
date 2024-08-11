@@ -9,13 +9,17 @@ from calculator.calculator import Calculator
 
 import utilities.reduced_parameter as red
 
+from analyze_tools.monte_carlo import get_colliding_time
+
+Lxy = 1e7; Lz = 1e7
+
 atoms = AtomsInBox(
-    Lxy = 1e2, Lz = 1e2, cell_width = (2e1,2e1), mass_dict = red.mass_dict
+    Lxy = Lxy, Lz = Lz, cell_width = (1e5,1e5), mass_dict = red.mass_dict
     )
 
 sampler = AllInOneSampler(
-        N_atom_pairs=500, Lxy=1e2, Lz=1e2,
-        d_ar_xe = 4.0, d_impact = 1.5,
+        N_atom_pairs=64, Lxy=Lxy - 6, Lz=Lz - 6,
+        d_ar_xe = 8.0, d_impact = 1.7,
         red_temp_unit=red.temp, K_temp=292,
         ar_mass=red.mass_dict["Ar"], xe_mass=red.mass_dict["Xe"]
         )
@@ -41,8 +45,8 @@ atoms.add(
         )
 #"""
 
-idxAr = atoms.element_idx(element = "Xe")
-idxXe = atoms.element_idx(element = "Ar")
+idxAr = atoms.element_idx(element = "Ar")
+idxXe = atoms.element_idx(element = "Xe")
 
 epsilon_mat, sigma_mat = red.generate_LJparam_matrix(idxAr = idxAr, idxXe = idxXe)
 
@@ -69,6 +73,8 @@ atoms.update_distance()
 dipole_vec_list = []
 
 for i in tqdm(range(1000)):
+    atoms.record(t)
+
     atoms.Verlet_update(h, t=t)
 
     potential = atoms.potential()
@@ -93,6 +99,9 @@ for i in tqdm(range(1000)):
     dipole_list.append(total_dipole)
 
     time_list.append(t)
+
+cl = np.array(get_colliding_time(atoms, 0))
+print(np.sum(cl > 0))
 
 dipole_vec_list = np.array(dipole_vec_list)
 

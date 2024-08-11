@@ -16,36 +16,30 @@ import utilities.reduced_parameter as red
 #seed1 = 2024 #1807 # 1998 #2024
 #seed2 = 2020 #929 # 1507 #2020
 
-num_cycles = 40
+num_cycles = 10
 if num_cycles != 10: print("Warning, number of cycles is not 10!")
 
-h = 5e-3
+h = 1e-2
 
 ################
 ### BOX SIZE ### 
 ################
 
 l = 2.0
-Lxy_free = l *1e7
-Lz_free = l * 1e7
 Lxy = l * 1e7
 Lz  = l * 1e7
+
+Lz_red  = l * 1e3
+zlabel = 'microz'
 
 ##############
 ### MATTER ###
 ##############
 
 N_atom_pairs = 256
-K_temp = 292
+K_temp = 200
 
 mu0 = red.mu0
-
-sampler = AllInOneSampler(
-        N_atom_pairs=N_atom_pairs, Lxy=Lxy - 6, Lz=Lz - 6,
-        d_ar_xe = 4.0, d_impact = 1.5,
-        red_temp_unit=red.temp, K_temp=K_temp,
-        ar_mass=red.mass_dict["Ar"], xe_mass=red.mass_dict["Xe"]
-        )
 
 cw_get = lambda L: np.max((L/1e2, 10))
 
@@ -75,14 +69,15 @@ def initiate_atoms_box(Lxy, Lz):
 #############
 
 default_kvector_int = np.array(
-        [[i,0,0] for i in range(1,180)]\
-       +[[0,i,0] for i in range(1,180)]
-       +[[0,0,i] for i in range(1,180)]
+        [[i,0,0] for i in range(1,150)]\
+       +[[0,i,0] for i in range(1,150)]
+       #+[[0,0,i] for i in range(1,180)]
         )
 
-coupling_strength = np.sqrt(Lxy * Lxy * Lz)
+coupling_strength = np.sqrt(Lxy * Lxy)
+ct_label = "Lxy"
 
-C = 1e3 * np.sqrt(Lxy * Lxy * Lz)
+C = np.sqrt(Lxy * Lxy * Lz)
 dC = C * 1e-1
 
 def generate_field_amplitude(kvector_int, mode):

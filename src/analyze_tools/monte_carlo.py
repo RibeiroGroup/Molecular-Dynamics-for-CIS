@@ -4,8 +4,23 @@ import utilities.reduced_parameter as red
 #def get_full_dipole():
 
 def get_colliding_time(
-        atoms, mu0, dipole_threshold, convert_time = True
+        atoms, dipole_threshold, convert_time = True, mu0 = red.mu0, 
         ):
+    """
+    Calculating the collision time for each pairs of colliding Argon-Xenon
+    Warning: this code is mean to used with result of simulation_monte.py code,
+    the first N_pair of atoms.r is supposed to be of Xenons, and the last 
+    N_pair of atoms.r is supposed to be of Argon, thus the pair-wise dipole can be 
+    computed
+    Args:
+    + atoms (Atoms object): Atoms
+    + dipole_threshold (float): dipole value at which the collision is assumed to
+        happen and end
+    + convert_time (bool, default = True):
+    + mu0 (float, deffault = True):
+    Output:
+    + 
+    """
 
     #calculate the duration of the collision
     time = red.convert_time(
@@ -13,7 +28,11 @@ def get_colliding_time(
 
     N_pairs = int(atoms.N_atoms / 2)
     traj_len = len(atoms.trajectory["r"])
+
+    # calculating list of LIST of dipole for each in N_pairs of Argon-Xenon
     dipole_vs_time = []
+    dlist = []
+
     for i in range(traj_len):
         r = atoms.trajectory["r"][i]
 
@@ -22,12 +41,14 @@ def get_colliding_time(
         dvec = (r_ar - r_xe)
 
         d = np.sqrt(np.einsum("ni,ni->n",dvec,dvec))
+        dlist.append(d)
 
         dipole = mu0 * np.exp(-red.a * (d - red.d0)) - red.d7/d**7
 
         dipole_vs_time.append(dipole)
 
     dipole_vs_time = np.array(dipole_vs_time)
+    dlist = np.array(dlist)
 
     colliding_time = []
     for i in range(dipole_vs_time.shape[1]):

@@ -195,18 +195,22 @@ class AllInOneSampler:
         phi_ = np.random.uniform(phi-offset, phi+offset, size = N_atom_pairs)
         theta_ = np.random.uniform(theta-offset, theta+offset, size = N_atom_pairs)
         r_dot_ar = r_dot_ar_sqrt * np.array([
-            np.sin(theta_) * np.cos(phi_),
-            np.sin(theta_) * np.sin(phi_),
-            np.cos(theta_)
+            np.sin(phi_) * np.cos(theta_),
+            np.sin(phi_) * np.sin(theta_),
+            np.cos(phi_)
             ]).T
 
         r_dot_xe_sqrt = self.sampler_xe(N = N_atom_pairs)
-        phi_ = np.random.uniform(phi + np.pi - offset, phi + np.pi + offset, size = N_atom_pairs)
-        theta_ = np.random.uniform(np.pi - theta - offset, np.pi - theta + offset, size = N_atom_pairs)
+
+        phi_ = np.pi - phi
+        phi_ = np.random.uniform( phi_ - offset, phi_ + offset, size = N_atom_pairs)
+        theta_ = theta + np.pi
+        theta_ = np.random.uniform(theta_ - offset, theta_ + offset, size = N_atom_pairs)
+
         r_dot_xe = r_dot_xe_sqrt * np.array([
-            np.sin(theta_) * np.cos(phi_),
-            np.sin(theta_) * np.sin(phi_),
-            np.cos(theta_)
+            np.sin(phi_) * np.cos(theta_),
+            np.sin(phi_) * np.sin(theta_),
+            np.cos(phi_)
             ]).T
 
         return {"r":(r_ar,r_xe), "r_dot":(r_dot_ar, r_dot_xe)}

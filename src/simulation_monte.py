@@ -36,12 +36,12 @@ parser.add_argument(
 parser.add_argument(
     "--min_mode", "-m", type = int,  
     help = "minimum field mode integer, if None provide for both this and -n, use modes from config.py",
-    default = None
+    default = 0
         )
 parser.add_argument(
     "--max_mode", "-n", type = int,  
     help = "maximum field mode integer, if None provide for both this and -m, use modes from config.py",
-    default = None
+    default = 0
         )
 parser.add_argument(
     "--mode_amplitude", "-a", type = str, 
@@ -49,14 +49,18 @@ parser.add_argument(
     default = 'zero'
         )
 parser.add_argument(
-    "--coupling_strength", "-c", type = bool,
+    "--coupling_strength", "-c", type = int,
     help = "whether to use coupling strength factor in config.py or not (coupling_strength = 1)", 
     default = 0
         )
 parser.add_argument(
-    "--reset", "-r", type = bool,
+    "--reduce_zdim", "-r", type = int,
+    help = 'Reduce the dimension along the z axis'
+)
+parser.add_argument(
+    "--reset", type = int,
     help = "reset the field between simulation cycles",
-    default = True
+    default = 1
         )
 parser.add_argument(
     "--cont", type = bool,
@@ -76,11 +80,11 @@ assert args.field == 'cavity' or args.field == 'free' or args.field == None
 ###########################
 
 if args.field and not args.cont:
-    if (args.min_mode is not None and args.max_mode is None) \
-            or (args.min_mode is None and args.max_mode is not None):
+    if (args.min_mode > 0 and args.max_mode == 0) \
+            or (args.min_mode == 0 and args.max_mode > 0):
         raise Exception("Exception: argument m and n have to be both None or int at the same time")
 
-    elif args.min_mode is None and args.max_mode is None:
+    elif args.min_mode == 0 and args.max_mode == 0:
         print("Notice: load default k-vector integer array from config.py.")
         kvector_int = config.default_kvector_int
 
@@ -112,6 +116,12 @@ if args.field:
     pickle_jar_path += "-" + args.mode_amplitude
     pickle_jar_path += "_"  + str(args.min_mode) + "_" + str(args.max_mode)
     pickle_jar_path += "-c" + str(args.coupling_strength)
+
+    if args.coupling_strength:
+        pickle_jar_path += '_' + config.ct_label
+
+    if args.reduce_zdim:
+        pickle_jar_path += '-' + config.zlabel
 
 if os.path.isdir(pickle_jar_path):
     if not args.cont: 
@@ -150,8 +160,6 @@ if exist_jar_flag:
     # get pickle that is the final simulation
     final_cycle_num = max(file_dict.keys())
     final_pickle_path = file_dict[final_cycle_num]
-
-    coupling_strength = info['coupling_strength']
 
     # read the last pickle file
     with open(final_pickle_path,"rb") as handle:
@@ -201,7 +209,20 @@ elif not exist_jar_flag:
         coupling_strength = 1
         print("Notice: coupling strength is 1")
 
-    Lxy = config.Lxy ; Lz = config.Lz
+    Lxy = config.Lxy
+
+    if args.reduce_zdim:
+        print("Notice: the z dimension of the simulated box is reduced, see config.py for info")
+        Lz = config.Lz_red
+    else:
+        Lz = config.Lz
+
+    sampler = AllInOneSampler(
+            N_atom_pairs=config.N_atom_pairs, Lxy=Lxy - 6, Lz=Lz - 6,
+            d_ar_xe = 5.0, d_impact = 1.8,
+            red_temp_unit=red.temp, K_temp=config.K_temp,
+            ar_mass=red.mass_dict["Ar"], xe_mass=red.mass_dict["Xe"]
+            )
 
     mode_amplitude = args.mode_amplitude
     reset = args.reset
@@ -245,8 +266,6 @@ elif not exist_jar_flag:
     np.random.seed(seed_list[0])
     N_atom_pairs = config.N_atom_pairs
 
-    sampler = config.sampler
-
             ###################################
             ###################################
             ### WRITING SIMULATION METADATA ###
@@ -259,7 +278,7 @@ if first_run_flag:
             "t_final":t, "h":h, "num_cycles":config.num_cycles,
             "temperature":K_temp, "mu0":config.mu0, 
             "seed":args.seed, "seed_list":seed_list, 
-            "sampler":sampler, "coupling_strength": {coupling_strength},
+            "sampler":sampler, "coupling_strength": coupling_strength,
             "VectorPotential": VectorPotential,
             "Lxy":Lxy, "Lz":Lz, 'reset': args.reset,
             'mode_amplitude': args.mode_amplitude
@@ -280,7 +299,7 @@ if first_run_flag:
             ### START THE SIMULATION ###
             ############################
             ############################
-
+t = 0
 for i in range(final_cycle_num + 1, final_cycle_num + 1 + num_cycles):
     np.random.seed(seed_list[i])
 

@@ -91,9 +91,7 @@ class AtomsInBox:
         self.observable["kinetic"].append(self.kinetic())
         self.observable["potential"].append(self.potential())
 
-        self.observable["dipole"].append(
-                np.sum(self.dipole(), axis = 0)
-                )
+        self.observable["dipole"].append(self.dipole())
         self.observable["total_dipole"].append(self.total_dipole())
 
         self.observable["dipole_velocity"].append(
