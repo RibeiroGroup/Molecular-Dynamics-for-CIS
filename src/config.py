@@ -37,7 +37,7 @@ zlabel = 'microz'
 ##############
 
 N_atom_pairs = 256
-K_temp = 200
+K_temp = 292
 
 mu0 = red.mu0
 
@@ -75,7 +75,7 @@ default_kvector_int = np.array(
         )
 
 coupling_strength = np.sqrt(Lxy * Lxy)
-ct_label = "Lxy"
+ct_label = "Lxy1e1"
 
 C = np.sqrt(Lxy * Lxy * Lz)
 dC = C * 1e-1

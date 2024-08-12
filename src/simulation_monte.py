@@ -204,7 +204,8 @@ elif not exist_jar_flag:
 
     if args.coupling_strength:
         coupling_strength = config.coupling_strength
-        print("Notice: coupling strength is applied (probably not 1, see config.py)")
+        print("Notice: coupling strength is applied with code {}, see config.py".format(
+            config.ct_label))
     else:
         coupling_strength = 1
         print("Notice: coupling strength is 1")
@@ -212,7 +213,10 @@ elif not exist_jar_flag:
     Lxy = config.Lxy
 
     if args.reduce_zdim:
-        print("Notice: the z dimension of the simulated box is reduced, see config.py for info")
+        print(
+            "Notice: the z dimension of the simulated box is reduced, with code {} see config.py for info".format(
+                config.zlabel)
+            )
         Lz = config.Lz_red
     else:
         Lz = config.Lz
