@@ -140,7 +140,7 @@ def categorizing_pickle(pickle_jar_path, KEYWORDS = ""):
             continue
 
         # the format of the pickle file to be e.g result_cavity_5.pkl
-        number = file.split(".")[0]
+        number = "".join( file.split(".")[:-1] )
         number = number.split("_")[-1]
         number = int(number)
 
@@ -173,7 +173,7 @@ def categorizing_result(pickle_jar_path, KEYWORDS = ""):
             result = pickle.load(handle)
 
         # the format of the pickle file to be e.g result_cavity_5.pkl
-        number = file.split(".")[0]
+        number = "".join( file.split(".")[:-1] )
         number = number.split("_")[-1]
         number = int(number)
 

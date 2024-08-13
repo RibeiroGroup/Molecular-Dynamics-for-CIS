@@ -13,9 +13,6 @@ import utilities.reduced_parameter as red
 ### DRIVER PARAM ###
 ####################
 
-#seed1 = 2024 #1807 # 1998 #2024
-#seed2 = 2020 #929 # 1507 #2020
-
 num_cycles = 10
 if num_cycles != 10: print("Warning, number of cycles is not 10!")
 
@@ -25,7 +22,7 @@ h = 1e-2
 ### BOX SIZE ### 
 ################
 
-l = 2.0
+l = 1.5
 Lxy = l * 1e7
 Lz  = l * 1e7
 
@@ -37,7 +34,7 @@ zlabel = 'microz'
 ##############
 
 N_atom_pairs = 256
-K_temp = 292
+K_temp = 200
 
 mu0 = red.mu0
 
@@ -74,8 +71,16 @@ default_kvector_int = np.array(
        #+[[0,0,i] for i in range(1,180)]
         )
 
-coupling_strength = np.sqrt(Lxy * Lxy)
+"""
+coupling_strength = np.sqrt(Lxy * Lxy) * 1e1
 ct_label = "Lxy1e1"
+"""
+coupling_strength = np.sqrt(Lxy * Lxy) * 2e1
+ct_label = "Lxy2e1"
+"""
+coupling_strength = np.sqrt(Lxy * Lxy * Lz)
+ct_label = "sqrtVred"
+"""
 
 C = np.sqrt(Lxy * Lxy * Lz)
 dC = C * 1e-1

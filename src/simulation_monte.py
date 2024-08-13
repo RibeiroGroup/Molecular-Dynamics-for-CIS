@@ -31,6 +31,9 @@ parser.add_argument(
         "--seed", "-s", 
         type = int, help = "random seed for Monte Carlo simulation")
 parser.add_argument(
+        "--K_temp", "-t", 
+        type = float, help = "Temperature", required = True)
+parser.add_argument(
         "--field","-f", 
         type = str, help = "Field, valid argument: 'cavity', 'free', None", default = None)
 parser.add_argument(
@@ -109,7 +112,7 @@ Sample directory name:
 """
 sim_type = args.field if args.field else 'nofield'
 
-pickle_jar_path = "pickle_jar/" + sim_type + '-' + str(config.K_temp)\
+pickle_jar_path = "pickle_jar/" + sim_type + '-' + str(args.K_temp)\
     + "_" + str(config.N_atom_pairs) + "_" + str(args.seed)
 
 if args.field:
@@ -196,7 +199,7 @@ elif not exist_jar_flag:
     np.random.seed(args.seed)
 
     # set Kelvin temperature
-    K_temp = config.K_temp 
+    K_temp = args.K_temp 
 
     final_cycle_num = -1
 
@@ -224,7 +227,7 @@ elif not exist_jar_flag:
     sampler = AllInOneSampler(
             N_atom_pairs=config.N_atom_pairs, Lxy=Lxy - 6, Lz=Lz - 6,
             d_ar_xe = 5.0, d_impact = 1.8,
-            red_temp_unit=red.temp, K_temp=config.K_temp,
+            red_temp_unit=red.temp, K_temp=K_temp,
             ar_mass=red.mass_dict["Ar"], xe_mass=red.mass_dict["Xe"]
             )
 
@@ -320,6 +323,7 @@ for i in range(final_cycle_num + 1, final_cycle_num + 1 + num_cycles):
     t, result = single_collision_simulation(
             cycle_number = i, atoms = atoms, t0 = t, h = h,
             field = field, total_dipole_threshold = 1e-4, 
+            max_steps = 5000
             )
 
     with open(pickle_jar_path + '/' + "result_{}.pkl".format(i),"wb") as handle:

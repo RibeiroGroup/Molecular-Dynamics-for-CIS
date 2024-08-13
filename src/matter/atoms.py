@@ -70,11 +70,11 @@ class AtomsInBox:
             self.mass = mass
 
         else:
-            self.r = np.vstack([self.r, r])
-            self.r_dot = np.vstack([self.r_dot, r_dot])
             self.elements += elements
             self.N_atoms += len(elements)
-            self.mass = np.hstack([mass,self.mass])
+            self.r = np.vstack([self.r, r])
+            self.r_dot = np.vstack([self.r_dot, r_dot])
+            self.mass = np.hstack([self.mass,mass])
 
     def record(self, t):
         """
