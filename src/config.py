@@ -72,11 +72,21 @@ default_kvector_int = np.array(
         )
 
 """
+coupling_strength = np.sqrt(Lxy * Lxy)
+ct_label = "Lxy"
+#"""
+#"""
+coupling_strength = np.sqrt(Lxy * Lxy) * 5e0
+ct_label = "Lxy5e0"
+#"""
+"""
 coupling_strength = np.sqrt(Lxy * Lxy) * 1e1
 ct_label = "Lxy1e1"
 """
+"""
 coupling_strength = np.sqrt(Lxy * Lxy) * 2e1
 ct_label = "Lxy2e1"
+"""
 """
 coupling_strength = np.sqrt(Lxy * Lxy * Lz)
 ct_label = "sqrtVred"
