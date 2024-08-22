@@ -13,7 +13,7 @@ import utilities.reduced_parameter as red
 ### DRIVER PARAM ###
 ####################
 
-num_cycles = 10
+num_cycles = 20
 if num_cycles != 10: print("Warning, number of cycles is not 10!")
 
 h = 1e-2
@@ -22,7 +22,7 @@ h = 1e-2
 ### BOX SIZE ### 
 ################
 
-l = 1.5
+l = 3
 Lxy = l * 1e7
 Lz  = l * 1e7
 
@@ -66,31 +66,17 @@ def initiate_atoms_box(Lxy, Lz):
 #############
 
 default_kvector_int = np.array(
-        [[i,0,0] for i in range(1,150)]\
-       +[[0,i,0] for i in range(1,150)]
+        [[i,0,0] for i in range(1,300)]\
+       #+[[0,i,0] for i in range(1,150)]
        #+[[0,0,i] for i in range(1,180)]
         )
 
-"""
-coupling_strength = np.sqrt(Lxy * Lxy)
-ct_label = "Lxy"
-#"""
-#"""
-coupling_strength = np.sqrt(Lxy * Lxy) * 5e0
-ct_label = "Lxy5e0"
-#"""
-"""
-coupling_strength = np.sqrt(Lxy * Lxy) * 1e1
-ct_label = "Lxy1e1"
-"""
-"""
-coupling_strength = np.sqrt(Lxy * Lxy) * 2e1
-ct_label = "Lxy2e1"
-"""
-"""
-coupling_strength = np.sqrt(Lxy * Lxy * Lz)
-ct_label = "sqrtVred"
-"""
+coupling_strength_dict = {
+        "Lxy": Lxy,
+        "Lxy1e1": Lxy * 1e1,
+        "Lxy15": Lxy * 15,
+        "Lxy2e1": Lxy * 2e1,
+        }
 
 C = np.sqrt(Lxy * Lxy * Lz)
 dC = C * 1e-1

@@ -14,9 +14,8 @@ import numpy as np
 
 def single_collision_simulation(
         cycle_number, t0, h, atoms,
-        field = None, potential_threshold = 1e-5, 
-        min_steps = 200, max_steps = 10000,
-        patient = 50
+        field = None, total_dipole_threshold = 1e-5, 
+        min_steps = 100, max_steps = 10000
         ):
 
     t = t0
@@ -25,10 +24,11 @@ def single_collision_simulation(
     if field:
         field.record(t)
 
+    dipole_drop_flag = False
+    potential_drop_flag = False
     steps = 0
-    patient_steps = 0
 
-    while (steps < min_steps or abs(potential) > potential_threshold)\
+    while (not dipole_drop_flag or abs(dipole) > total_dipole_threshold or steps < min_steps)\
             and steps < max_steps:
         steps += 1
 
@@ -38,14 +38,13 @@ def single_collision_simulation(
         else: em_force_func = None
 
         atoms.record(t)
-        if field: field.record(t)
-
         atoms.Verlet_update(
                 h = h, t = t,
                 field_force = em_force_func
                 )
         
         if field:
+            field.record(t)
             C_dot_tp1 = field.dot_amplitude(t+h,atoms)
             C_new = field.C + h * (C_dot_tp1)
 
@@ -60,10 +59,16 @@ def single_collision_simulation(
         print("Cycle: {}, iterations: {}, total dipole: {:.4E}, potential: {:.4E}".format(
             cycle_number,steps,dipole, potential))
 
-        if abs(potential) < potential_threshold:
-            patient_steps += 1
-        else: 
-            patient_steps = 0
+        if potential < atoms.observable["potential"][-2]:
+            drop_flag = True
+        elif potential > atoms.observable["potential"][-2]:
+            drop_flag = False
+        """
+        if dipole < atoms.observable["total_dipole"][-2]:
+            dipole_drop_flag = True
+        elif dipole > atoms.observable["total_dipole"][-2]:
+            dipole_drop_flag = False
+        """
 
     result = {
             "atoms":atoms, "field":field

@@ -52,9 +52,8 @@ parser.add_argument(
     default = 'zero'
         )
 parser.add_argument(
-    "--coupling_strength", "-c", type = int,
-    help = "whether to use coupling strength factor in config.py or not (coupling_strength = 1)", 
-    default = 0
+    "--coupling_strength", "-c", type = str,
+    help = "whether to use coupling strength factor in config.py or not (default: coupling_strength = 1)", 
         )
 parser.add_argument(
     "--reduce_zdim", "-r", type = int,
@@ -118,10 +117,10 @@ pickle_jar_path = "pickle_jar/" + sim_type + '-' + str(args.K_temp)\
 if args.field:
     pickle_jar_path += "-" + args.mode_amplitude
     pickle_jar_path += "_"  + str(args.min_mode) + "_" + str(args.max_mode)
-    pickle_jar_path += "-c" + str(args.coupling_strength)
 
     if args.coupling_strength:
-        pickle_jar_path += '_' + config.ct_label
+        assert args.coupling_strength in config.coupling_strength_dict
+        pickle_jar_path += '-c_' + args.coupling_strength
 
     if args.reduce_zdim:
         pickle_jar_path += '-' + config.zlabel
@@ -206,9 +205,8 @@ elif not exist_jar_flag:
     seed_list = np.random.randint(low = 0, high = 1000, size = 1000)
 
     if args.coupling_strength:
-        coupling_strength = config.coupling_strength
-        print("Notice: coupling strength is applied with code {}, see config.py".format(
-            config.ct_label))
+        coupling_strength = config.coupling_strength_dict[args.coupling_strength]
+        print("Notice: coupling strength is applied, see config.py for spectific value")
     else:
         coupling_strength = 1
         print("Notice: coupling strength is 1")
@@ -322,8 +320,8 @@ for i in range(final_cycle_num + 1, final_cycle_num + 1 + num_cycles):
 
     t, result = single_collision_simulation(
             cycle_number = i, atoms = atoms, t0 = t, h = h,
-            field = field, total_dipole_threshold = 1e-4, 
-            max_steps = 5000
+            field = field, potential_threshold = 1e-4, 
+            max_steps = 10000, patient = 100
             )
 
     with open(pickle_jar_path + '/' + "result_{}.pkl".format(i),"wb") as handle:
