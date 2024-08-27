@@ -13,10 +13,10 @@ import utilities.reduced_parameter as red
 ### DRIVER PARAM ###
 ####################
 
-num_cycles = 20
+num_cycles = 10
 if num_cycles != 10: print("Warning, number of cycles is not 10!")
 
-h = 1e-2
+h = 1e-3
 
 ################
 ### BOX SIZE ### 
@@ -33,7 +33,7 @@ zlabel = 'microz'
 ### MATTER ###
 ##############
 
-N_atom_pairs = 256
+N_atom_pairs = 128
 K_temp = 200
 
 mu0 = red.mu0
@@ -66,7 +66,7 @@ def initiate_atoms_box(Lxy, Lz):
 #############
 
 default_kvector_int = np.array(
-        [[i,0,0] for i in range(1,300)]\
+        [[i,0,0] for i in range(1,260)]\
        #+[[0,i,0] for i in range(1,150)]
        #+[[0,0,i] for i in range(1,180)]
         )
@@ -76,6 +76,8 @@ coupling_strength_dict = {
         "Lxy1e1": Lxy * 1e1,
         "Lxy15": Lxy * 15,
         "Lxy2e1": Lxy * 2e1,
+        "Lxy3e1": Lxy * 3e1,
+        "Lxy4e1": Lxy * 4e1,
         }
 
 C = np.sqrt(Lxy * Lxy * Lz)

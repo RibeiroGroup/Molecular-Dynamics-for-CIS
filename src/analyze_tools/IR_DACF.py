@@ -70,29 +70,11 @@ import math, os, sys, time
 #############################  Let's Try It! ###########################
 
 
-
-
-
-
-"""
-#### The values need to input manually when running this script ####
-path = input("\nPlease Enter the Directory Contained the Dipole Moment File\n")
-fname = sys.argv[1]                    # The name of the input file
-delta_t = float(sys.argv[2]) * 1.0e-15 # The time step in unit of femtoseconds
-window = sys.argv[3]                   # The name of the window function
-fout = sys.argv[4]                     # The name of the output file
-""" 
-
-
-
 #### The constants will be used in this script ####
 c = 2.9979245899e10     # speed of light in vacuum in [cm/s], from Wikipedia.
 kB = 0.6950347          # Boltzman constant in [cm^-1/K], from Wikipedia.
 h_bar = 6.283185        # Reduced Planck constant in atomic unit, where h = 2*pi
 #beta = 1.0/(kB * T)                         
-
-
-
 
 #### Functions will used in this script ####
 
@@ -139,14 +121,14 @@ def calc_ACF(array):
     # normalization
     yunbiased = array - np.mean(array, axis=0)
     ynorm = np.sum(np.power(yunbiased,2), axis=0)
-#    print "the average value of input data array", ynorm
+    # print "the average value of input data array", ynorm
     autocor = np.zeros(np.shape(array))
 
     for i in range(3):
         autocor[:,i] = signal.fftconvolve(array[:,i],
                                           array[:,i][::-1],
                                           mode='full')[len(array)-1:]/ynorm[i]
-    print("shape of the result3 from signal.FFTcorrelate()", np.shape(autocor))
+    print("shape of the result3 from sig
     return autocor
 
 

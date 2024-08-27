@@ -321,7 +321,8 @@ for i in range(final_cycle_num + 1, final_cycle_num + 1 + num_cycles):
     t, result = single_collision_simulation(
             cycle_number = i, atoms = atoms, t0 = t, h = h,
             field = field, potential_threshold = 1e-4, 
-            max_steps = 10000, patient = 100
+            max_steps = 10000 * 1e-2/h, patient = 100, 
+            record_every = 1e-2/h
             )
 
     with open(pickle_jar_path + '/' + "result_{}.pkl".format(i),"wb") as handle:

@@ -13,11 +13,19 @@ import numpy as np
 """
 
 def single_collision_simulation(
-        cycle_number, t0, h, atoms,
+        cycle_number, h, atoms, t0 = 0,
         field = None, potential_threshold = 1e-5, 
         min_steps = 200, max_steps = 10000,
-        patient = 50
+        patient = 50, record_every = 1
         ):
+    """
+    Propagate one system of Ar-Xe atoms and EM field
+    Args:
+    + cycle_number (int): just for printing purpose
+    + h (float): time step
+    + atoms (
+    + t0 (float): initial time
+    """
 
     t = t0
     atoms.record(t)
@@ -37,9 +45,6 @@ def single_collision_simulation(
 
         else: em_force_func = None
 
-        atoms.record(t)
-        if field: field.record(t)
-
         atoms.Verlet_update(
                 h = h, t = t,
                 field_force = em_force_func
@@ -54,16 +59,21 @@ def single_collision_simulation(
 
         t += h
 
-        dipole = atoms.observable["total_dipole"][-1]
-        potential = atoms.observable["potential"][-1]
+        if steps % record_every == 0:
 
-        print("Cycle: {}, iterations: {}, total dipole: {:.4E}, potential: {:.4E}".format(
-            cycle_number,steps,dipole, potential))
+            atoms.record(t)
+            if field: field.record(t)
 
-        if abs(potential) < potential_threshold:
-            patient_steps += 1
-        else: 
-            patient_steps = 0
+            dipole = atoms.observable["total_dipole"][-1]
+            potential = atoms.observable["potential"][-1]
+
+            print("Cycle: {}, iterations: {}, total dipole: {:.4E}, potential: {:.4E}".format(
+                cycle_number,steps,dipole, potential))
+
+            if abs(potential) < potential_threshold:
+                patient_steps += 1
+            else: 
+                patient_steps = 0
 
     result = {
             "atoms":atoms, "field":field
