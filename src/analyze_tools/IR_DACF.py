@@ -106,17 +106,11 @@ def zero_padding(sample_data):
 
 def calc_ACF(array):
     '''
-    This function deals with the auto-correlation function (ACF) of the total
-    dipole moment derivatives.
-
-    With the Wiener-Khintchine theorem, the autocorrelation function is
-    http://en.wikipedia.org/wiki/Wiener%E2%80%93Khinchin_theorem
-
-####
-####  http://stackoverflow.com/questions/4503325/autocorrelation-of-a-multidimensional-array-in-numpy
-####
-####  for fast convolution 
-####  http://sebug.net/paper/books/scipydoc/frequency_process.html#id5
+    Calculating Autocorrelation function ACF). 
+    The original calculate ACF of array A by convolving A with time (~array index) 
+    inversed of itself.
+    Arg:
+    + array (np.array): input array for calculating ACF
     '''
     # normalization
     yunbiased = array - np.mean(array, axis=0)
@@ -128,7 +122,6 @@ def calc_ACF(array):
         autocor[:,i] = signal.fftconvolve(array[:,i],
                                           array[:,i][::-1],
                                           mode='full')[len(array)-1:]/ynorm[i]
-    print("shape of the result3 from sig
     return autocor
 
 

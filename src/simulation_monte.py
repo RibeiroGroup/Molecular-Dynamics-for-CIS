@@ -19,6 +19,12 @@ from simulation.single import single_collision_simulation
 import config
 from config import generate_field_amplitude
 
+#########################################################################
+#########################################################################
+### Sript for running Monte Carlo simulation of Argon-Xenon collision ###
+#########################################################################
+#########################################################################
+
 ##############################
 ##############################
 ### PATH TO THE PICKLE JAR ###
@@ -321,7 +327,7 @@ for i in range(final_cycle_num + 1, final_cycle_num + 1 + num_cycles):
     t, result = single_collision_simulation(
             cycle_number = i, atoms = atoms, t0 = t, h = h,
             field = field, potential_threshold = 1e-4, 
-            max_steps = 10000 * 1e-2/h, patient = 100, 
+            max_steps = 10000 * 1e-2/h, patient = 100 * 1e-2/h, 
             record_every = 1e-2/h
             )
 

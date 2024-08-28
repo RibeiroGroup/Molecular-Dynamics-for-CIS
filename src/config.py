@@ -16,7 +16,7 @@ import utilities.reduced_parameter as red
 num_cycles = 10
 if num_cycles != 10: print("Warning, number of cycles is not 10!")
 
-h = 1e-3
+h = 1e-2
 
 ################
 ### BOX SIZE ### 
@@ -33,7 +33,7 @@ zlabel = 'microz'
 ### MATTER ###
 ##############
 
-N_atom_pairs = 128
+N_atom_pairs = 256
 K_temp = 200
 
 mu0 = red.mu0
