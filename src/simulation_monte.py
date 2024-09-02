@@ -189,14 +189,11 @@ if exist_jar_flag:
 
 #####################################################
 elif not exist_jar_flag:
-                ########################
-                ########################
-                ### EMPTY PARAMETERS ###
-                ########################
-                ########################
+    #
+    # Initiate various parameter for a fresh runs
+    #
+
     first_run_flag = True
-    # start a brand new simulation
-    # set time zero and time step h
     t = 0
     h = config.h
 
@@ -229,7 +226,8 @@ elif not exist_jar_flag:
         Lz = config.Lz
 
     sampler = AllInOneSampler(
-            N_atom_pairs=config.N_atom_pairs, Lxy=Lxy - 6, Lz=Lz - 6,
+            N_atom_pairs=config.N_atom_pairs, 
+            Lxy=Lxy - 6, Lz=Lz - 6, # trim the spawning space to prevent spawn near the boundary
             d_ar_xe = 5.0, d_impact = 1.8,
             red_temp_unit=red.temp, K_temp=K_temp,
             ar_mass=red.mass_dict["Ar"], xe_mass=red.mass_dict["Xe"]
@@ -268,22 +266,16 @@ elif not exist_jar_flag:
         VectorPotential = None
     ### END FREE MODE SPECS ###
 
-                ##########################
-                ##########################
-                ### INITIATE ATOMS BOX ###
-                ##########################
-                ##########################
-
     np.random.seed(seed_list[0])
     N_atom_pairs = config.N_atom_pairs
 
+if first_run_flag:
             ###################################
             ###################################
             ### WRITING SIMULATION METADATA ###
             ###################################
             ###################################
 
-if first_run_flag:
     os.makedirs(pickle_jar_path)
     info_dict = {
             "t_final":t, "h":h, "num_cycles":config.num_cycles,

@@ -1,17 +1,5 @@
 import numpy as np
 
-"""
-    sample = sampler()
-    r_ar, r_xe = sample["r"]
-    r_dot_ar, r_dot_xe = sample["r_dot"]
-
-    atoms = initiate_atoms_box()
-    atoms.add(elements = ["Ar"]*N_atom_pairs,r = r_ar,r_dot = r_dot_ar)
-    atoms.add(elements = ["Xe"]*N_atom_pairs,r = r_xe,r_dot = r_dot_xe)
-
-    atoms.update_distance()
-"""
-
 def single_collision_simulation(
         cycle_number, h, atoms, t0 = 0,
         field = None, potential_threshold = 1e-5, 
@@ -23,24 +11,40 @@ def single_collision_simulation(
     Args:
     + cycle_number (int): just for printing purpose
     + h (float): time step
-    + atoms (
-    + t0 (float): initial time
+    + atoms (Atoms object): atoms
+    + field (BaseVectorPotential or inherited-class objects): field
+    + t0 (float): initial time, just for printing
+    + potential_threshold (float): termination conditions, if the system total 
+        potential value fall below this value, the patient (see patient argument) value 
+        will be counted down, and the simulation is terminated if patient drop to zero
+    + min_steps (int): minimum number of steps, the simulation is guaranteed to not 
+        stop if number of steps < min_steps
+    + max_steps (int): maximum number of steps, the simulation stop if number of steps 
+        exceed max_steps
+    + patient (int): number of steps to count down if the terminated condition met,
+        the count down is reset if the termination condition is not satisfied
+    + record_every (int): record every N steps with N is the provided value.
+        Example: N = 10, the data is record at 10, 20, 30, ... , 100, ...-th step
     """
 
     t = t0
+    # record the data in atoms object
     atoms.record(t)
 
     if field:
+        # record the data in the field object
         field.record(t)
 
     steps = 0
     patient_steps = 0
 
+    # condition for continuing the loop: 
     while (steps < min_steps or abs(potential) > potential_threshold)\
             and steps < max_steps:
         steps += 1
 
         if field is not None:
+            # the force exerted by the field will the 
             em_force_func = lambda t, atoms: field.force(t,atoms)
 
         else: em_force_func = None

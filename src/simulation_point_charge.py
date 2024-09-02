@@ -4,16 +4,17 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from field.electromagnetic import FreeVectorPotential, CavityVectorPotential
-from field.utils import EM_mode_generate
 import utilities.reduced_parameter as red
 
 """
-Testing electromagnetic.py
-Demo the electromagnetic.py for simulating the simplest 
-system: one point charge and one charged oscillator 
+Demo the electromagnetic.py by simulating the oscillating point charge 
+and test for total energy conservation
 """
 
 class PointCharges:
+    """
+    Simple point charge
+    """
     def __init__(self, q, r, r_dot):
         self.N = len(q)
 
@@ -21,21 +22,38 @@ class PointCharges:
         self.update(r, r_dot)
 
     def charge(self):
+        """
+        Return the charge of the point charge. This function is essential for 
+        interacting with the electromagnetic field class
+        """
         return self.q
 
     def update(self, r, r_dot):
+        """
+        Update position r and velocity r_dot
+        """
         assert len(r) == self.N
         assert len(r_dot) == self.N
         self.r = r
         self.r_dot = r_dot
 
     def current_mode_projection(self):
-
+        """
+        """
         qr_dot = np.einsum("nij,ni->nj", q, self.r_dot)
 
         return qr_dot
 
     def Verlet_step(self, t, h, force_func):
+        """
+        Perform a Velocity verlet update
+        Args:
+        + t (float): time
+        + h (float): time step
+        + force_func (Python function): function to calculate the
+            force on the particle. This function must accept two arguments:
+            time t and the particle itself
+        """
         force = force_func(t, self)
 
         v_half = self.r_dot + force * h / 2
@@ -70,60 +88,44 @@ def profiling_rad(omega_list,unique_omega,Hrad):
 
     return rad_profile
 
-L = 1e5
+L = 1e4
 
-k_vector = np.array(EM_mode_generate(max_n = 5, min_n = 0), dtype=np.float64)
+k_vector_int = np.array(
+    [[0,i,0] for i in range(1,200)] + [[i,0,0] for i in range(1,200)], 
+    dtype=np.float64)
 
-print(k_vector.shape)
+print(k_vector_int.shape)
 
 np.random.seed(2024)
 amplitude = np.vstack([
     np.random.uniform(size = 2) * 1 + np.random.uniform(size = 2) * 1j
-    for i in range(len(k_vector))
-    ]) * 1e1 * np.sqrt(L**3)
-
+    for i in range(len(k_vector_int))
+    ]) * 0
 
 ##################################
 ### FREE FIELD POTENTIAL BEGIN ###
 ##################################
-k_vector *= (2 * np.pi / L)
 Afield = FreeVectorPotential(
-        k_vector = k_vector, amplitude = amplitude,
-        V = L ** 3, constant_c = red.c,
+        k_vector_int = k_vector_int, amplitude = amplitude,
+        Lxy = L, Lz = L, constant_c = red.c, coupling_strength = 1
         )
-print("Warning, the volume is set to 1")
 ### FREE FIELD POTENTIAL END ###
-"""
-##############################
-### CAVITY POTENTIAL BEGIN ###
-##############################
-kappa = k_vector[:,:2] * (2 * np.pi / L)
 
-m = k_vector[:,-1].reshape(-1)
-
-Afield = CavityVectorPotential(
-    kappa = kappa, m = m, amplitude = amplitude,
-    L = L, S = L ** 2, constant_c = red.c)
-
-print(Afield.kappa_unit.shape)
-
-### CAVITY POTENTIAL END ###
-"""
-
+k_vector = Afield.k_vector
 omega_list = red.c * np.sqrt(np.einsum("ki,ki->k",k_vector, k_vector))
 unique_omega = list(set(omega_list))
 
 #simple point charge
-r = -np.array([[1, 1, 1]]) * 100.0
-v = np.array([[1.0,1.0,1.0]]) * 0e2
-q = np.array([np.eye(3)]) * 1e4
+r = -np.array([[1, 1, 1]]) * 500.0
+v = np.array([[1.0,1.0,1.0]]) * 0
+q = np.array([np.eye(3)]) * 1e3
 
 point_charge = PointCharges(q = q, r = r, r_dot = v)
 
 t = 0
-h = 1e-4
+h = 1e-3
 
-k = 100#(red.c * (2 * np.pi / L) ** 2) ** 2
+k = 10#(red.c * (2 * np.pi / L) ** 2) ** 2
 print(np.sqrt(k))
 
 Hmat = point_charge.kinetic_energy() + oscillator_potential(point_charge, k)
