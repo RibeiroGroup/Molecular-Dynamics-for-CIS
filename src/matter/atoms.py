@@ -91,12 +91,9 @@ class AtomsInBox:
         self.observable["kinetic"].append(self.kinetic())
         self.observable["potential"].append(self.potential())
 
-        self.observable["dipole"].append(self.dipole())
-        self.observable["total_dipole"].append(self.total_dipole())
-
         self.observable["dipole_velocity"].append(
-                np.sum(self.current_mode_projection(), axis = 0)
-                )
+                self.current_mode_projection())
+        self.observable["dipole"].append(self.dipole())
 
     def random_initialize(self, atoms, max_velocity, min_velocity = 0):
         """

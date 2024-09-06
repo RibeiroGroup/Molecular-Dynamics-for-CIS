@@ -38,16 +38,16 @@ atoms = AtomsInBox(
 
 atoms.add(
         elements = ["Ar"],
-        r = np.array([[0.0,0.0,-1.5]]),
-        #r_dot = np.array([[0.0,0.0,0.0]]),
-        r_dot = np.array([[0.0,0.0,0.3]]) #/ np.sqrt(2),
+        r = np.array([[0.0,0.0,-0.6]]), #+ np.array([[1e3,-3e2,1e1]]),
+        r_dot = np.array([[0.0,0.0,0.0]]),
+        #r_dot = np.array([[0.0,0.0,0.3]]) #/ np.sqrt(2),
         )
 
 atoms.add(
         elements = ["Xe"],
-        r = np.array([[0.00,0.0,1.5]]),
-        #r_dot = np.array([[-0.00,-0.00,-0.00]]),
-        r_dot = np.array([[-0.00,-0.00,-0.09]]) #/ np.sqrt(2),
+        r = np.array([[0.00,0.0,0.6]]),# + np.array([[1e3,-3e2,1e1]]),
+        r_dot = np.array([[-0.00,-0.00,-0.00]]),
+        #r_dot = np.array([[-0.00,-0.00,-0.09]]) #/ np.sqrt(2),
         )
 
 # Generate a matrix of LJ potential parameter
@@ -73,10 +73,10 @@ atoms.update_distance()
             ##########################
             ##########################
 
-k_vector_int = np.array(
-    [[i,0,0] for i in range(1,100)] #+ [[0,i,0] for i in range(1,100)]
-    ,dtype=np.float64)
-#k_vector_int = np.array([[23,0,0]])
+#k_vector_int = np.array(
+#    [[i,0,0] for i in range(1,100)] #+ [[0,i,0] for i in range(1,100)]
+#    ,dtype=np.float64)
+k_vector_int = np.array([[23,0,0]])
 
 print(k_vector_int.shape)
 
@@ -90,7 +90,7 @@ amplitude = np.vstack([
 ##################################
 ### FREE FIELD POTENTIAL BEGIN ###
 ##################################
-coup_str = 10
+coup_str = 30
 
 Afield = CavityVectorPotential(
         k_vector_int = k_vector_int, amplitude = amplitude,
@@ -112,7 +112,7 @@ field_elist = [Afield.hamiltonian(return_sum_only=True)]
 atoms.record(t)
 Afield.record(t)
 
-for i in tqdm(range(10000)):
+for i in tqdm(range(5000)):
     em_force_func = lambda t, atoms: Afield.force(t,atoms)
 
     atoms.Verlet_update(

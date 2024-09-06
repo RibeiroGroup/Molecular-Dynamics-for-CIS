@@ -4,7 +4,7 @@ def single_collision_simulation(
         cycle_number, h, atoms, t0 = 0,
         field = None, potential_threshold = 1e-5, 
         min_steps = 200, max_steps = 10000,
-        patient = 50, record_every = 1
+        patient = 50, record_every = 1, verbose = True
         ):
     """
     Propagate one system of Ar-Xe atoms and EM field
@@ -68,11 +68,11 @@ def single_collision_simulation(
             atoms.record(t)
             if field: field.record(t)
 
-            dipole = atoms.observable["total_dipole"][-1]
             potential = atoms.observable["potential"][-1]
 
-            print("Cycle: {}, iterations: {}, total dipole: {:.4E}, potential: {:.4E}".format(
-                cycle_number,steps,dipole, potential))
+            if verbose:
+                print("Cycle: {}, iterations: {}, potential: {:.4E}".format(
+                    cycle_number,steps, potential))
 
             if abs(potential) < potential_threshold:
                 patient_steps += 1
