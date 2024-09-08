@@ -13,7 +13,7 @@ import utilities.reduced_parameter as red
 ### DRIVER PARAM ###
 ####################
 
-num_cycles = 40
+num_cycles = 10
 #if num_cycles != 20: print("Warning, number of cycles is not 10!")
 
 h = 1e-2
