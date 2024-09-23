@@ -292,10 +292,8 @@ class CavityVectorPotential(BaseVectorPotential):
     """
     Class for vector potential of the field in the cavity
     Args:
-    + kappa (np.array): wavevector in the x and y direction
-        SIZE: N x 2 with N is the number of modes
-    + m (np.array): quantum number of wavevector in z direction
-        SIZE: N with N consistent with above definition
+    + k_vector_int (np.array): array of (n_x, n_y, n_z) where n's are integers for
+        calculating k-vector (2*pi*n_x/Lx, 2*pi*n_y/Ly, pi*n_z/Lz)
     + amplitude (np.array): ampltitude of both the TE and TM mode
         SIZE: N x 2 with N consistent with above definition
     + Lxy (float): length in the x and y direction of the cavity
