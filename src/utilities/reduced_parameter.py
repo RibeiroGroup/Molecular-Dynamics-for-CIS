@@ -132,6 +132,7 @@ def convert_dipole(array):
     array = deepcopy(np.array(array)) * dipole_unit * 1e18
     return array
 
+
 if test:
     import os, sys
     parent_path = os.path.abspath("")

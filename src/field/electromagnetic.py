@@ -1,27 +1,42 @@
 from copy import deepcopy
 import numpy as np
-from .utils import orthogonalize, repeat_x3
+from .utils import orthogonalize, repeat_x3, init_amplitude
 
 class BaseVectorPotential:
     """
     Base class for Vector Potential. 
     Attribute:
     + n_modes (int): number of modes
-    + C (np.array of size n_modes x 2): ampltiude of all the modes
+    + amplitude (str or np.array): either the mode for generating amplitude or 
+        the array of amplitude. The available mode is 'zero' and 'boltzmann'.
+        If array of amplitude to be given, it must have shape (n_modes, 2)
     + constant_c (float): value of speed of light constant
+    + V (float)
+    + coupling_strength
+    + T (float, optional): temperature for sampling amplitude according to Boltzmann 
+        distribution. Required if amplitude == 'boltzmann'. Note that reduced temperature
+        unit is used.
     """
-    def __init__(self, k_vector, amplitude,constant_c, V, coupling_strength):
+    def __init__(self, k_vector, amplitude, constant_c, V, coupling_strength = 1, T = None):
 
         self.n_modes = len(k_vector)
-
-        self.update_amplitude(amplitude)
-
-        self.constant_c = constant_c
 
         self.k_val = np.sqrt(
                 np.einsum("ni,ni->n",k_vector,k_vector)) 
 
         self.omega = self.k_val * constant_c
+
+        print((amplitude == 'zero' or amplitude == 'boltzmann') and T is not None)
+        if (amplitude == 'zero' or amplitude == 'boltzmann') and T is not None :
+            amplitude = init_amplitude(k_value = self.k_val, mode = amplitude, T = T)
+        elif isinstance(amplitude, np.ndarray):
+            assert amplitude.shape == (len(self.k_val), 2)
+        else:
+            raise Exception('Invalid amplitude')
+
+        self.update_amplitude(amplitude)
+
+        self.constant_c = constant_c
 
         assert isinstance(V,float)
         self.V = V
@@ -213,7 +228,7 @@ class FreeVectorPotential(BaseVectorPotential):
         with above arguments
     """
     def __init__(
-        self, k_vector_int, amplitude, Lxy, Lz, constant_c, coupling_strength, pol_vec = None
+        self, k_vector_int, amplitude, Lxy, Lz, constant_c, coupling_strength = 1, pol_vec = None, T = None
         ):
 
         self.k_vector_int = k_vector_int
@@ -240,7 +255,10 @@ class FreeVectorPotential(BaseVectorPotential):
             self.pol_vec = pol_vec
 
         V = Lxy * Lxy * Lz
-        super().__init__(self.k_vector, amplitude, constant_c, V, coupling_strength)
+        super().__init__(
+                k_vector = self.k_vector, amplitude = amplitude, 
+                constant_c = constant_c, V=V, 
+                coupling_strength = coupling_strength, T = T)
 
         assert self.pol_vec.shape == (self.n_modes, 2, 3)
 
@@ -301,7 +319,7 @@ class CavityVectorPotential(BaseVectorPotential):
     + Lz (float): length in z direction of the cavity
     + constant_c (float): value of speed of light constant
     """
-    def __init__(self, k_vector_int, amplitude, Lxy, Lz, constant_c, coupling_strength):
+    def __init__(self, k_vector_int, amplitude, Lxy, Lz, constant_c, coupling_strength = 1, T = None):
 
         self.k_vector_int = k_vector_int
 
@@ -321,8 +339,9 @@ class CavityVectorPotential(BaseVectorPotential):
         self.Lxy = Lxy
         self.Lz = Lz
 
-        super().__init__(self.k_vector, amplitude, constant_c, 
-                V = Lxy * Lxy * Lz, coupling_strength = coupling_strength)
+        super().__init__(
+                k_vector = self.k_vector, amplitude = amplitude, constant_c = constant_c, 
+                V = Lxy * Lxy * Lz, coupling_strength = coupling_strength, T = T)
         #print("Warning, the volume is set to 1")
 
         # calculating unit vector

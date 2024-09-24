@@ -10,7 +10,6 @@ from matter.atoms import AtomsInBox
 from matter.utils import AllInOneSampler
 
 from field.electromagnetic import FreeVectorPotential,CavityVectorPotential
-from field.utils import EM_mode_generate_,EM_mode_exhaust
 
 import utilities.reduced_parameter as red
 from utilities.etc import categorizing_pickle
@@ -54,7 +53,7 @@ parser.add_argument(
         )
 parser.add_argument(
     "--mode_amplitude", "-a", type = str, 
-    help = "mode amplitude, accepted argument: 'zero', 'zpve', 'config', 'cont'",
+    help = "mode amplitude, accepted argument: 'zero', 'boltzmann'",
     default = 'zero'
         )
 parser.add_argument(
@@ -178,11 +177,12 @@ if exist_jar_flag:
         print('Load external vector potential field.')
         old_field = result["field"]
         field = VectorPotential(
-            k_vector_int = old_field.k_vector_int, 
+            k_vector_int = old_field.k_vector_int,
             constant_c = red.c,
             Lxy = Lxy, Lz = Lz, 
-            amplitude = old_field.C, 
-            coupling_strength = old_field.coupling_strength
+            amplitude = info_dict['mode_amplitude'], 
+            coupling_strength = old_field.coupling_strength,
+            T = info_dict['temperature'] / red.temp
             )
         del old_field
     else: field = None
@@ -250,16 +250,17 @@ elif not exist_jar_flag:
         elif args.field == 'free': VectorPotential = FreeVectorPotential
 
         try:
-            assert mode_amplitude in ['zero', 'zpve', 'config']
+            assert mode_amplitude in ['zero', 'boltzmann']
         except AssertionError:
             raise Exception('Please revise the ampltiude arguments!')
 
         field = VectorPotential(
                 k_vector_int = kvector_int, 
-                amplitude = generate_field_amplitude(kvector_int, mode_amplitude),
+                amplitude = mode_amplitude,
                 Lxy = Lxy, Lz = Lz, 
                 constant_c = red.c, 
-                coupling_strength = coupling_strength
+                coupling_strength = coupling_strength,
+                T = args.K_temp / red.temp
                 )
     else: 
         field = None
@@ -332,7 +333,7 @@ for i in range(final_cycle_num + 1, final_cycle_num + 1 + num_cycles):
         field = result["field"] 
 
         if reset: 
-            new_amplitude = generate_field_amplitude(kvector_int, mode_amplitude)
+            new_amplitude = mode_amplitude
         else:
             new_amplitude = field.C
 
@@ -341,7 +342,8 @@ for i in range(final_cycle_num + 1, final_cycle_num + 1 + num_cycles):
             Lxy = Lxy, Lz = Lz, 
             amplitude = new_amplitude,
             constant_c = red.c,
-            coupling_strength = coupling_strength
+            coupling_strength = coupling_strength,
+            T = args.K_temp / red.temp
             )
 
         del field
