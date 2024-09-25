@@ -26,7 +26,6 @@ class BaseVectorPotential:
 
         self.omega = self.k_val * constant_c
 
-        print((amplitude == 'zero' or amplitude == 'boltzmann') and T is not None)
         if (amplitude == 'zero' or amplitude == 'boltzmann') and T is not None :
             amplitude = init_amplitude(k_value = self.k_val, mode = amplitude, T = T)
         elif isinstance(amplitude, np.ndarray):

@@ -61,7 +61,7 @@ def init_amplitude(k_value, mode = 'zero', T = None):
             (len(k_value), 2), dtype = np.complex128)
 
     elif mode == 'boltzmann':
-        print('Please make sure your temperature {} is in reduced unit.'.format(T))
+        #print('Please make sure your temperature {} is in reduced unit.'.format(T))
         assert T is not None
         amplitude = []
 
