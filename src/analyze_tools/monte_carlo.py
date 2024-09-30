@@ -9,7 +9,7 @@ def get_colliding_time(
     """
     Calculating the collision time for each pairs of colliding Argon-Xenon
     Warning: this code is mean to used with result of simulation_monte.py code,
-    the first N_pair of atoms.r is supposed to be of Xenons, and the last 
+    the i-th element (i < N/2) of atoms.r is supposed to be of Xenons, and the last 
     N_pair of atoms.r is supposed to be of Argon, thus the pair-wise dipole can be 
     computed
     Args:
