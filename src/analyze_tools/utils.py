@@ -30,29 +30,24 @@ def profiling_rad(omega_list,Hrad):
     return unique_omega, rad_profile
 
 
-def field_spectra(result_dict, limit = None):
+def field_spectra(result_dict, convert_function, limit = None):
     rad_profile = []
     
-    for i, rd in result_dict.items():
-
-        if limit and i > limit : 
-            continue
-        
-        Afield = rd["field"]
-        
-        rad_energy = red.convert_energy(np.array(Afield.history["energy"][-1]), "ev") 
-        omega = red.convert_wavenumber(Afield.k_val)
-        omega_profile, final_rad_profile = profiling_rad(omega, rad_energy)
-        
-        foo = np.argsort(omega_profile)
-        omega_profile = np.array(omega_profile)[foo]
-        final_rad_profile = np.array(final_rad_profile)[foo]
-        
-        rad_profile.append(final_rad_profile)
-        
-    rad_profile = np.mean(rad_profile, axis = 0)
+    Afield = result_dict["field"]
     
-    return omega_profile, np.array(rad_profile)
+    rad_energy = np.array(Afield.history["energy"][-1]) \
+        - np.array(Afield.history["energy"][0])
+
+    rad_energy = convert_function['energy'](rad_energy, "ev") 
+
+    omega = convert_function['wavenumber'](Afield.k_val)
+    omega_profile, final_rad_profile = profiling_rad(omega, rad_energy)
+    
+    foo = np.argsort(omega_profile)
+    omega_profile = np.array(omega_profile)[foo]
+    final_rad_profile = np.array(final_rad_profile)[foo]
+    
+    return omega_profile, final_rad_profile
 
 
 def fft_autocorr(t,dp_vel,dtps,windows='Gaussian'):
@@ -80,8 +75,8 @@ def dipole_spectra(
     #    result_dict['atoms'].observable['dipole'], axis = 1
     #)
 
+    time = np.array(atoms.observable['t'])
     if time_frame: 
-        time = np.array(atoms.observable['t'])
         time -= time[0]
         dp = dp[(time > ti) * (time < tf)]
 
@@ -91,6 +86,53 @@ def dipole_spectra(
         ir *= wavenumber**2
 
     return np.array(wavenumber), np.array(ir)
+
+class DipoleSpectra:
+    def __init__(self, dtps, convert_function, time_frame = None, windows = 'Gaussian' ):
+        self.time_frame = time_frame 
+        self.dtps = dtps
+        self.convert_function = convert_function
+        self.windows = windows
+
+        self.dp_vel_list = []
+        self.max_len = 0
+
+    def add_result_dict(self, result_dict):
+        dp_vel = np.array(result_dict['atoms'].observable['dipole_velocity'])
+
+        if len(dp_vel.shape) == 3:
+            dp_vel = np.sum(dp_vel , axis = 1)
+
+        if self.time_frame: 
+            time = np.array(result_dict[i]['atoms'].observable['t'])
+            time -= time[0]
+            dp_vel = dp_vel[(time > self.time_frame[0]) * (time < self.time_frame[1])]
+
+        self.dp_vel_list.append(dp_vel)
+
+        if len(dp_vel) > self.max_len: 
+            self.max_len = len(dp_vel)
+
+    def __call__(self):
+        # pad the dipole vector array
+        dp_vel_array = np.zeros((len(self.dp_vel_list), self.max_len, 3))
+        
+        for i, dp_vel in enumerate(self.dp_vel_list):
+            dp_vel_array[i, 0:len(dp_vel), :] = dp_vel
+        
+        IR_spec = []
+        
+        for i, dp_vel in enumerate(dp_vel_array):
+            autocorr = calc_ACF(dp_vel)
+            #autocorr = scipy.signal.correlate(dp_vel, dp_vel)
+            yfft = calc_FFT(autocorr, self.windows)
+            intensity = np.sum(yfft, axis=1)[0:int(len(yfft)/2)]
+            IR_spec.append(intensity)
+        
+        delta_t = self.convert_function['time'](self.dtps) * 1e-12 * 3e10
+        wavenumber = np.fft.fftfreq(len(yfft), delta_t)[0:int(len(yfft)/2)]
+
+        return np.array(wavenumber), np.array(IR_spec)
 
 """
 Calculating ACF and FFT functions
