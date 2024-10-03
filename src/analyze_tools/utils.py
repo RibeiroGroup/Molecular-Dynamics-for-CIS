@@ -125,6 +125,7 @@ class DipoleSpectra:
         for i, dp_vel in enumerate(dp_vel_array):
             autocorr = calc_ACF(dp_vel)
             #autocorr = scipy.signal.correlate(dp_vel, dp_vel)
+            autocorr = np.nan_to_num(autocorr)
             yfft = calc_FFT(autocorr, self.windows)
             intensity = np.sum(yfft, axis=1)[0:int(len(yfft)/2)]
             IR_spec.append(intensity)
