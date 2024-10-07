@@ -322,11 +322,13 @@ class CavityVectorPotential(BaseVectorPotential):
 
         self.k_vector_int = k_vector_int
 
-        # in-plane wavevector kappa vector 
+        # calculating in-plane wavevector kappa vector 
         kappa_vec = k_vector_int[:,:2] * 2 * np.pi / Lxy 
+
         # magnitude of the in-plane wavevector
         self.kappa = np.sqrt(np.einsum("ki,ki->k",kappa_vec,kappa_vec))
-        # kz 
+
+        # calculating kz 
         self.kz = k_vector_int[:,-1] * np.pi / Lz
 
         #k_vector in general
@@ -385,7 +387,8 @@ class CavityVectorPotential(BaseVectorPotential):
             1j * np.einsum("kj,mj->km",kappa_vec,R) - 1j * omega * t
             )
 
-        # TE mode  
+        # TE mode, shape (k, i, m, j), 
+        # k = #k-vec, m = #atoms, i = 1 (# polarize), j = 3
         f_te = expkz * np.sin(
             np.einsum("k,m->km",self.kz,R[:,-1].ravel()))
 
@@ -394,7 +397,8 @@ class CavityVectorPotential(BaseVectorPotential):
 
         f_te = f_te * eta
 
-        #TM mode
+        #TM mode, shape (k, i, m, j), 
+        # k = #k-vec, m = #atoms, i = 1 (# polarize), j = 3
         coskz = np.cos(
             np.einsum("k,m->km",self.kz,R[:,-1].ravel())
             ) * expkz
@@ -415,6 +419,7 @@ class CavityVectorPotential(BaseVectorPotential):
 
         f_tm = coskz * z_vec - 1j * sinkz * kappa
 
+        # concatenate along the i axis => 2 polarize
         f_r = np.concatenate((f_te, f_tm), axis = 1)
         return f_r
 
@@ -428,22 +433,24 @@ class CavityVectorPotential(BaseVectorPotential):
         k_vec = self.k_vector
         kappa_vec = np.hstack([
             self.k_vector[:,:2], np.zeros((len(self.k_vector),1))
-            ])
+            ]) # shape (k, l), l = 3
 
         kz = np.tile(self.kz[:,np.newaxis], (1,len(R)))
 
         C = self.C / np.sqrt(self.V)
         
+        # tiling omega to shape (k,m), k = #k-vectors, m = #atoms
         omega = np.tile(self.omega[:,np.newaxis], (1, R.shape[0]))
 
-        # evaluate mode function at time t and positions vector R
+        # evaluate mode function at time t and positions vector R, shape (k,i,m,j)
         gradf_R = self.mode_function(t, R)
 
         # calculating the gradient along the x and y axis (kappa vector) 
+        # basically outer product  similar to free field 
         # l = 2 as differentiating along the z axis is ommitted
-        gradf_R = np.einsum("kimj,kl->lkimj", gradf_R, 1j * kappa_vec[:,:2] )
+        gradf_R = np.einsum("kimj,kl->lkimj", gradf_R, 1j * kappa_vec[:,:2] ) # l = 2
 
-        #calculating the gradient along the z axis
+        #calculating exponential part without z: exp(i * kappa * r - i * omega * t)
         expkz = np.exp(
             1j * np.einsum("kj,mj->km",kappa_vec,R) - 1j * omega * t
             )
