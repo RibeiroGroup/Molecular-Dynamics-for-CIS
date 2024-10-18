@@ -173,13 +173,13 @@ def calc_ACF(array):
 def choose_window(data, kind='string'):
     if kind == 'Gaussian':
         sigma = 2 * math.sqrt(2 * math.log(2))
-        window = signal.gaussian(len(data), std=4000.0/sigma, sym=False)
+        window = signal.windows.gaussian(len(data), std=4000.0/sigma, sym=False)
     elif kind == 'BH':
-        window = signal.blackmanharris(len(data), sym=False)
+        window = signal.windows.blackmanharris(len(data), sym=False)
     elif kind == 'Hamming':
-        window = signal.hamming(len(data), sym=False)
+        window = signal.windows.hamming(len(data), sym=False)
     elif kind == 'Hann':
-        window = signal.hann(len(data), sym=False)
+        window = signal.windows.hann(len(data), sym=False)
     return window
 
 
