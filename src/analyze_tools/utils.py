@@ -30,13 +30,23 @@ def profiling_rad(omega_list,Hrad):
     return unique_omega, rad_profile
 
 
-def field_spectra(result_dict, convert_function, limit = None):
+def field_spectra(result_dict, convert_function, limit = None, mode = None):
+    '''
+    Calcualte the spectra by calculating the field energy of each k-vector
+    args:
+
+    '''
     rad_profile = []
     
     Afield = result_dict["field"]
     
     rad_energy = np.array(Afield.history["energy"][-1]) \
         - np.array(Afield.history["energy"][0])
+
+    if mode == 'absolute':
+        rad_energy = np.abs(rad_energy)
+    elif mode == 'positive':
+        rad_energy = np.where(rad_energy > 0, rad_energy, 0)
 
     rad_energy = convert_function['energy'](rad_energy, "ev") 
 
