@@ -16,6 +16,9 @@ def check_path(path):
 def profiling_rad(omega_list,Hrad):
     """
     Calculate the energy of the field for each unique wavenumbers.
+    + omega_List (np.array): array of all omega value (may contain duplications)
+    + Hrad ( np.array): 2D array of hamiltonian of the electromagnetic field
+        shape T x N with T #samples over time and N is the number of omega-frequencies
     """
 
     unique_omega = list(set(np.round(omega_list,decimals = 6)))
@@ -24,8 +27,10 @@ def profiling_rad(omega_list,Hrad):
 
     for i, omega in enumerate(unique_omega):
         rad_profile.append(
-                np.sum(Hrad[np.isclose(omega_list, omega)])
+                np.sum(Hrad[:,np.isclose(omega_list, omega)], axis = 1)
                 )
+
+    rad_profile = np.array(rad_profile)
 
     return unique_omega, rad_profile
 
@@ -38,22 +43,26 @@ def field_spectra(result_dict, convert_function, limit = None, mode = None):
     '''
     rad_profile = []
     
-    Afield = result_dict["field"]
-    
-    rad_energy = np.array(Afield.history["energy"][-1]) \
-        - np.array(Afield.history["energy"][0])
-
-    if mode == 'absolute':
-        rad_energy = np.abs(rad_energy)
-    elif mode == 'positive':
-        rad_energy = np.where(rad_energy > 0, rad_energy, 0)
-    elif mode == 'negative':
-        rad_energy = abs(np.where(rad_energy < 0, rad_energy, 0))
-
+    rad_energy = np.array(result_dict["field"].history['energy'])
     rad_energy = convert_function['energy'](rad_energy, "ev") 
 
-    omega = convert_function['wavenumber'](Afield.k_val)
-    omega_profile, final_rad_profile = profiling_rad(omega, rad_energy)
+    omega = convert_function['wavenumber'](
+        np.array(result_dict["field"].k_val))
+
+    # omega_profile.shape = N, rad_profile.shape = (N, T)
+    omega_profile, rad_profile = profiling_rad(omega, rad_energy) 
+
+    if mode == 'abs':
+        final_rad_profile = abs(rad_profile[:,-1] - rad_profile[:,0])
+    elif mode == 'std':
+        meanee = np.tile(
+            np.mean(rad_profile,axis = 1)[:,np.newaxis],
+            rad_profile.shape[1])
+        final_rad_profile = np.sqrt(np.sum(
+            (rad_profile - meanee)**2, 
+            axis = 1) / rad_profile.shape[1])
+    else:
+        raise Exception('Invalid Argument mode:', mode)
     
     foo = np.argsort(omega_profile)
     omega_profile = np.array(omega_profile)[foo]
