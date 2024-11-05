@@ -47,6 +47,8 @@ def field_spectra(result_dict, convert_function, limit = None, mode = None):
         rad_energy = np.abs(rad_energy)
     elif mode == 'positive':
         rad_energy = np.where(rad_energy > 0, rad_energy, 0)
+    elif mode == 'negative':
+        rad_energy = abs(np.where(rad_energy < 0, rad_energy, 0))
 
     rad_energy = convert_function['energy'](rad_energy, "ev") 
 
