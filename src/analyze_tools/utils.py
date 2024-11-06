@@ -49,7 +49,7 @@ def field_spectra(result_dict, convert_function, limit = None, mode = None):
     omega = convert_function['wavenumber'](
         np.array(result_dict["field"].k_val))
 
-    # omega_profile.shape = N, rad_profile.shape = (N, T)
+    # omega_profile.shape = N, rad_profile.shape = (N, T) T == time
     omega_profile, rad_profile = profiling_rad(omega, rad_energy) 
 
     if mode == 'abs':
