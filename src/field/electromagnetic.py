@@ -278,11 +278,17 @@ class FreeVectorPotential(BaseVectorPotential):
 
         omega = np.tile(self.omega[:,np.newaxis], (1, R.shape[0]))
 
-        # free field mode function and c.c., a.k.a. exp(ikr) exp(-i \omega t) + c.c
+        # calculate exp( k*r - omega * t )
+        # shape: k * m with is k is number of k-vector and m is number of points in R
         f_R = np.exp(
             1j * np.einsum("kj,mj->km",k_vec,R) - 1j * omega * t) # j = 3
 
+        # repeating (tiling) exp( k*r - omega * t )
+        # k * m -> k * 2 * m * 3
         f_R = np.tile(f_R[:,np.newaxis,:,np.newaxis],(1,2,1,3))
+
+        # repeating (tiling) polarization vector
+        # new shape  k * 2 * m * 3
         pol_vec = np.tile(pol_vec[:,:,np.newaxis,:], (1,1,len(R),1))
 
         f_R = f_R * pol_vec
@@ -290,6 +296,15 @@ class FreeVectorPotential(BaseVectorPotential):
         return f_R
 
     def grad_mode_func(self, t, R):
+        """
+        Calculate the gradient of the mode function:
+        Args:
+        + t (float): time
+        + R (np.array): position. SIZE: N x 3 for N is number of points 
+            where the field is evaluated.
+        Return:
+        +
+        """
 
         k_vec = self.k_vector
 
