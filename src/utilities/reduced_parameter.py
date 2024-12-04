@@ -4,7 +4,7 @@ import numpy as np
 import scipy.constants as scicon
 from scipy.constants import physical_constants, Avogadro, e as e_charge, hbar as hbar_original
 
-test = 0
+test = 1
 
 c = 1.37e2
 boltzmann = 1.380649e-16 #UNIT: (erg/K)
@@ -183,37 +183,3 @@ if test:
 
     print(hbar)
 
-    """
-    fig,ax = plt.subplots(1,2,figsize = (12,4))
-
-    dist_list = np.linspace(1,3,100)
-
-    def LJ_potential(sigma, epsilon, distance):
-
-        V = 4 * epsilon * ( (sigma/distance)**12 - (sigma/distance)**6 )
-
-        return V
-
-    potential = list(
-        map(lambda d: LJ_potential(sigma_Ar_Ar, epsilon_Ar_Ar, d), dist_list))
-    ax[0].plot(dist_list, potential,label = "Ar-Ar potential")
-
-    potential = list(
-        map(lambda d: LJ_potential(sigma_Ar_Xe, epsilon_Ar_Xe, d), dist_list))
-    ax[0].plot(dist_list, potential,label = "Ar-Xe potential")
-    
-    potential = list(
-        map(lambda d: LJ_potential(sigma_Xe_Xe, epsilon_Xe_Xe, d), dist_list))
-    ax[0].plot(dist_list, potential,label = "Xe-Xe potential")
-
-    dist_list = np.linspace(1,3,100)
-
-    dipole = list(
-        map(lambda d: mu0 * np.exp(-a * (d - d0)), dist_list
-        )) 
-    ax[1].plot(dist_list, dipole,label = "Ar-Xe Dipole")
-
-    ax[0].legend()
-    fig.savefig("figure/parameter_visual.jpeg",dpi = 600)
-
-    """
