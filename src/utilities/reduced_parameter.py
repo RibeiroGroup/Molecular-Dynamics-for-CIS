@@ -115,7 +115,7 @@ def convert_energy(array, unit):
             'The specified unit is not supported. Please specify either "ev" or "cm-1"!')
 
 def convert_wavenumber(array):
-    # convert wavenumber array from r.u. to 1/cm
+    # convert wavenumber array from 1/r.u. to 1/cm
     array = deepcopy(array) / (sigma * 2 * np.pi)
     return array
 
