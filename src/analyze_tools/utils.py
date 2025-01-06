@@ -44,7 +44,10 @@ def field_spectra(result_dict, convert_function, limit = None, mode = None):
     rad_profile = []
     
     rad_energy = np.array(result_dict["field"].history['energy'])
-    rad_energy = convert_function['energy'](rad_energy, "ev") 
+    try:
+        rad_energy = convert_function['energy'](rad_energy, "ev") 
+    except KeyError:
+        pass
 
     omega = convert_function['wavenumber'](
         np.array(result_dict["field"].k_val))
