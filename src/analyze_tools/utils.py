@@ -57,6 +57,10 @@ def field_spectra(result_dict, convert_function, limit = None, mode = None):
 
     if mode == 'abs':
         final_rad_profile = abs(rad_profile[:,-1] - rad_profile[:,0])
+    elif mode == 'final':
+        final_rad_profile = rad_profile[:,-1]
+    elif mode == 'initial':
+        final_rad_profile = rad_profile[:,0]
     elif mode == 'std':
         meanee = np.tile(
             np.mean(rad_profile,axis = 1)[:,np.newaxis],
