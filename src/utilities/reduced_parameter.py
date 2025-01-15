@@ -162,6 +162,7 @@ if test:
     print("mu0 = ",mu0)
     print("a = ",a)
     print("d0 = ",d0)
+    print("d7 = ",d7)
 
     print("CGS dipole parameter:")
     print("mu0 = ",mu0 * dipole_unit)
@@ -171,6 +172,7 @@ if test:
     print("######################")
     print("Time", time_unit)
     print("Velocity multiple (cm/s)", velocity_unit)
+    print("Temperature ", temp)
 
     print("######################")
     print("c: ", c)
