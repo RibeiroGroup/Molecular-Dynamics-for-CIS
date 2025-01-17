@@ -311,11 +311,19 @@ for i in range(final_cycle_num + 1, final_cycle_num + 1 + num_cycles):
     r_ar, r_xe = sample["r"]
     r_dot_ar, r_dot_xe = sample["r_dot"]
 
+    # initiate atoms box
     atoms = initiate_atoms_box(Lxy, Lz)
+
+    # first add argons coordinate and velocity
     atoms.add(elements = ["Ar"]*len(r_ar),r = r_ar,r_dot = r_dot_ar)
+    # then concatenate argons coordinate and velocity
     atoms.add(elements = ["Xe"]*len(r_xe),r = r_xe,r_dot = r_dot_xe)
 
-    atoms.update_distance()
+    # note that the position and velocity array is nicely arrange:
+    # [r_{Ar,1}, r_{Ar,2}, ... , r_{Ar,N}, r_{Xe,1}, r_{Xe,2}, ... , r_{Xe,N}]
+
+    # update atom pairwise distance
+    atoms.update_distance() 
 
     t, result = single_collision_simulation(
             cycle_number = i, atoms = atoms, t0 = t, h = h,

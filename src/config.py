@@ -33,14 +33,19 @@ zlabel = 'microz'
 ### MATTER ###
 ##############
 
-N_atom_pairs = 768
-K_temp = 200
+N_atom_pairs = 256
 
 mu0 = red.mu0
 
 cw_get = lambda L: np.max((L/1e2, 10))
 
 def initiate_atoms_box(Lxy, Lz):
+    """
+    Generate an empty atom box with no atoms.
+    Args:
+    + Lxy (float): 
+    + Lz (float):
+    """
     atoms = AtomsInBox(
         Lxy = Lxy, Lz= Lz, cell_width = (cw_get(Lxy), cw_get(Lz)), 
         mass_dict = red.mass_dict)

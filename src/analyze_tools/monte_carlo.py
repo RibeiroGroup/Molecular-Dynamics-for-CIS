@@ -36,6 +36,8 @@ def get_colliding_time(
     for i in range(traj_len):
         r = atoms.trajectory["r"][i]
 
+        # Note that simulation run from simulation_monte.py arrange argons' and xenon' indices separately
+        # e.g. R = [r_{Ar,1}, r_{Ar,2}, ... , r_{Ar,N}, r_{Xe,1}, r_{Xe,2}, ... , r_{Xe,N}]
         r_ar = r[0:N_pairs]
         r_xe = r[N_pairs:]
         dvec = (r_ar - r_xe)
