@@ -33,7 +33,7 @@ zlabel = 'microz'
 ### MATTER ###
 ##############
 
-N_atom_pairs = 256
+N_atom_pairs = 512
 
 mu0 = red.mu0
 
