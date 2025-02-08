@@ -1,10 +1,14 @@
 import numpy as np
 import utilities.reduced_parameter as red
+from scipy.signal import argrelmax
 
 #def get_full_dipole():
 
 def get_colliding_time(
-        atoms, dipole_threshold, convert_time = True, mu0 = red.mu0, 
+        atoms, 
+        dipole_threshold, 
+        #distance_threshold,
+        convert_time = True, mu0 = red.mu0, 
         ):
     """
     Calculating the collision time for each pairs of colliding Argon-Xenon
@@ -46,21 +50,49 @@ def get_colliding_time(
         dlist.append(d)
 
         dipole = mu0 * np.exp(-red.a * (d - red.d0)) - red.d7/d**7
-
         dipole_vs_time.append(dipole)
 
     dipole_vs_time = np.array(dipole_vs_time)
     dlist = np.array(dlist)
 
     colliding_time = []
+    dipole_maxima = []
+
     for i in range(dipole_vs_time.shape[1]):
 
-        t = time[dipole_vs_time[:,i] > dipole_threshold]
+        d = dipole_vs_time[:,i]
+        t = time[d > dipole_threshold]
+        #t = time[dlist[:,i] < distance_threshold]
+        d = np.where(d < 1e-4, 0, d)
 
         if len(t) > 0:
             dt = t[-1] - t[0]
-        else: dt = 0
+            maxima = argrelmax(d)[0]
+
+            """
+            if len(maxima) == 2:
+                if min(d[maxima[0]:maxima[-1]]) < 0.1 * max(d):
+                    ndm = len(maxima)
+                else:
+                    ndm = 1
+            elif len(maxima) > 2:
+                ndm = len(maxima)
+            else:
+                ndm = 1
+
+            """
+            ndm = 1
+            if len(maxima) > 1:
+                for j in range(1,len(maxima)):
+                    if min(d[maxima[j-1]:maxima[j]]) < 0.5  * max(d[maxima[j-1]:maxima[j]]):
+                        ndm += 1
+
+        else:
+            dt = 0
+            ndm = 0
 
         colliding_time.append(dt)
+        dipole_maxima.append(ndm)
 
-    return colliding_time
+
+    return colliding_time, dipole_maxima
