@@ -104,12 +104,9 @@ if args.field and not args.cont:
 
         print("Notice: exhaustively generating modes")
         # get the minimum and maximum integer for generating the external modes
-        #possible_external_k = [0] + list(range(args.min_mode,args.max_mode)) 
-        #kvector_int = np.array(
-        #    EM_mode_exhaust(possible_external_k, max_kval = args.max_mode), dtype=np.float64)
+        possible_external_k = [0] + list(range(args.min_mode,args.max_mode)) 
         kvector_int = np.array(
-                [[i,0,0] for i in range(args.min_mode,args.max_mode)]\
-                )
+            EM_mode_exhaust(possible_external_k, max_kval = args.max_mode), dtype=np.float64)
         print("Notice: There are {} external mode".format(len(kvector_int)))
 
 elif args.cont:
@@ -136,11 +133,9 @@ if args.field:
 
     if args.reduce_zdim:
         pickle_jar_path += '-' + config.zlabel
-        if args.double_zdim:
-            raise Exception('Error! both double z dim and reduce z dim are provided!')
 
-    if args.double_zdim:
-        pickle_jar_path += '-' + config.zlabel2
+    if args.reduce_zdim:
+        pickle_jar_path += '-' + config.zlabel
 
 print('path', pickle_jar_path)
 if os.path.isdir(pickle_jar_path):
@@ -235,12 +230,6 @@ elif not exist_jar_flag:
                 config.zlabel)
             )
         Lz = config.Lz_red
-    elif args.double_zdim:
-        print(
-            "Notice: the z dimension of the simulated box is doubled, with code {} see config.py for info".format(
-                config.zlabel2)
-            )
-        Lz = config.Lz_double
     else:
         Lz = config.Lz
 
