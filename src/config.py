@@ -29,8 +29,8 @@ Lz  = l * 1e7
 Lz_red  = l * 1e3
 zlabel = 'microz'
 
-Lz_double  = l * 2e7
-zlabel2 = 'doublez'
+Lxy_double  = l * 2e7
+xlabel2 = 'doublex'
 ##############
 ### MATTER ###
 ##############
@@ -80,9 +80,12 @@ default_kvector_int = np.array(
 
 coupling_strength_dict = {
         "Lxy": Lxy,
+        "Lxy5": Lxy * 5,
         "Lxy1e1": Lxy * 1e1,
+        "Lxy1e1s": Lxy * 1e1 * np.sqrt(2),
         "Lxy15": Lxy * 15,
         "Lxy2e1": Lxy * 2e1,
+        "Lxy2e1s": Lxy * 2e1 * np.sqrt(2),
         "Lxy3e1": Lxy * 3e1,
         "Lxy4e1": Lxy * 4e1,
         }

@@ -65,6 +65,10 @@ parser.add_argument(
     help = 'Reduce the dimension along the z axis (1 micrometer)'
 )
 parser.add_argument(
+    "--double_xdim", "-d", type = int,
+    help = 'Double the dimension along the x (and also y) axis (2 centimeter)'
+)
+parser.add_argument(
     "--reset", type = int,
     help = "reset the field between simulation cycles",
     default = 1
@@ -133,6 +137,9 @@ if args.field:
     if args.reduce_zdim:
         pickle_jar_path += '-' + config.zlabel
 
+    if args.double_xdim:
+        pickle_jar_path += '-' + config.xlabel2
+
 print('path', pickle_jar_path)
 if os.path.isdir(pickle_jar_path):
     if not args.cont: 
@@ -163,6 +170,7 @@ if exist_jar_flag:
     with open(pickle_jar_path+"/metadata.pkl","rb") as handle:
         info_dict = pickle.load(handle)
 
+    # load all simulation data from metadata.pkl
     locals().update(info_dict)
 
     # get dict of {"cycle numbers": path to pickle}
@@ -218,8 +226,6 @@ elif not exist_jar_flag:
         coupling_strength = 1
         print("Notice: coupling strength is 1")
 
-    Lxy = config.Lxy
-
     if args.reduce_zdim:
         print(
             "Notice: the z dimension of the simulated box is reduced, with code {} see config.py for info".format(
@@ -228,6 +234,15 @@ elif not exist_jar_flag:
         Lz = config.Lz_red
     else:
         Lz = config.Lz
+
+    if args.double_xdim:
+        print(
+            "Notice: the x dimension of the simulated box is doubled, with code {} see config.py for info".format(
+                config.xlabel2)
+            )
+        Lxy = config.Lxy_double
+    else:
+        Lxy = config.Lxy
 
     sampler = AllInOneSampler(
             N_atom_pairs=config.N_atom_pairs, 
@@ -310,6 +325,8 @@ if first_run_flag:
 t = 0
 for i in range(final_cycle_num + 1, final_cycle_num + 1 + num_cycles):
     np.random.seed(seed_list[i])
+    print(Lxy)
+    print(Lz)
 
     sample = sampler()
     r_ar, r_xe = sample["r"]
