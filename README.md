@@ -53,5 +53,6 @@ Here the procedure:
 - 2: Initiate the `Calculator (src/calculator/calculator.py)` object and fill in the parameter
 - 3: Add the `Calculator` to `AtomsInBox`.
 - 4: Initiate `FreeVectorPotential` or `CavityVectorPotential` from `src/field/electromagnetic.py`
-- 5: Call `single_collision_simulation` from `src/simulation/single.py` to propagate from start to finish the above objects  
+- 5: Call `single_collision_simulation` from `src/simulation/single.py` to propagate from start to finish the above objects    
+
 Please examine the source code described above for details on how to initiate aforementioned objects, or examine `analyze_single.ipynb, error.ipynb, animation.ipynb` for examples.
