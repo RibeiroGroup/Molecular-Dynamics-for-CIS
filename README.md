@@ -3,9 +3,8 @@
 By Tuan Nguyen
 
 ## DEPENDENCIES:
-python >= 3.10 (lower version is probably okay)  
-numpy  
-matplotlib  
+Python, Numpy, Scipy, and Matplotlib. The version is not crucial as long as Python>=3.0.  
+Should you have any trouble running my code, feel free to use req.txt to set up Python virtual environments identical to mine.   
 
 ## USAGE
 ### Running simulation from command line
@@ -54,4 +53,5 @@ Here the procedure:
 - 2: Initiate the `Calculator (src/calculator/calculator.py)` object and fill in the parameter
 - 3: Add the `Calculator` to `AtomsInBox`.
 - 4: Initiate `FreeVectorPotential` or `CavityVectorPotential` from `src/field/electromagnetic.py`
-- 5: Call `single_collision_simulation` from `src/simulation/single.py` to propagate from start to finish the above objects
+- 5: Call `single_collision_simulation` from `src/simulation/single.py` to propagate from start to finish the above objects  
+Please examine the source code described above for details on how to initiate aforementioned objects, or examine `analyze_single.ipynb, error.ipynb, animation.ipynb` for examples.
