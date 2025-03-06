@@ -35,7 +35,7 @@ xlabel2 = 'doublex'
 ### MATTER ###
 ##############
 
-N_atom_pairs = 512
+N_atom_pairs = 256
 
 mu0 = red.mu0
 
