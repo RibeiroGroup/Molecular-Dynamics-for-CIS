@@ -368,9 +368,10 @@ class CavityVectorPotential(BaseVectorPotential):
         self.eta = []        # unit vector kappa x z_vec (cross product)
 
         for i, k in enumerate(kappa_vec):
+            # if x and y entries of k vector are zeroes, 
             if self.kappa[i] == 0.0:
-                # if x and y entries of k vector are zeroes, 
-                self.kappa_unit.append(np.array([1,0,0]))
+                # !
+                self.kappa_unit.append(np.array([1,0]))
                 self.eta.append(np.array([0,1,0]))
             else:
                 self.kappa_unit.append(k / self.kappa[i])
@@ -403,7 +404,7 @@ class CavityVectorPotential(BaseVectorPotential):
             )
 
         # TE mode, shape (k, i, m, j), 
-        # k = #k-vec, m = #atoms, i = 1 (# polarize), j = 3
+        # k = #k-vec, i = 1 (# polarize), m = #atoms, j = 3
         f_te = expkz * np.sin(
             np.einsum("k,m->km",self.kz,R[:,-1].ravel()))
 
