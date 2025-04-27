@@ -68,6 +68,23 @@ def field_spectra(result_dict, convert_function, limit = None, mode = None):
         final_rad_profile = np.sqrt(np.sum(
             (rad_profile - meanee)**2, 
             axis = 1) / rad_profile.shape[1])
+    elif mode == 'abs_dev':
+        #foo = np.tile(
+        #    rad_profile[:,0][:,np.newaxis],
+        #    rad_profile.shape[1])
+        foo = np.tile(
+            np.mean(rad_profile,axis = 1)[:,np.newaxis],
+            rad_profile.shape[1])
+        final_rad_profile = np.sum(
+            abs(rad_profile - foo), 
+            axis = 1) / rad_profile.shape[1]
+    elif mode == 'abs_avg':
+        foo = np.tile(
+            rad_profile[:,0][:,np.newaxis],
+            rad_profile.shape[1])
+        final_rad_profile = np.sum(
+            abs(rad_profile - foo), 
+            axis = 1) / rad_profile.shape[1]
     elif mode == 'fdt':
         meanee = np.tile(
             np.mean(rad_profile,axis = 1)[:,np.newaxis],
