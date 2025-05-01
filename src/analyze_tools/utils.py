@@ -157,7 +157,7 @@ class DipoleSpectra:
             dp_vel = np.sum(dp_vel , axis = 1)
 
         if self.time_frame: 
-            time = np.array(result_dict[i]['atoms'].observable['t'])
+            time = np.array(result_dict['atoms'].observable['t'])
             time -= time[0]
             dp_vel = dp_vel[(time > self.time_frame[0]) * (time < self.time_frame[1])]
 
