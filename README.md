@@ -2,6 +2,8 @@
 
 By Tuan Nguyen
 
+Source code for my paper on classical electrodynamics - molecular dynamics for modeling collision-induced spectroscopy and radiative association of Argon-Xenon. The preprint of the paper can be found on [ArXiv](https://arxiv.org/abs/2503.13742). 
+
 ## DEPENDENCIES:
 Python, Numpy, Scipy, and Matplotlib. The version is not crucial as long as Python>=3.0.  
 Should you have any trouble running my code, feel free to use req.txt to set up Python virtual environments identical to mine.   
